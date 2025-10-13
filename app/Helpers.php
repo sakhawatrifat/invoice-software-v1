@@ -375,11 +375,7 @@ if (!function_exists('handleImageUpload')) {
         try { 
             if($oldFile != null){
                 deleteUploadedFile($oldFile);
-            }       
-            // Remove the old file if it exists
-            // if ($oldFile && file_exists($oldFile)) {
-            //     unlink($oldFile);
-            // }
+            }
 
             $tempFileToDelete = null;
 
