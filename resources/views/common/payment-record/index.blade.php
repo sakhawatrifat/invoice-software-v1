@@ -206,7 +206,7 @@
 											<div class="input-item-wrap">
 												<label class="form-label">{{ $getCurrentTranslation['flight_date_range_label'] ?? 'flight_date_range_label' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
-													<div class="cursor-pointer dateRangePicker {{request()->flight_date_range ? 'filled' : 'empty'}}">
+													<div class="cursor-pointer dateRangePicker future-date {{request()->flight_date_range ? 'filled' : 'empty'}}">
 														<i class="fa fa-calendar"></i>&nbsp;
 														<span></span> <i class="fa fa-caret-down"></i>
 
