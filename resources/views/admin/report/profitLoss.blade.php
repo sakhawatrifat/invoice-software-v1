@@ -16,16 +16,22 @@
 						<a href="{{ route((Auth::user()->user_type == 'admin') ? 'admin.dashboard' : 'user.dashboard') }}" class="text-muted text-hover-primary">{{ $getCurrentTranslation['dashboard'] ?? 'dashboard' }}</a> &nbsp; - 
 					</li>
 					
-					<li class="breadcrumb-item">{{ $getCurrentTranslation['payment_list'] ?? 'payment_list' }}</li>
+					<li class="breadcrumb-item">{{ $getCurrentTranslation['profit_loss_report'] ?? 'profit_loss_report' }}</li>
 				</ul>
 			</div>
 			<div class="d-flex align-items-center gap-2 gap-lg-3">
-				@if(isset($createRoute) && !empty($createRoute))
-					<a href="{{ $createRoute }}" class="btn btn-sm fw-bold btn-primary">{{ $getCurrentTranslation['add_new_payment'] ?? 'add_new_payment' }}</a>
-				@endif
+				
 			</div>
 		</div>
 	</div>
+
+	<style>
+		.table.report-table th,
+		.table.report-table td{
+			padding-left: 15px;
+			padding-right: 15px;
+		}
+	</style>
 
 	<!--Main Content-->
 	<div id="kt_app_content" class="app-content flex-column-fluid">
@@ -42,8 +48,18 @@
 						</h2>
 						<div id="kt_accordion_1_body_1" class="accordion-collapse collapse show" aria-labelledby="kt_accordion_1_header_1" data-bs-parent="#kt_accordion_1">
 							<div class="accordion-body">
-								<form class="filter-data-form">
+								<form class="filter-data-form" method="get">
 									<div class="row">
+										<div class="col-md-3">
+											<div class="form-item mb-5">
+												@php
+													$selected = request()->search ?? '';
+												@endphp
+												<label class="form-label">{{ $getCurrentTranslation['search_label'] ?? 'search_label' }}:</label>
+												<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['search_placeholder'] ?? 'search_placeholder' }}" name="search" value="{{ $selected }}"/>
+											</div>
+										</div>
+
 										<div class="col-md-3">
 											<div class="input-item">
 												@php
@@ -187,7 +203,7 @@
 										</div>
 
 										<div class="col-md-3">
-											<div class="input-item">
+											<div class="input-item mb-5">
 												@php
 													$options = getWhereInModelData('Airline', 'status', [1]);
 													$selected = request()->airline_id ?? '';
@@ -203,14 +219,21 @@
 										</div>
 
 										<div class="col-md-3">
-											<div class="input-item-wrap">
+											<div class="input-item-wrap mb-5">
 												<label class="form-label">{{ $getCurrentTranslation['flight_date_range_label'] ?? 'flight_date_range_label' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
-													<div class="cursor-pointer dateRangePicker future-date {{request()->flight_date_range ? 'filled' : 'empty'}}">
+													@php
+														//$defaultStart = \Carbon\Carbon::today()->subDays(6)->format('Y/m/d'); // 6 days ago
+														//$defaultEnd = \Carbon\Carbon::today()->format('Y/m/d'); // today
+														//$selectedDateRange = request()->flight_date_range ?? "$defaultStart-$defaultEnd";
+
+														$selectedDateRange = request()->flight_date_range ?? null;
+													@endphp
+													<div class="cursor-pointer dateRangePicker future-date {{$selectedDateRange ? 'filled' : 'empty'}}">
 														<i class="fa fa-calendar"></i>&nbsp;
 														<span></span> <i class="fa fa-caret-down"></i>
 
-														<input autocomplete="off" class="col-sm-12 form-control dateRangeInput" name="flight_date_range" data-value="{{request()->flight_date_range ?? ''}}" style="position:absolute;top:0;left:0;width:100%;z-index:-999999;opacity:0;" />
+														<input autocomplete="off" class="col-sm-12 form-control dateRangeInput" name="flight_date_range" data-value="{{$selectedDateRange ?? ''}}" style="position:absolute;top:0;left:0;width:100%;z-index:-999999;opacity:0;" />
 													</div>
 													<span class="clear-date-range"><i class="fa fa-times"></i></span>
 												</div>
@@ -220,12 +243,17 @@
 											</div>
 										</div>
 
+
 										<div class="col-md-3">
-											<div class="input-item-wrap">
+											<div class="input-item-wrap mb-5">
 												<label class="form-label">{{ $getCurrentTranslation['invoice_date_range_label'] ?? 'invoice_date_range_label' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
 													@php
-														$selectedDateRange = request()->invoice_date_range ?? null;
+														// $defaultStart = \Carbon\Carbon::today()->subDays(6)->format('Y/m/d'); // 6 days ago
+														// $defaultEnd = \Carbon\Carbon::today()->format('Y/m/d'); // today
+														// $selectedDateRange = request()->invoice_date_range ?? "$defaultStart-$defaultEnd";
+
+														$selectedDateRange = request()->invoice_date_range ?? '';
 													@endphp
 													<div class="cursor-pointer dateRangePicker {{$selectedDateRange ? 'filled' : 'empty'}}">
 														<i class="fa fa-calendar"></i>&nbsp;
@@ -240,7 +268,6 @@
 												@enderror
 											</div>
 										</div>
-
 
 										<div class="col-md-3">
 											<div class="input-item mb-5">
@@ -364,10 +391,10 @@
 
 										<div class="col-md-12">
 											<div class="d-flex justify-content-end mt-0">
-												<button type="reset" class="btn btn-secondary btn-sm filter-reset-btn datatable-filter me-3">
+												<a class="btn btn-secondary btn-sm me-3" href="{{ route('admin.profitLossReport') }}?invoice_date_range={{ getDateRange(6, 'Previous') }}">
 													{{ $getCurrentTranslation['reset'] ?? 'reset' }}
-												</button>
-												<button type="button" class="btn btn-primary btn-sm filter-data-btn">
+												</a>
+												<button type="type" class="btn btn-primary btn-sm filter-data-btn">
 													{{ $getCurrentTranslation['filter'] ?? 'filter' }}
 												</button>
 											</div>
@@ -388,25 +415,284 @@
 			<div class="card rounded border mt-5 p-10 bg-white">
 				<div class="card-header p-0" style="min-height: unset">
 					<h3 class="card-title mb-3 mt-0">
-						{{ $getCurrentTranslation['payment_list'] ?? 'payment_list' }}
+						{{ $getCurrentTranslation['profit_loss_report'] ?? 'profit_loss_report' }}
 					</h3>
 				</div>
-				<table id="datatable" class="table table-rounded table-striped border gy-7 gs-7">
-					<thead>
-						<tr>
-							<th>#</th>
-							<th>{{ $getCurrentTranslation['invoice'] ?? 'invoice' }}</th>
-							<th>{{ $getCurrentTranslation['client_info'] ?? 'client_info' }}</th>
-							<th>{{ $getCurrentTranslation['trip_info'] ?? 'trip_info' }}</th>
-							<th>{{ $getCurrentTranslation['total_price'] ?? 'total_price' }}</th>
-							<th>{{ $getCurrentTranslation['issued_by'] ?? 'issued_by' }}</th>
-							{{-- <th>{{ $getCurrentTranslation['payment_status'] ?? 'payment_status' }}</th> --}}
-							<th>{{ $getCurrentTranslation['created_at'] ?? 'created_at' }}</th>
-							<th>{{ $getCurrentTranslation['created_by'] ?? 'created_by' }}</th>
-							<th>{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
-						</tr>
-					</thead>
-				</table>
+				<div class="card-body">
+					@php
+						// --- PREPROCESS: CALCULATE PAID & DUE AMOUNTS ---
+						$profitLossData = $profitLossData->map(function ($item) {
+							// Handle paymentData type safely
+							if (is_string($item->paymentData)) {
+								$payments = json_decode($item->paymentData, true);
+								if (json_last_error() !== JSON_ERROR_NONE) {
+									$payments = [];
+								}
+							} elseif (is_array($item->paymentData)) {
+								$payments = $item->paymentData;
+							} else {
+								$payments = [];
+							}
+
+							// Calculate total paid amount
+							$totalPaid = is_array($payments)
+								? collect($payments)->sum('paid_amount')
+								: 0;
+
+							// Calculate due amount
+							$dueAmount = $item->total_selling_price - $totalPaid;
+
+							// Attach computed fields to the item
+							$item->total_paid = $totalPaid;
+							$item->due_amount = $dueAmount;
+
+							return $item;
+						});
+
+						// --- SUMMARY CALCULATIONS ---
+						$summary = [
+							'total_airline' => $profitLossData->groupBy('airline_id')->count(),
+							'total_introduction_source' => $profitLossData->groupBy('introduction_source_id')->count(),
+							'total_country' => $profitLossData->groupBy('customer_country_id')->count(),
+							'total_issued_suppliers' => $profitLossData->pluck('issued_supplier_ids')
+								->map(function ($ids) {
+									if (is_string($ids)) {
+										return collect(json_decode($ids, true) ?? []);
+									} elseif (is_array($ids)) {
+										return collect($ids);
+									} else {
+										return collect([]);
+									}
+								})
+								->flatten()
+								->unique()
+								->count(),
+							'total_issued_by' => $profitLossData->groupBy('issued_by_id')->count(),
+							'total_trip_type' => $profitLossData->groupBy('trip_type')->count(),
+							'total_seat_confirmation' => $profitLossData->groupBy('seat_confirmation')->count(),
+							'total_mobility_assistance' => $profitLossData->groupBy('mobility_assistance')->count(),
+							'total_transit_visa_application' => $profitLossData->groupBy('transit_visa_application')->count(),
+							'total_halal_meal_request' => $profitLossData->groupBy('halal_meal_request')->count(),
+							'total_transit_hotel' => $profitLossData->groupBy('transit_hotel')->count(),
+							'total_transfer_to' => $profitLossData->groupBy('transfer_to_id')->count(),
+							'total_payment_method' => $profitLossData->groupBy('payment_method_id')->count(),
+							'total_issued_card_type' => $profitLossData->groupBy('issued_card_type_id')->count(),
+							'total_card_owner' => $profitLossData->groupBy('card_owner_id')->count(),
+
+							// Financial totals
+							'total_purchase_amount' => $profitLossData->sum('total_purchase_price'),
+							'total_selling_amount' => $profitLossData->sum('total_selling_price'),
+							'total_profit' => $profitLossData->sum('total_selling_price') - $profitLossData->sum('total_purchase_price'),
+
+							// NEW: Payment-based totals
+							'total_paid_amount' => $profitLossData->sum('total_paid'),
+							'total_due_amount' => $profitLossData->sum('due_amount'),
+						];
+
+						// --- PAYMENT STATUS SUMMARY ---
+						$paymentStatusSummary = $profitLossData
+							->groupBy(fn($item) => $item->payment_status ?: 'Unknown')
+							->map(function ($group) {
+								return [
+									'count' => $group->count(),
+									'total_purchase_amount' => $group->sum('total_purchase_price'),
+									'total_selling_amount' => $group->sum('total_selling_price'),
+									'total_profit' => $group->sum('total_selling_price') - $group->sum('total_purchase_price'),
+									'total_paid_amount' => $group->sum('total_paid'),
+									'total_due_amount' => $group->sum('due_amount'),
+								];
+							});
+						@endphp
+
+
+
+					{{-- ================= MAIN SUMMARY TABLE ================= --}}
+					<div class="row">
+						{{-- ================= PROFIT / LOSS SUMMARY ================= --}}
+						<div class="col-md-12">
+							<div class="card shadow-sm mb-4">
+								<div class="card-header bg-success text-white fw-bold align-items-center">
+									<h5 class="mb-0 text-white">
+										{{ $getCurrentTranslation['profit_loss_summary'] ?? 'profit_loss_summary' }}
+									</h5>
+								</div>
+								<div class="card-body">
+									<table class="report-table table table-bordered table-striped text-center mb-0">
+										<tbody>
+											<tr>
+												<th>{{ $getCurrentTranslation['total_purchase'] ?? 'total_purchase' }}</th>
+												<td>
+													{{ number_format($summary['total_purchase_amount'], 2) }}
+													{{ Auth::user()->company_data->currency->short_name ?? '' }}
+												</td>
+											</tr>
+
+											<tr>
+												<th>{{ $getCurrentTranslation['total_selling'] ?? 'total_selling' }}</th>
+												<td>
+													{{ number_format($summary['total_selling_amount'], 2) }}
+													{{ Auth::user()->company_data->currency->short_name ?? '' }}
+												</td>
+											</tr>
+
+											{{-- ✅ Dynamic Profit/Loss Row with Minus for Loss --}}
+											@php
+												$isProfit = $summary['total_profit'] >= 0;
+												$profitLossLabel = $isProfit
+													? ($getCurrentTranslation['total_profit'] ?? 'Total Profit')
+													: ($getCurrentTranslation['total_loss'] ?? 'Total Loss');
+												$profitLossClass = $isProfit ? 'table-success text-success' : 'table-danger text-danger';
+												$profitLossValue = $isProfit
+													? number_format($summary['total_profit'], 2)
+													: '-' . number_format(abs($summary['total_profit']), 2);
+											@endphp
+
+											<tr class="fw-bold {{ $profitLossClass }}">
+												<th>{{ $profitLossLabel }}</th>
+												<td>
+													{{ $profitLossValue }}
+													{{ Auth::user()->company_data->currency->short_name ?? '' }}
+												</td>
+											</tr>
+
+											{{-- ✅ Paid & Due BELOW Profit/Loss --}}
+											<tr>
+												<th class="table-primary fw-semibold">{{ $getCurrentTranslation['total_paid'] ?? 'total_paid' }}</th>
+												<td class="table-primary fw-semibold">
+													{{ number_format($summary['total_paid_amount'], 2) }}
+													{{ Auth::user()->company_data->currency->short_name ?? '' }}
+												</td>
+											</tr>
+
+											<tr>
+												<th class="table-warning fw-semibold">{{ $getCurrentTranslation['total_due'] ?? 'total_due' }}</th>
+												<td class="table-warning fw-semibold">
+													{{ number_format($summary['total_due_amount'], 2) }}
+													{{ Auth::user()->company_data->currency->short_name ?? '' }}
+												</td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+
+
+
+
+						
+						{{-- ================= PAYMENT STATUS ================= --}}
+						<div class="col-12">
+							<div class="card shadow-sm mb-4">
+								<div class="card-header bg-info text-white fw-bold align-items-center">
+									<h5 class="mb-0 text-white">
+										{{ $getCurrentTranslation['summary_by_payment_status'] ?? 'summary_by_payment_status' }}
+									</h5>
+								</div>
+								<div class="card-body">
+									<table class="report-table table table-bordered table-striped text-center align-middle mb-0">
+										<thead>
+											<tr>
+												<th class="bg-light">{{ $getCurrentTranslation['payment_status'] ?? 'payment_status' }}</th>
+												<th class="bg-light">{{ $getCurrentTranslation['total_count'] ?? 'total_count' }}</th>
+												<th class="bg-light">{{ $getCurrentTranslation['total_purchase_amount'] ?? 'total_purchase_amount' }}</th>
+												<th class="bg-light">{{ $getCurrentTranslation['total_selling_amount'] ?? 'total_selling_amount' }}</th>
+												<th class="table-success table-danger-text">{{ $getCurrentTranslation['total_profit_loss'] ?? 'total_profit_loss' }}</th>
+												<th class="table-primary">{{ $getCurrentTranslation['total_paid'] ?? 'total_paid' }}</th>
+												<th class="table-warning">{{ $getCurrentTranslation['total_due'] ?? 'total_due' }}</th>
+											</tr>
+										</thead>
+										<tbody>
+											@if(count($paymentStatusSummary))
+												@foreach ($paymentStatusSummary as $status => $data)
+													@php
+														$isProfit = $data['total_profit'] >= 0;
+														$profitLossClass = $isProfit ? 'table-success' : 'table-danger';
+														$profitLossValue = $isProfit
+															? number_format($data['total_profit'], 2)
+															: '-' . number_format(abs($data['total_profit']), 2);
+													@endphp
+
+													<tr>
+														<td>{{ $status }}</td>
+														<td>{{ $data['count'] }}</td>
+														<td>
+															{{ number_format($data['total_purchase_amount'], 2) }}
+															{{ Auth::user()->company_data->currency->short_name ?? '' }}
+														</td>
+														<td>
+															{{ number_format($data['total_selling_amount'], 2) }}
+															{{ Auth::user()->company_data->currency->short_name ?? '' }}
+														</td>
+
+														{{-- ✅ Profit/Loss with color background --}}
+														<td class="fw-semibold {{ $profitLossClass }}">
+															{{ $profitLossValue }}
+															{{ Auth::user()->company_data->currency->short_name ?? '' }}
+														</td>
+
+														{{-- ✅ Paid Column --}}
+														<td class="table-primary fw-semibold">
+															{{ number_format($data['total_paid_amount'], 2) }}
+															{{ Auth::user()->company_data->currency->short_name ?? '' }}
+														</td>
+
+														{{-- ✅ Due Column --}}
+														<td class="table-warning fw-semibold">
+															{{ number_format($data['total_due_amount'], 2) }}
+															{{ Auth::user()->company_data->currency->short_name ?? '' }}
+														</td>
+													</tr>
+												@endforeach
+											@else
+												<tr>
+													<td colspan="7" class="p-10">
+														{{ $getCurrentTranslation['no_data_found_for_selected_filter'] ?? 'no_data_found_for_selected_filter' }}
+													</td>
+												</tr>
+											@endif
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+
+
+					</div>
+
+					{{-- ================= OTHER SUMMARY ================= --}}
+					<div class="row">
+						<div class="col-md-12">
+							<div class="card shadow-sm mb-4">
+								<div class="card-header bg-primary text-white fw-bold align-items-center">
+									<h5 class="mb-0 text-white">{{ $getCurrentTranslation['summary_overview'] ?? 'summary_overview' }}</h5>
+								</div>
+								<div class="card-body">
+									<table class="report-table table table-bordered table-striped table-hover align-middle mb-0">
+										<tbody>
+											<tr><th>{{ $getCurrentTranslation['total_airline'] ?? 'total_airline' }}</th><td>{{ $summary['total_airline'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_introduction_source'] ?? 'total_introduction_source' }}</th><td>{{ $summary['total_introduction_source'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_country'] ?? 'total_country' }}</th><td>{{ $summary['total_country'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_issued_suppliers'] ?? 'total_issued_suppliers' }}</th><td>{{ $summary['total_issued_suppliers'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_issued_by'] ?? 'total_issued_by' }}</th><td>{{ $summary['total_issued_by'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_trip_type'] ?? 'total_trip_type' }}</th><td>{{ $summary['total_trip_type'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_seat_confirmation'] ?? 'total_seat_confirmation' }}</th><td>{{ $summary['total_seat_confirmation'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_mobility_assistance'] ?? 'total_mobility_assistance' }}</th><td>{{ $summary['total_mobility_assistance'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_transit_visa_application'] ?? 'total_transit_visa_application' }}</th><td>{{ $summary['total_transit_visa_application'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_halal_meal_request'] ?? 'total_halal_meal_request' }}</th><td>{{ $summary['total_halal_meal_request'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_transit_hotel'] ?? 'total_transit_hotel' }}</th><td>{{ $summary['total_transit_hotel'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_transfer_to'] ?? 'total_transfer_to' }}</th><td>{{ $summary['total_transfer_to'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_payment_method'] ?? 'total_payment_method' }}</th><td>{{ $summary['total_payment_method'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_issued_card_type'] ?? 'total_issued_card_type' }}</th><td>{{ $summary['total_issued_card_type'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_card_owner'] ?? 'total_card_owner' }}</th><td>{{ $summary['total_card_owner'] }}</td></tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+					</div>
+
+				</div>
 
 			</div>
 		</div>
@@ -418,92 +704,5 @@
 @push('script')
 <script>
 
-	var dataTable;
-	$(document).ready(function() {
-		// Serialize form data
-		var formData = $('.filter-data-form').serialize(); // e.g., "field1=value1&field2=value2"
-
-		// Get base URL and current query string
-		var queryString = window.location.search; // existing URL params
-		var baseUrl = '{{ $dataTableRoute }}';
-
-		// Combine base URL + existing query string + serialized form data
-		var finalUrl = baseUrl;
-		if (queryString) {
-			finalUrl += queryString + (formData ? '&' + formData : '');
-		} else if (formData) {
-			finalUrl += '?' + formData;
-		}
-
-		// Initialize DataTable
-		dataTable = $('#datatable').DataTable({
-			processing: true,
-			serverSide: true,
-			ajax: finalUrl,
-			searching: true,
-			dom: 'lfrtip',
-			columns: [
-				{ data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
-				{ data: 'payment_invoice_id', name: 'payment_invoice_id' },
-				{ data: 'client_name', name: 'client_name' },
-				{ data: 'trip_type', name: 'trip_type' },
-				{ data: 'total_selling_price', name: 'total_selling_price' },
-				{ data: 'issued_by_id', name: 'issued_by_id' },
-				{ data: 'created_at', name: 'created_at' },
-				{ data: 'created_by', name: 'created_by', orderable: false, searchable: true },
-				{ data: 'action', name: 'action', orderable: false, searchable: false }
-			]
-		});
-
-		$(document).on('click', '.filter-data-btn', function(e) {
-			e.preventDefault();
-
-			var formData = [];
-
-			// Handle all inputs (text, hidden, etc.)
-			$('.filter-data-form').find('input, textarea').each(function() {
-				var name = $(this).attr('name');
-				var value = $(this).val();
-				var isFixed = $(this).hasClass('fixed-value');
-
-				// Include if:
-				// - It has a name, and
-				// - (Either it's not empty OR it’s marked as fixed-value)
-				if (name && (value !== '' || isFixed)) {
-					formData.push({ name: name, value: value });
-				}
-			});
-
-			// Handle all selects (including Select2)
-			$('.filter-data-form select').each(function() {
-				var name = $(this).attr('name');
-				if (!name) return;
-
-				var values = $(this).val(); // array or string
-				var isFixed = $(this).hasClass('fixed-value');
-
-				if (values !== null && (values !== '' || isFixed)) {
-					if (Array.isArray(values)) {
-						values.forEach(function(val) {
-							formData.push({ name: name + '[]', value: val });
-						});
-					} else {
-						formData.push({ name: name, value: values });
-					}
-				}
-			});
-
-			// Convert to query string
-			var query = $.param(formData);
-			var newUrl = baseUrl + (queryString ? queryString + '&' : '?') + query;
-
-			// Reload DataTable
-			dataTable.ajax.url(newUrl).load();
-		});
-
-	});
-
-
 </script>
-@include('common._partials.tableAjaxScripts')
 @endpush

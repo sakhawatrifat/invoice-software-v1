@@ -446,3 +446,20 @@ td .mf-prev:before {
     object-position: center center;
     border-radius: 0% !important;
 }
+
+.p-sticky-wrapper {
+    position: relative;
+    overflow: initial;
+}
+
+.p-sticky-part {
+    position: sticky;
+    top: 70px;
+    z-index: 11;
+}
+
+@media (max-width: 991.98px) {
+    .p-sticky-part {
+        top: 0;
+    }
+}

@@ -97,6 +97,11 @@
         <script src="{{asset('/assets')}}/js/custom/utilities/modals/create-app.js"></script>
         <script src="{{asset('/assets')}}/js/custom/utilities/modals/new-target.js"></script>
         <script src="{{asset('/assets')}}/js/custom/utilities/modals/users-search.js"></script>
+
+        <!-- Chart JS -->
+        <script src="{{asset('assets')}}/js/chart.js"></script>
+        <script src="{{asset('assets')}}/js/chartjs-plugin-datalabels.js"></script>
+
         <script src="{{asset('/assets')}}/js/custom.js?v={{time()}}"></script>
 
         @include('common._partials.message')

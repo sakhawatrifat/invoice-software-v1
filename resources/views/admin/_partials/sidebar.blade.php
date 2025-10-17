@@ -456,6 +456,31 @@
 				@endif
 
 				@php
+					$reportRoutes = ['admin.profitLossReport'];
+				@endphp
+				@if(hasPermission('admin.profitLossReport'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($reportRoutes, 'hover show') }} d-none">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fas fa-book h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['manage_reports'] ?? 'manage_reports' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($reportRoutes, 'show') }}">
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.profitLossReport' ? 'active' : '' }}" href="{{ route('admin.profitLossReport') }}?invoice_date_range={{ getDateRange(6, 'Previous') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['profit_loss_report'] ?? 'profit_loss_report' }}</span>
+							</a>
+						</div>
+					</div>
+				</div>
+				@endif
+
+				@php
 					$homepageRoutes = ['admin.homepage.index','admin.homepage.datatable','admin.homepage.create','admin.homepage.store','admin.homepage.status','admin.homepage.show','admin.homepage.edit','admin.homepage.update','admin.homepage.destory'];
 				@endphp
 				@if(hasPermission('homepage.edit'))

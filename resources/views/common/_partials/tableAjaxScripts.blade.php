@@ -60,7 +60,7 @@
 
 
 
-    // Delete profile
+    // Delete data
     $(document).on('click', '.delete-table-data-btn', function (e) {
         e.preventDefault();
 
@@ -70,25 +70,64 @@
         let title = $(this).attr('title');
         title = title ? `(${title})` : '';
 
+        // Build optional checkbox HTML if confirm-relational-delete class exists
+        let extraHtml = '';
+        if (button.hasClass('confirm-relational-delete')) {
+            let relDelTitle = button.attr('rel-del-title') || '';
+            extraHtml = `
+                <div style="margin-top:10px; text-align:left;">
+                    <label style="font-weight:500; display:flex; align-items:center; justify-content: center; gap:6px; cursor:pointer; color:#ff0000; user-select: none">
+                        <input type="checkbox" id="rel-delete-confirm-checkbox" name="delete_relational_data" value="1" style="accent-color:#ff0000; border:2px solid #ff0000;">
+                        ${relDelTitle}
+                    </label>
+                </div>
+            `;
+        }
+
         Swal.fire({
             title: `${getCurrentTranslation.are_you_sure ?? 'are_you_sure'} ${title}`,
-			text: getCurrentTranslation.you_may_not_be_able_to_revert_this ?? 'you_may_not_be_able_to_revert_this',
+            html: `
+                <p>${getCurrentTranslation.you_may_not_be_able_to_revert_this ?? 'you_may_not_be_able_to_revert_this'}</p>
+                ${extraHtml}
+            `,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#3085d6',
             confirmButtonText: getCurrentTranslation.yes_delete_it ?? 'yes_delete_it',
             cancelButtonColor: '#d33',
             cancelButtonText: getCurrentTranslation.cancel ?? 'cancel',
+            didOpen: () => {
+                // Disable confirm button if checkbox exists
+                // if ($('#rel-delete-confirm-checkbox').length) {
+                //     Swal.disableConfirmButton();
+                //     $('#rel-delete-confirm-checkbox').on('change', function () {
+                //         if ($(this).is(':checked')) {
+                //             Swal.enableConfirmButton();
+                //         } else {
+                //             Swal.disableConfirmButton();
+                //         }
+                //     });
+                // }
+            }
         }).then((result) => {
             if (result.isConfirmed) {
                 $('.r-preloader').show();
 
+                // Prepare data payload
+                let requestData = {
+                    _token: '{{ csrf_token() }}'
+                };
+
+                // Add relational delete flag if checkbox exists and is checked
+                let relDeleteCheckbox = $('#rel-delete-confirm-checkbox');
+                if (relDeleteCheckbox.length && relDeleteCheckbox.is(':checked')) {
+                    requestData[relDeleteCheckbox.attr('name')] = relDeleteCheckbox.val();
+                }
+
                 $.ajax({
                     url: url,
                     type: 'DELETE',
-                    data: {
-                        _token: '{{ csrf_token() }}'
-                    },
+                    data: requestData,
                     success: function (response) {
                         $('.r-preloader').hide();
 
@@ -125,6 +164,7 @@
             }
         });
     });
+
 
 
 </script>

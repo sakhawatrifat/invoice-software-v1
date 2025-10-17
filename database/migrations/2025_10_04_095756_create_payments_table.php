@@ -32,11 +32,12 @@ return new class extends Migration
             $table->longText('destination')->nullable();
             $table->longText('flight_route')->nullable();
             $table->enum('seat_confirmation', ['Window', 'Aisle', 'Not Chosen'])->nullable();
-            $table->enum('mobility_assistance', ['Wheelchair', 'Baby Bassinet Seat', 'Meet & Assist'])->nullable();
+            $table->enum('mobility_assistance', ['Wheelchair', 'Baby Bassinet Seat', 'Meet & Assist', 'Not Chosen'])->nullable();
             $table->bigInteger('airline_id')->nullable();
             $table->enum('transit_visa_application', ['Need To Do', 'Done', 'No Need'])->nullable();
             $table->enum('halal_meal_request', ['Need To Do', 'Done', 'No Need'])->nullable();
             $table->enum('transit_hotel', ['Need To Do', 'Done', 'No Need'])->nullable();
+            $table->longText('note')->nullable();
 
             $table->bigInteger('transfer_to_id')->nullable();
             $table->bigInteger('payment_method_id')->nullable();

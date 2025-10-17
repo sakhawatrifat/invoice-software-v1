@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\AirlineController as AdminAirlineController;
 use App\Http\Controllers\Admin\HomepageController as AdminHomepageController;
 use App\Http\Controllers\Admin\LanguageController as AdminLanguageController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
 
 // Admin Controllers
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
@@ -169,6 +170,11 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
                 Route::post('/language/new-translate-key/{id}', 'newTranslateKey')->name('language.translate.key');
                 Route::put('/language/translate/{id}', 'translateUpdate')->name('language.translate.update');
                 Route::get('/language/translate/delete/{lang_key}', 'translateDelete')->name('language.translate.delete');
+            });
+
+            //Admin Report Routes
+            Route::controller(AdminReportController::class)->group(function () {
+                Route::get('/profit-loss-report', 'profitLossReport')->name('profitLossReport');
             });
         });
     });
@@ -350,7 +356,6 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::post('/ticket-reminder-mail-form', 'saveReminderInformation')->name('ticket.reminder.save');
 
         //Route::get('/reminder-mail', 'sendReminderMail');
-
     });
 
 

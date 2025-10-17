@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\Country;
 use App\Models\Reference;
 use App\Models\Ticket;
+use App\Models\TicketFlight;
+use App\Models\Payment;
 use App\Models\Language as LanguageModel;
 use App\Models\Translation;
 use Illuminate\Support\Facades\Route;
@@ -846,8 +848,8 @@ function extractPrimaryCity($text=null) {
 }
 
 if (!function_exists('getCities')) {
-    function getCities(){
-        return $intlAirportCities = [
+    function getCities() {
+        return [
             // North America
             'Atlanta', 'Austin', 'Baltimore', 'Boston', 'Charlotte', 'Chicago', 'Cleveland', 'Dallas',
             'Denver', 'Detroit', 'Houston', 'Las Vegas', 'Los Angeles', 'Miami', 'Minneapolis',
@@ -862,91 +864,70 @@ if (!function_exists('getCities')) {
             'Asuncion', 'La Paz', 'Santa Cruz', 'Brasilia', 'Rio de Janeiro', 'São Paulo',
             'Fortaleza', 'Recife', 'Curitiba', 'Manaus',
 
-            // Europe – Western
-            'Amsterdam', 'Athens', 'Barcelona', 'Birmingham', 'Brussels', 'Cologne', 'Copenhagen',
-            'Dublin', 'Edinburgh', 'Frankfurt', 'Geneva', 'Glasgow', 'Helsinki', 'Lisbon', 'London',
-            'Luxembourg', 'Madrid', 'Manchester', 'Milan', 'Munich', 'Nice', 'Oslo', 'Paris',
-            'Porto', 'Prague', 'Reykjavik', 'Rome', 'Stockholm', 'Stuttgart', 'Vienna', 'Zurich',
-            'Basel', 'Budapest', 'Warsaw', 'Krakow', 'Riga', 'Vilnius', 'Tallinn', 'Bratislava',
-            'Ljubljana', 'Belgrade', 'Sofia', 'Bucharest', 'Chisinau', 'Sarajevo', 'Zagreb', 'Skopje',
-            'Podgorica', 'Tbilisi',
+            // Europe – Western & Central
+            'Amsterdam', 'Athens', 'Barcelona', 'Basel', 'Belgrade', 'Bergen', 'Berlin', 'Bilbao',
+            'Birmingham', 'Bratislava', 'Brussels', 'Budapest', 'Bucharest', 'Cologne', 'Copenhagen',
+            'Dublin', 'Dubrovnik', 'Edinburgh', 'Frankfurt', 'Geneva', 'Glasgow', 'Helsinki',
+            'Innsbruck', 'Krakow', 'Lisbon', 'Ljubljana', 'London', 'Luxembourg', 'Lyon', 'Madrid',
+            'Manchester', 'Marseille', 'Milan', 'Munich', 'Nice', 'Oslo', 'Paris', 'Porto', 'Poznan',
+            'Prague', 'Reykjavik', 'Riga', 'Rome', 'Seville', 'Sofia', 'Split', 'Stockholm',
+            'Stuttgart', 'Tallinn', 'Valencia', 'Vienna', 'Vilnius', 'Warsaw', 'Wroclaw', 'Zagreb',
+            'Zurich',
 
-            // Europe – Mediterranean & Islands
-            'Malta', 'Larnaca', 'Paphos', 'Palma de Mallorca', 'Ibiza', 'Tenerife', 'Gran Canaria',
-            'Madeira', 'Faro', 'Catania', 'Naples', 'Palermo', 'Heraklion', 'Rhodes', 'Corfu',
+            // Mediterranean & Islands
+            'Alicante', 'Antalya', 'Bodrum', 'Cagliari', 'Catania', 'Corfu', 'Dalaman', 'Ercan',
+            'Faro', 'Funchal', 'Gran Canaria', 'Heraklion', 'Ibiza', 'Izmir', 'Larnaca', 'Malaga',
+            'Malta', 'Madeira', 'Mykonos', 'Naples', 'Olbia', 'Palermo', 'Paphos', 'Palma de Mallorca',
+            'Rhodes', 'Santorini', 'Tenerife',
 
             // Middle East
             'Abu Dhabi', 'Amman', 'Baghdad', 'Bahrain', 'Beirut', 'Damascus', 'Doha', 'Dubai',
-            'Jeddah', 'Kuwait City', 'Muscat', 'Riyadh', 'Sharjah', 'Tel Aviv',
+            'Jeddah', 'Kuwait City', 'Manama', 'Muscat', 'Riyadh', 'Sharjah', 'Tel Aviv',
 
             // South Asia
-            'Ahmedabad', 'Bangalore', 'Chennai', 'Cochin', 'Coimbatore', 'Colombo', 'Delhi',
-            'Dhaka', 'Chattogram', 'Hyderabad', 'Islamabad', 'Karachi', 'Kathmandu', 'Kolkata',
-            'Lahore', 'Male', 'Mumbai', 'Thiruvananthapuram', 'Trichy', 'Varanasi',
+            'Ahmedabad', 'Bangalore', 'Chattogram', 'Chennai', 'Cochin', 'Coimbatore', 'Colombo',
+            'Delhi', 'Dhaka', 'Hyderabad', 'Islamabad', 'Karachi', 'Kathmandu', 'Kolkata', 'Lahore',
+            'Male', 'Mumbai', 'Thiruvananthapuram', 'Trichy', 'Varanasi',
 
             // East & Southeast Asia
-            'Bangkok', 'Beijing', 'Busan', 'Chengdu', 'Chongqing', 'Dalian', 'Fukuoka', 'Guangzhou',
-            'Hangzhou', 'Hanoi', 'Harbin', 'Ho Chi Minh City', 'Hong Kong', 'Jakarta', 'Kaohsiung',
-            'Kota Kinabalu', 'Kuala Lumpur', 'Macau', 'Manado', 'Manila', 'Nagoya', 'Nanjing',
-            'Osaka', 'Phnom Penh', 'Qingdao', 'Seoul', 'Shanghai', 'Shenzhen', 'Singapore',
-            'Surabaya', 'Taipei', 'Tokyo', 'Ulaanbaatar', 'Vientiane', 'Yangon', 'Xiamen', 'Zhuhai',
-            'Cebu', 'Davao', 'Clark', 'Medan', 'Yogyakarta', 'Denpasar',
-
-            // Central Asia
-            'Almaty', 'Astana', 'Tashkent', 'Baku', 'Bishkek', 'Dushanbe', 'Ashgabat',
-
-            // Africa – North
-            'Algiers', 'Alexandria', 'Cairo', 'Casablanca', 'Marrakech', 'Tunis', 'Tripoli', 'Khartoum',
-            'Hurghada', 'Sharm El Sheikh',
-
-            // Africa – Sub-Saharan
-            'Accra', 'Addis Ababa', 'Abuja', 'Antananarivo', 'Banjul', 'Bamako', 'Cape Town',
-            'Dar es Salaam', 'Douala', 'Entebbe', 'Gaborone', 'Harare', 'Johannesburg', 'Kampala',
-            'Kigali', 'Kinshasa', 'Lagos', 'Libreville', 'Lilongwe', 'Lome', 'Luanda', 'Lusaka',
-            'Maputo', 'Mombasa', 'Monrovia', 'Nairobi', 'Ndjamena', 'Nouakchott', 'Port Louis',
-            'Windhoek', 'Zanzibar', 'Djibouti', 'Victoria', 'Moroni',
+            'Bangkok', 'Beijing', 'Busan', 'Chengdu', 'Chongqing', 'Clark', 'Dalian', 'Davao',
+            'Denpasar', 'Fukuoka', 'Guangzhou', 'Hangzhou', 'Hanoi', 'Harbin', 'Ho Chi Minh City',
+            'Hong Kong', 'Jakarta', 'Kaohsiung', 'Kota Kinabalu', 'Kuala Lumpur', 'Macau', 'Manado',
+            'Manila', 'Medan', 'Nagoya', 'Nanjing', 'Osaka', 'Phnom Penh', 'Qingdao', 'Seoul',
+            'Shanghai', 'Shenzhen', 'Singapore', 'Surabaya', 'Taipei', 'Tokyo', 'Ulaanbaatar',
+            'Vientiane', 'Xiamen', 'Yangon', 'Yogyakarta', 'Zhuhai', 'Cebu',
 
             // Central Asia & Caucasus
-            'Yerevan', 'Tbilisi', 'Baku', 'Ashgabat', 'Dushanbe', 'Tashkent', 'Astana', 'Almaty',
+            'Almaty', 'Ashgabat', 'Astana', 'Baku', 'Bishkek', 'Dushanbe', 'Tashkent', 'Yerevan',
+            'Tbilisi',
+
+            // Africa – North
+            'Algiers', 'Alexandria', 'Cairo', 'Casablanca', 'Hurghada', 'Khartoum', 'Marrakech',
+            'Sharm El Sheikh', 'Tripoli', 'Tunis',
+
+            // Africa – Sub-Saharan
+            'Abuja', 'Accra', 'Addis Ababa', 'Antananarivo', 'Bamako', 'Banjul', 'Cape Town',
+            'Dar es Salaam', 'Djibouti', 'Douala', 'Entebbe', 'Gaborone', 'Harare', 'Johannesburg',
+            'Kampala', 'Kigali', 'Kinshasa', 'Lagos', 'Libreville', 'Lilongwe', 'Lome', 'Luanda',
+            'Lusaka', 'Maputo', 'Mombasa', 'Monrovia', 'Moroni', 'Nairobi', 'Ndjamena', 'Nouakchott',
+            'Port Louis', 'Victoria', 'Windhoek', 'Zanzibar',
 
             // Oceania
-            'Auckland', 'Brisbane', 'Melbourne', 'Perth', 'Sydney', 'Adelaide', 'Cairns', 'Darwin',
-            'Gold Coast', 'Hobart', 'Wellington', 'Christchurch', 'Nadi', 'Suva', 'Port Moresby',
-            'Apia', 'Honiara', 'Pago Pago',
+            'Adelaide', 'Apia', 'Auckland', 'Brisbane', 'Cairns', 'Christchurch', 'Darwin',
+            'Gold Coast', 'Hobart', 'Melbourne', 'Nadi', 'Perth', 'Port Moresby', 'Suva', 'Sydney',
+            'Wellington', 'Honiara', 'Pago Pago',
 
             // Pacific & Territories
-            'Guam', 'Saipan', 'Honolulu',
+            'Guam', 'Honolulu', 'Saipan',
 
             // Caribbean
             'Aruba', 'Barbados', 'Bridgetown', 'Curacao', 'Freeport', 'Georgetown', 'Havana',
-            'Kingston', 'Montego Bay', 'Nassau', 'Port of Spain', 'Punta Cana', 'San Juan', 'Santo Domingo',
-            'St. Lucia', 'St. Maarten', 'Tortola',
-
-            // Central & Eastern Europe smaller hubs
-            'Gdansk', 'Katowice', 'Poznan', 'Wroclaw', 'Szczecin', 'Split', 'Dubrovnik', 'Bergen',
-            'Tromso', 'Bordeaux', 'Marseille', 'Lyon', 'Bilbao', 'Valencia', 'Seville', 'Zurich',
-            'Geneva', 'Basel', 'Innsbruck',
-
-            // Mediterranean & Tourism Hubs
-            'Antalya', 'Izmir', 'Bodrum', 'Dalaman', 'Ankara', 'Istanbul', 'Ercan', 'Larnaca',
-            'Funchal', 'Paphos', 'Rhodes', 'Santorini', 'Mykonos', 'Malaga', 'Alicante', 'Palma de Mallorca',
-            'Ibiza', 'Catania', 'Naples', 'Olbia', 'Cagliari', 'Tenerife', 'Gran Canaria', 'Faro', 'Madeira',
-
-            // Others – Key Global Transit & Emerging Hubs
-            'Doha', 'Dubai', 'Abu Dhabi', 'Sharjah', 'Muscat', 'Istanbul', 'Jeddah', 'Riyadh',
-            'Tel Aviv', 'Amman', 'Beirut', 'Kuwait City', 'Manama', 'Doha', 'Addis Ababa', 'Casablanca',
-            'Nairobi', 'Lagos', 'Johannesburg', 'Cape Town', 'Accra', 'Dar es Salaam', 'Kigali', 'Entebbe',
-            'Doha', 'Dubai', 'Singapore', 'Bangkok', 'Hong Kong', 'Tokyo', 'Seoul', 'Kuala Lumpur',
-            'Jakarta', 'Manila', 'Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Colombo', 'Dhaka',
-            'Istanbul', 'Frankfurt', 'Paris', 'London', 'Amsterdam', 'Zurich', 'Vienna', 'Doha', 'Dubai',
-            'New York', 'Chicago', 'Los Angeles', 'San Francisco', 'Toronto', 'Vancouver', 'Mexico City',
-            'São Paulo', 'Rio de Janeiro', 'Lima', 'Santiago', 'Buenos Aires', 'Sydney', 'Melbourne',
-            'Auckland', 'Brisbane'
+            'Kingston', 'Montego Bay', 'Nassau', 'Port of Spain', 'Punta Cana', 'San Juan',
+            'Santo Domingo', 'St. Lucia', 'St. Maarten', 'Tortola'
         ];
-
     }
-
 }
+
 
 if (!function_exists('detect_language')) {
     function detect_language($text, $simple = true)
@@ -1210,6 +1191,13 @@ if (!function_exists('getPermissionList')) {
                 ],
             ],
             [
+                'title' => 'manage_reports',
+                'for' => 'admin',
+                'permissions' => [
+                    ['title' => 'profit_loss_report', 'key' => 'admin.profitLossReport'],
+                ],
+            ],
+            [
                 'title' => 'manage_homepage',
                 'for' => 'admin',
                 'permissions' => [
@@ -1373,7 +1361,6 @@ if (!function_exists('getPrefillHotelData')) {
         return $data;
     }
 }
-
 
 
 if (!function_exists('seedCountries')) {
@@ -1587,3 +1574,424 @@ if (!function_exists('seedCountries')) {
         }
     }
 }
+
+if (!function_exists('determineRangeType')) {
+    function determineRangeType($startDate, $endDate)
+    {
+        $today = Carbon::today()->toDateString();
+        $yesterday = Carbon::yesterday()->toDateString();
+        $last7Days = Carbon::now()->subDays(6)->toDateString(); // 7 days includes today
+        $last30Days = Carbon::now()->subDays(29)->toDateString();
+        $firstDayOfThisMonth = Carbon::now()->firstOfMonth()->toDateString();
+        $lastDayOfLastMonth = Carbon::now()->subMonth()->endOfMonth()->toDateString();
+        $firstDayOfLastMonth = Carbon::now()->subMonth()->firstOfMonth()->toDateString();
+
+        if ($startDate === $today && $endDate === $today) {
+            return 'Today';
+        } elseif ($startDate === $yesterday && $endDate === $yesterday) {
+            return 'Yesterday';
+        } elseif ($startDate === $last7Days && $endDate === $today) {
+            return 'Last 7 Days';
+        } elseif ($startDate === $last30Days && $endDate === $today) {
+            return 'Last 30 Days';
+        } elseif ($startDate === $firstDayOfThisMonth && $endDate === $today) {
+            return 'This Month';
+        } elseif ($startDate === $firstDayOfLastMonth && $endDate === $lastDayOfLastMonth) {
+            return 'Last Month';
+        } else {
+            return 'Custom';
+        }
+    }
+}
+
+
+if (!function_exists('reportData')) {
+    function reportData($date_range = null)
+    {
+        $startDate = Carbon::now()->subDays(6)->toDateString();
+        $endDate = Carbon::today()->toDateString();
+
+        if (isset($date_range)) {
+            $dateRange = $date_range;
+            list($startDateString, $endDateString) = explode("-", $dateRange);
+            $startDate = date("Y-m-d", strtotime($startDateString));
+            $endDate = date("Y-m-d 23:59:59", strtotime($endDateString));
+        }
+
+        $rangeType = determineRangeType($startDate, $endDate); //keep the commented line
+
+        $totalSale = Payment::selectRaw("
+                DATE(pdata.date) as t_date,
+                SUM(CAST(pdata.paid_amount AS DECIMAL(10,2))) as total_amount
+            ")
+            ->from(DB::raw("
+                payments,
+                JSON_TABLE(
+                    payments.paymentData,
+                    '$[*]' COLUMNS(
+                        paid_amount DECIMAL(10,2) PATH '$.paid_amount',
+                        date DATETIME PATH '$.date'
+                    )
+                ) as pdata
+            "))
+            ->whereBetween('pdata.date', [$startDate, $endDate])
+            ->groupBy('t_date')
+            ->orderBy('t_date', 'asc')
+            ->get();
+
+        $totalAirline = Payment::selectRaw("
+            DATE(payments.invoice_date) as t_date,
+            airlines.name as airline_name,
+            COUNT(*) as airline_count
+        ")
+        ->join('airlines', 'airlines.id', '=', 'payments.airline_id')
+        ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+        ->groupBy('t_date', 'airlines.name')
+        ->orderBy('t_date', 'asc')
+        ->get()
+        ->map(function ($item) {
+            return [
+                'date_airline' => $item->t_date . "\n(" . $item->airline_name . ")", // ✅ correct newline
+                'airline_count' => $item->airline_count,
+            ];
+        });
+
+
+        $totalTransitCity = TicketFlight::where('is_transit', 0)
+            ->whereNotNull('parent_id')
+            ->whereBetween('departure_date_time', [$startDate, $endDate])
+            ->get()
+            ->groupBy(function ($flight) {
+                // Format group key as Y-m-d + city
+                $date = date('Y-m-d', strtotime($flight->departure_date_time));
+                return $date . "\n(" . $flight->from_city . ")";
+            })
+            ->map(function ($group, $key) {
+                return [
+                    'city_date' => $key,
+                    'total_transit_city' => $group->count(),
+                ];
+            })
+            // ✅ Sort by date extracted from the key before reindexing
+            ->sortBy(function ($item) {
+                return strtotime(explode("\n", $item['city_date'])[0]);
+            })
+            ->values();
+
+        $totalDepartureCity = TicketFlight::where('is_transit', 1)
+            ->whereNull('parent_id')
+            ->whereBetween('departure_date_time', [$startDate, $endDate])
+            ->get()
+            ->groupBy(function ($flight) {
+                // Group by formatted date + city
+                $date = date('Y-m-d', strtotime($flight->departure_date_time));
+                return $date . "\n(" . $flight->from_city . ")";
+            })
+            ->map(function ($group, $key) {
+                return [
+                    'city_date' => $key,
+                    'total_departure_city' => $group->count(),
+                ];
+            })
+            // ✅ Sort by date portion before reindexing
+            ->sortBy(function ($item) {
+                return strtotime(explode("\n", $item['city_date'])[0]);
+            })
+            ->values();
+        
+        $roundTripIds = Ticket::where('trip_type', 'Round Trip')->pluck('id')->toArray();
+        $totalReturnCity = TicketFlight::where('is_transit', 1)
+            ->whereNull('parent_id')
+            ->whereIn('ticket_id', $roundTripIds)
+            ->whereBetween('departure_date_time', [$startDate, $endDate])
+            ->get()
+            ->groupBy('ticket_id') // Group by ticket to get last flight per ticket
+            ->map(function ($flights, $ticketId) {
+                // Get the last flight (max departure_date_time)
+                $lastFlight = $flights->sortByDesc('departure_date_time')->first();
+
+                $date = date('Y-m-d', strtotime($lastFlight->departure_date_time));
+                $city = $lastFlight->to_city; // Use accessor to extract only city name
+
+                return [
+                    'city_date' => $date . "\n(" . $city . ")",
+                    'total_departure_city' => 1, // 1 per ticket
+                ];
+            })
+            ->groupBy('city_date') // Combine same city/date counts
+            ->map(function ($group, $key) {
+                return [
+                    'city_date' => $key,
+                    'total_departure_city' => $group->count(),
+                ];
+            })
+            ->sortBy(function ($item) {
+                return strtotime(explode("\n", $item['city_date'])[0]);
+            })
+            ->values();
+
+
+
+        $totalIntroductionSource = Payment::selectRaw("
+                DATE(payments.invoice_date) as t_date,
+                introduction_sources.name as r_title,
+                COUNT(*) as total_count
+            ")
+            ->join('introduction_sources', 'introduction_sources.id', '=', 'payments.introduction_source_id')
+            ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+            ->groupBy('t_date', 'introduction_sources.name')
+            ->orderBy('t_date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'title_date' => $item->t_date . "\n(" . $item->r_title . ")", // ✅ correct newline
+                    'total_count' => $item->total_count,
+                ];
+            });
+
+        $totalIssuedSupplier = Payment::selectRaw("
+                DATE(payments.invoice_date) as t_date,
+                issued_suppliers.name as r_title,
+                COUNT(*) as total_count
+            ")
+            ->join('issued_suppliers', function ($join) {
+                $join->whereRaw("JSON_CONTAINS(payments.issued_supplier_ids, JSON_QUOTE(CAST(issued_suppliers.id AS CHAR)))");
+            })
+            ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+            ->groupBy('t_date', 'issued_suppliers.name')
+            ->orderBy('t_date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'title_date' => $item->t_date . "\n(" . $item->r_title . ")", // same newline format
+                    'total_count' => $item->total_count,
+                ];
+            });
+
+        $totalCountry = Payment::selectRaw("
+                DATE(payments.invoice_date) as t_date,
+                countries.name as r_title,
+                COUNT(*) as total_count
+            ")
+            ->join('countries', 'countries.id', '=', 'payments.customer_country_id')
+            ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+            ->groupBy('t_date', 'countries.name')
+            ->orderBy('t_date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'title_date' => $item->t_date . "\n(" . $item->r_title . ")", // ✅ same structure
+                    'total_count' => $item->total_count,
+                ];
+            });
+
+        $totalIssuedBy = Payment::selectRaw("
+                DATE(payments.invoice_date) as t_date,
+                issued_bies.name as r_title,
+                COUNT(*) as total_count
+            ")
+            ->join('issued_bies', 'issued_bies.id', '=', 'payments.issued_by_id')
+            ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+            ->groupBy('t_date', 'issued_bies.name')
+            ->orderBy('t_date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'title_date' => $item->t_date . "\n(" . $item->r_title . ")", // same format
+                    'total_count' => $item->total_count,
+                ];
+            });
+        
+        $totalTransferTo = Payment::selectRaw("
+                DATE(payments.invoice_date) as t_date,
+                transfer_tos.name as r_title,
+                COUNT(*) as total_count
+            ")
+            ->join('transfer_tos', 'transfer_tos.id', '=', 'payments.transfer_to_id')
+            ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+            ->groupBy('t_date', 'transfer_tos.name')
+            ->orderBy('t_date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'title_date' => $item->t_date . "\n(" . $item->r_title . ")", // ✅ same format
+                    'total_count' => $item->total_count,
+                ];
+            });
+
+        $totalPaymentMethod = Payment::selectRaw("
+                DATE(payments.invoice_date) as t_date,
+                payment_methods.name as r_title,
+                COUNT(*) as total_count
+            ")
+            ->join('payment_methods', 'payment_methods.id', '=', 'payments.payment_method_id')
+            ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+            ->groupBy('t_date', 'payment_methods.name')
+            ->orderBy('t_date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'title_date' => $item->t_date . "\n(" . $item->r_title . ")", // ✅ same newline formatting
+                    'total_count' => $item->total_count,
+                ];
+            });
+
+        $totalCardType = Payment::selectRaw("
+                DATE(payments.invoice_date) as t_date,
+                issued_card_types.name as r_title,
+                COUNT(*) as total_count
+            ")
+            ->join('issued_card_types', 'issued_card_types.id', '=', 'payments.issued_card_type_id')
+            ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+            ->groupBy('t_date', 'issued_card_types.name')
+            ->orderBy('t_date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'title_date' => $item->t_date . "\n(" . $item->r_title . ")", // ✅ same newline format
+                    'total_count' => $item->total_count,
+                ];
+            });
+
+        $totalCardOwner = Payment::selectRaw("
+                DATE(payments.invoice_date) as t_date,
+                card_owners.name as r_title,
+                COUNT(*) as total_count
+            ")
+            ->join('card_owners', 'card_owners.id', '=', 'payments.card_owner_id')
+            ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+            ->groupBy('t_date', 'card_owners.name')
+            ->orderBy('t_date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'title_date' => $item->t_date . "\n(" . $item->r_title . ")", // ✅ correct newline
+                    'total_count' => $item->total_count,
+                ];
+            });
+
+        $totalTripTypePie = Payment::selectRaw("
+                trip_type as title,
+                COUNT(*) as count
+            ")
+            ->whereBetween('invoice_date', [$startDate, $endDate])
+            ->whereIn('trip_type', ['One Way', 'Round Trip', 'Multi City']) // ensure valid types
+            ->groupBy('trip_type')
+            ->orderByRaw("FIELD(trip_type, 'One Way', 'Round Trip', 'Multi City')")
+            ->get();
+
+        $totalPaymentMethodPie = Payment::selectRaw("
+                payment_methods.name as title,
+                COUNT(*) as count
+            ")
+            ->join('payment_methods', 'payment_methods.id', '=', 'payments.payment_method_id')
+            ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+            ->groupBy('payment_methods.name')
+            ->orderBy('payment_methods.name', 'asc')
+            ->get();
+
+        $totalIssuedCardTypePie = Payment::selectRaw("
+                issued_card_types.name as title,
+                COUNT(*) as count
+            ")
+            ->join('issued_card_types', 'issued_card_types.id', '=', 'payments.issued_card_type_id')
+            ->whereBetween('payments.invoice_date', [$startDate, $endDate])
+            ->groupBy('issued_card_types.name')
+            ->orderBy('issued_card_types.name', 'asc')
+            ->get();
+
+        $totalPaymentStatusPie = Payment::selectRaw("
+                payment_status as title,
+                COUNT(*) as count
+            ")
+            ->whereBetween('invoice_date', [$startDate, $endDate])
+            ->whereIn('payment_status', ['Unpaid', 'Paid', 'Partial', 'Unknown']) // ensure valid statuses
+            ->groupBy('payment_status')
+            ->orderByRaw("FIELD(payment_status, 'Unpaid', 'Paid', 'Partial', 'Unknown')")
+            ->get();
+
+
+
+
+
+
+        return [
+            'rangeType' => $rangeType,
+            'totalSale' => $totalSale,
+            'totalAirline' => $totalAirline,
+            'totalTransitCity' => $totalTransitCity,
+            'totalDepartureCity' => $totalDepartureCity,
+            'totalReturnCity' => $totalReturnCity,
+            'totalIntroductionSource' => $totalIntroductionSource,
+            'totalIssuedSupplier' => $totalIssuedSupplier,
+            'totalCountry' => $totalCountry,
+            'totalIssuedBy' => $totalIssuedBy,
+            'totalTransferTo' => $totalTransferTo,
+            'totalPaymentMethod' => $totalPaymentMethod,
+            'totalCardType' => $totalCardType,
+            'totalCardOwner' => $totalCardOwner,
+
+            'totalTripTypePie' => $totalTripTypePie,
+            'totalPaymentMethodPie' => $totalPaymentMethodPie,
+            'totalIssuedCardTypePie' => $totalIssuedCardTypePie,
+            'totalPaymentStatusPie' => $totalPaymentStatusPie,
+        ];
+    }
+}
+
+
+if (!function_exists('toDoListData')) {
+    function toDoListData($todo_date_range = null)
+    {
+        $startDate = Carbon::now()->toDateString();
+        $endDate = Carbon::today()->addDays(30)->toDateString();
+
+        if (isset($todo_date_range)) {
+            $dateRange = $todo_date_range;
+            list($startDateString, $endDateString) = explode("-", $dateRange);
+            $startDate = date("Y-m-d", strtotime($startDateString));
+            $endDate = date("Y-m-d 23:59:59", strtotime($endDateString));
+        }
+
+        $rangeType = determineRangeType($startDate, $endDate); //keep the commented line
+
+        $toDoData = Payment::with('ticket', 'country', 'issuedBy', 'airline')
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('departure_date_time', [$startDate, $endDate])
+                    ->orWhereBetween('return_date_time', [$startDate, $endDate]);
+            })
+            ->where(function ($query) {
+                $query->where('seat_confirmation', 'Not Chosen')
+                    ->orWhere('mobility_assistance', 'Not Chosen')
+                    ->orWhere('transit_visa_application', 'Need To Do')
+                    ->orWhere('halal_meal_request', 'Need To Do')
+                    ->orWhere('transit_hotel', 'Need To Do');
+            })
+            ->orderBy('departure_date_time', 'asc')
+            ->get();
+
+        return $toDoData;
+    }
+}
+
+
+if (!function_exists('getDateRange')) {
+    function getDateRange($day = 6, $type = 'Previous')
+    {
+        if ($type === 'Previous') {
+            $start = Carbon::today()->subDays($day);
+            $end = Carbon::today();
+        } elseif ($type === 'Next') {
+            $start = Carbon::today();
+            $end = Carbon::today()->addDays($day);
+        } else {
+            // Fallback in case of invalid type
+            $start = Carbon::today()->subDays($day);
+            $end = Carbon::today();
+        }
+
+        return $start->format('Y/m/d') . ' - ' . $end->format('Y/m/d');
+    }
+}
+
+

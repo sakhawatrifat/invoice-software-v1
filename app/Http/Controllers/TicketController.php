@@ -28,6 +28,9 @@ use App\Models\TicketPassenger;
 use App\Models\TicketPassengerFlight;
 use App\Models\TicketFareSummary;
 
+use App\Models\Payment;
+use App\Models\PaymentDocument;
+
 use PDF;
 use App\Services\PdfService;
 
@@ -54,51 +57,114 @@ class TicketController extends Controller
         $user = Auth::user();
         $query = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'creator')->latest();
 
-        if($user->user_type != 'admin'){
-            $query->where('user_id', $user->business_id);
-        }
-        if(request()->has('document_type') && request()->document_type != 'all'){
-            $documentTypes = explode('-', request()->document_type);
-            $query->whereIn('document_type', $documentTypes);
-        }
-
-        // Properly grouped global search
-        if (request()->has('search') && $search = request('search')['value']) {
-            //Main fields search
-            $query->where(function ($q) use ($search) {
-                $q->where('document_type', 'like', "%{$search}%")
-                    ->orWhere('user_id', 'like', "%{$search}%")
-                    ->orWhere('invoice_date', 'like', "%{$search}%")
-                    ->orWhere('invoice_id', 'like', "%{$search}%")
-                    ->orWhere('reservation_number', 'like', "%{$search}%")
-                    ->orWhere('trip_type', 'like', "%{$search}%")
-                    ->orWhere('ticket_type', 'like', "%{$search}%")
-                    ->orWhere('booking_status', 'like', "%{$search}%")
-                    ->orWhere('bill_to', 'like', "%{$search}%")
-                    ->orWhere('bill_to_info', 'like', "%{$search}%")
-                    ->orWhere('footer_title', 'like', "%{$search}%")
-                    ->orWhere('footer_text', 'like', "%{$search}%")
-                    ->orWhere('bank_details', 'like', "%{$search}%");
-            });
-
-            // Users by name
-            $userIds = User::where('name', 'like', "%{$search}%")->pluck('id');
-            if (!empty($userIds)) {
-                $query->orWhereIn('user_id', $userIds);
-            }
-
-            // Creators by name
-            $creatorIds = User::where('name', 'like', "%{$search}%")->pluck('id');
-            if (!empty($creatorIds)) {
-                $query->orWhereIn('created_by', $creatorIds);
-            }
-            
-            
-        }
-
-
         $currentTranslation = getCurrentTranslation();
+
         return DataTables::of($query)
+            ->filter(function ($query) use ($user) {
+
+                // Restrict by user
+                if ($user->user_type != 'admin') {
+                    $query->where('user_id', $user->business_id);
+                }
+
+                // Filter by document type
+                if (request()->has('document_type') && request()->document_type != 'all') {
+                    $documentTypes = explode('-', request()->document_type);
+                    $query->whereIn('document_type', $documentTypes);
+                }
+
+                // ✅ Trip Type
+                if (!empty(request()->trip_type) && request()->trip_type != 0) {
+                    $query->where('trip_type', request()->trip_type);
+                }
+
+                // ✅ Airline filter
+                if (!empty(request()->airline_id) && request()->airline_id != 0) {
+                    $airlineIds = TicketFlight::where('airline_id', request()->airline_id)
+                        ->distinct()
+                        ->pluck('ticket_id');
+
+                    if ($airlineIds->isNotEmpty()) {
+                        $query->whereIn('id', $airlineIds);
+                    }
+                }
+
+                // ✅ Flight date range filter
+                if (!empty(request()->flight_date_range) && request()->flight_date_range != 0) {
+                    [$start, $end] = explode('-', request()->flight_date_range);
+
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+                    $query->where(function ($main) use ($startDate, $endDate) {
+                        $main->whereHas('allFlights', function ($q) use ($startDate, $endDate) {
+                            $q->whereBetween('departure_date_time', [$startDate, $endDate]);
+                        })
+                        ->orWhere(function ($sub) use ($startDate, $endDate) {
+                            $sub->where('trip_type', 'Round Trip')
+                                ->whereHas('allFlights', function ($q) use ($startDate, $endDate) {
+                                    $q->whereBetween('departure_date_time', [$startDate, $endDate]);
+                                });
+                        });
+                    });
+                }
+
+                // ✅ Invoice date range filter
+                if (!empty(request()->invoice_date_range) && request()->invoice_date_range != 0) {
+                    [$start, $end] = explode('-', request()->invoice_date_range);
+
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+                    $query->whereBetween('invoice_date', [$startDate, $endDate]);
+                }
+
+                // ✅ Combined Global Search
+                if (request()->has('search') && $search = request('search')['value']) {
+
+                    $query->where(function ($q) use ($search) {
+
+                        // Main table fields
+                        $q->where('document_type', 'like', "%{$search}%")
+                            ->orWhere('user_id', 'like', "%{$search}%")
+                            ->orWhere('invoice_date', 'like', "%{$search}%")
+                            ->orWhere('invoice_id', 'like', "%{$search}%")
+                            ->orWhere('reservation_number', 'like', "%{$search}%")
+                            ->orWhere('ticket_type', 'like', "%{$search}%")
+                            ->orWhere('booking_status', 'like', "%{$search}%")
+                            ->orWhere('bill_to', 'like', "%{$search}%")
+                            ->orWhere('bill_to_info', 'like', "%{$search}%")
+                            ->orWhere('footer_title', 'like', "%{$search}%")
+                            ->orWhere('footer_text', 'like', "%{$search}%")
+                            ->orWhere('bank_details', 'like', "%{$search}%");
+
+                        // Search passengers
+                        $passengerTicketIds = TicketPassenger::where(function ($sub) use ($search) {
+                                $sub->where('name', 'like', "%{$search}%")
+                                    ->orWhere('email', 'like', "%{$search}%")
+                                    ->orWhere('phone', 'like', "%{$search}%");
+                            })
+                            ->distinct()
+                            ->pluck('ticket_id');
+
+                        if ($passengerTicketIds->isNotEmpty()) {
+                            $q->orWhereIn('id', $passengerTicketIds);
+                        }
+
+                        // Search users
+                        $userIds = User::where('name', 'like', "%{$search}%")->pluck('id');
+                        if ($userIds->isNotEmpty()) {
+                            $q->orWhereIn('user_id', $userIds);
+                        }
+
+                        // Search creators
+                        $creatorIds = User::where('name', 'like', "%{$search}%")->pluck('id');
+                        if ($creatorIds->isNotEmpty()) {
+                            $q->orWhereIn('created_by', $creatorIds);
+                        }
+                    });
+                }
+            })
             ->addIndexColumn()
             ->addColumn('document_type', function ($row) {
                 switch ($row->document_type) {
@@ -118,62 +184,18 @@ class TicketController extends Controller
                 return $row->user ? $row->user->name : 'N/A';
             })
             ->addColumn('invoice_date', function ($row) use ($currentTranslation) {
+                $invoiceId = '<strong>' . ($currentTranslation['invoice_id_label'] ?? 'invoice_id_label') . ':</strong> ' . e($row->invoice_id);
 
-                $invoiceId = '';
-                if(!empty($row->invoice_id)){
-                    $invoiceId = '<strong>' . ($currentTranslation['invoice_id_label'] ?? 'invoice_id_label') . ':</strong>' . ($row->invoice_id ?? '-');
-                }
+                $invoiceDateValue = $row->invoice_date
+                    ? date('Y-m-d', strtotime($row->invoice_date))
+                    : 'N/A';
 
-                $invoiceDate = '';
-                if(!empty($row->invoice_date)){
-                    $invoiceDate = '<br><strong>' . ($currentTranslation['invoice_date_label'] ?? 'invoice_date_label') . ':</strong> ' . (!empty($row->invoice_date) ? date('Y-m-d', strtotime($row->invoice_date)) : '-');
-                }
+                $invoiceDate = '<strong>' . ($currentTranslation['invoice_date_label'] ?? 'invoice_date_label') . ':</strong> ' . $invoiceDateValue;
 
-                $totalAdult = '';
-                if (!empty($row->passengers) && is_iterable($row->passengers)) {
-                    $paxCount = collect($row->passengers)
-                        ->filter(function ($passenger) {
-                            return isset($passenger->pax_type) && $passenger->pax_type === 'Adult';
-                        })
-                        ->count();
-
-                    if ($paxCount > 0) {
-                        $totalAdult = '<br><i class="fa-solid fs-6 fa-user text-black"></i>  <strong>' . ($currentTranslation['total_adult'] ?? 'total_adult') . ':</strong>' . $paxCount;
-                        //$totalAdult = '<br><i class="fa-solid fs-6 fa-user text-black"></i> - ' . $paxCount;
-                    }
-                }
-
-                $totalChild = '';
-                if (!empty($row->passengers) && is_iterable($row->passengers)) {
-                    $paxCount = collect($row->passengers)
-                        ->filter(function ($passenger) {
-                            return isset($passenger->pax_type) && $passenger->pax_type === 'Child';
-                        })
-                        ->count();
-
-                    if ($paxCount > 0) {
-                        $totalChild = '<br><i class="fa-solid fs-3 fa-child text-black"></i> <strong>' . ($currentTranslation['total_child'] ?? 'total_child') . ':</strong>' . $paxCount;
-                        //$totalChild = '<br><i class="fa-solid fs-3 fa-child text-black"></i> - ' . $paxCount;
-                    }
-                }
-
-                $totalInfant = '';
-                if (!empty($row->passengers) && is_iterable($row->passengers)) {
-                    $paxCount = collect($row->passengers)
-                        ->filter(function ($passenger) {
-                            return isset($passenger->pax_type) && $passenger->pax_type === 'Infant';
-                        })
-                        ->count();
-
-                    if ($paxCount > 0) {
-                        $totalInfant = '<br><i class="fa-solid fs-5 fa-baby-carriage text-black"></i> <strong>' . ($currentTranslation['total_infant'] ?? 'total_infant') . ':</strong>' . $paxCount;
-                        //$totalInfant = '<br><i class="fa-solid fs-4 fa-baby-carriage text-black"></i> - ' . $paxCount;
-                    }
-                }
-
-
-                return $invoiceId . $invoiceDate . $totalAdult . $totalChild . $totalInfant;
+                return $invoiceId . '<br>' . $invoiceDate;
             })
+
+
             ->addColumn('reservation_number', function ($row) use ($currentTranslation) {
                 $reservationNumber = '<strong>' . ($currentTranslation['reservation_number_label'] ?? 'reservation_number_label') . ':</strong> ' . $row->reservation_number;
 
@@ -186,13 +208,13 @@ class TicketController extends Controller
                 if(!empty($row->ticket_type)){
                     $ticketType = '<br><strong>' . ($currentTranslation['ticket_type_label'] ?? 'ticket_type_label') . ':</strong> ' . ($row->ticket_type ?? '-');
                 }
-                
-                // $passengerNames = '';
+
+                // $passengerNames = ''; Dont Remove those code
                 // if (!empty($row->passengers) && is_iterable($row->passengers)) {
                 //     $names = collect($row->passengers)->pluck('name')->filter()->implode(', ');
                 //     $passengerNames = '<br><strong>' . ($currentTranslation['passengers'] ?? 'passengers') . ':</strong> ' . $names;
                 // }
-
+                
                 $passengerNames = '';
                 if (!empty($row->passengers) && is_iterable($row->passengers)) {
                     $firstName = collect($row->passengers)->pluck('name')->filter()->first();
@@ -210,7 +232,12 @@ class TicketController extends Controller
 
                 $returnDate = ''; 
                 $returnAirline = ''; 
-                if ($row->document_type == 'ticket' && !empty($row->flights) && is_iterable($row->flights)) {
+                if (
+                    $row->document_type == 'ticket' &&
+                    !empty($row->flights) &&
+                    is_iterable($row->flights) &&
+                    $row->trip_type == 'Round Trip' // ✅ Only for Round Trip
+                ) {
                     $flights = collect($row->flights);
                     $lastFlight = $flights->last(); // Get the last flight in the collection
 
@@ -220,10 +247,9 @@ class TicketController extends Controller
                     }
                 }
 
-
-
                 return $reservationNumber . $tripType . $ticketType . $passengerNames . $departureDate . $departureAirline . $returnDate . $returnAirline;
             })
+
             ->addColumn('booking_status', function ($row) use ($currentTranslation) {
                 switch ($row->booking_status) {
                     case 'On Hold':
@@ -247,7 +273,7 @@ class TicketController extends Controller
             ->addColumn('created_by', function ($row) {
                 return $row->creator ? $row->creator->name : 'N/A';
             })
-            ->addColumn('action', function ($row) {
+            ->addColumn('action', function ($row) use ($currentTranslation) {
                 $duplicateUrl = route('ticket.duplicate', $row->id);
                 $editUrl = route('ticket.edit', $row->id);
                 $deleteUrl = route('ticket.destroy', $row->id);
@@ -316,7 +342,7 @@ class TicketController extends Controller
                     )
                 ) {
                     $buttons .= '
-                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn" title="Delete"
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn confirm-relational-delete" rel-del-title="'.($currentTranslation['delete_payment_data_also'] ?? 'delete_payment_data_also').'" title="Delete"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '">
                             <i class="fa-solid fa-trash"></i>
@@ -665,7 +691,7 @@ class TicketController extends Controller
             $message= getCurrentTranslation()['something_went_wrong'] ?? 'something_went_wrong';
         }
 
-        return redirect(route('ticket.index'))->with($alert, $message);
+        return redirect()->back()->withInput()->with($alert, $message);
     }
 
     public function edit($id)
@@ -720,7 +746,7 @@ class TicketController extends Controller
         return $this->saveTicketData($request, $id);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {   
         if (!hasPermission('ticket.delete')) {
             return [
@@ -750,8 +776,8 @@ class TicketController extends Controller
         $forUserId = $ticket->user_id;
         $userId = Auth::user()->id;
 
-        DB::beginTransaction();
-        try {
+        // DB::beginTransaction();
+        // try {
             // Handle TicketFlight
             TicketFlight::where('user_id', $forUserId)->where('ticket_id', $ticket->id)
                 ->each(function ($item) use ($userId) {
@@ -789,6 +815,40 @@ class TicketController extends Controller
             $ticket->save();
             $ticket->delete();
 
+            if (isset($request->delete_relational_data) && $request->delete_relational_data == 1) {
+                $payments = Payment::with(
+                    'ticket',
+                    'paymentDocuments',
+                    'introductionSource',
+                    'country',
+                    'issuedBy',
+                    'airline',
+                    'transferTo',
+                    'paymentMethod',
+                    'issuedCardType',
+                    'cardOwner'
+                )->where('ticket_id', $ticket->id)->get();
+
+                if ($payments->count()) {
+                    foreach ($payments as $paymentData) {
+                        // Delete all related payment documents
+                        if ($paymentData->paymentDocuments && $paymentData->paymentDocuments->count()) {
+                            foreach ($paymentData->paymentDocuments as $docItem) {
+                                deleteUploadedFile($docItem->file_url);
+                                $docItem->delete();
+                            }
+                        }
+
+                        // Track who deleted
+                        $paymentData->deleted_by = $user->id;
+                        $paymentData->save();
+
+                        // Soft delete the payment
+                        $paymentData->delete();
+                    }
+                }
+            }
+
             DB::commit();
 
             return [
@@ -796,15 +856,15 @@ class TicketController extends Controller
                 'icon' => 'success',
                 'message' => getCurrentTranslation()['data_deleted'] ?? 'data_deleted'
             ];
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return [
-                'is_success' => 0,
-                'icon' => 'error',
-                'message' => getCurrentTranslation()['something_went_wrong'] ?? 'something_went_wrong',
-                'error' => $e->getMessage()
-            ];
-        }
+        // } catch (\Exception $e) {
+        //     DB::rollBack();
+        //     return [
+        //         'is_success' => 0,
+        //         'icon' => 'error',
+        //         'message' => getCurrentTranslation()['something_went_wrong'] ?? 'something_went_wrong',
+        //         'error' => $e->getMessage()
+        //     ];
+        // }
     }
 
 
@@ -1093,8 +1153,8 @@ class TicketController extends Controller
         }
 
 
-        DB::beginTransaction();
-        try {
+        // DB::beginTransaction();
+        // try {
 
             $queryForUserId = $ticket->user_id ?? Auth::user()->business_id;
             $userId = $ticket->user_id ?? Auth::user()->business_id;
@@ -1359,22 +1419,88 @@ class TicketController extends Controller
                 $fare->delete(); // use delete() if using SoftDeletes
             }
 
+
+            // ✅ For Existing Payment Data Update
+            $ticketData = Ticket::with([
+                'flights',
+                'flights.transits',
+                'passengers',
+                'passengers.flights',
+                'fareSummary',
+                'user',
+                'user.company',
+                'creator'
+            ])->where('id', $ticket->id)->first();
+
+            $ticketPassengers = TicketPassenger::where('ticket_id', $ticket->id)->first();
+
+            $invoiceDate = $ticketData->invoice_date ?? null;
+            $tripType = $ticketData->trip_type ?? null;
+            $airlineId = optional($ticketData->flights->first())->airline_id;
+
+            $departureCity = $ticketData->departure_city ?? null;
+            $destinationCity = $ticketData->destination_city ?? null;
+            $flightRoute = $ticketData->flight_route ?? null;
+            $departureDateTime = $ticketData->departure_datetime ?? null;
+            $returnDateTime = $ticketData->return_datetime ?? null;
+
+            $customerName  = optional($ticketData->passengers->first())->name;
+            $customerEmail = optional($ticketData->passengers->first())->email;
+            $customerPhone = optional($ticketData->passengers->first())->phone;
+
+            $paymentData = Payment::where('ticket_id', $ticket->id)->get();
+
+            foreach ($paymentData as $payment) {
+                $payment->invoice_date = $invoiceDate;
+                $payment->ticket_id = $ticket->id;
+                $payment->client_name = $customerName;
+                $payment->client_phone = $customerPhone;
+                $payment->client_email = $customerEmail;
+                $payment->trip_type = $tripType;
+                $payment->departure_date_time = $departureDateTime;
+                $payment->return_date_time = $returnDateTime;
+                $payment->departure = $departureCity;
+                $payment->destination = $destinationCity;
+                $payment->flight_route = $flightRoute;
+                $payment->airline_id = $airlineId;
+                $payment->save();
+            }
+
+            // foreach ($paymentData as $payment) {
+            //     $payment->invoice_date = $payment->invoice_date ?: $invoiceDate;
+            //     $payment->ticket_id = $payment->ticket_id ?: $ticket->id;
+            //     $payment->client_name = $payment->client_name ?: $customerName;
+            //     $payment->client_phone = $payment->client_phone ?: $customerPhone;
+            //     $payment->client_email = $payment->client_email ?: $customerEmail;
+            //     $payment->trip_type = $payment->trip_type ?: $tripType;
+            //     $payment->departure_date_time = $payment->departure_date_time ?: $departureDateTime;
+            //     $payment->return_date_time = $payment->return_date_time ?: $returnDateTime;
+            //     $payment->departure = $payment->departure ?: $departureCity;
+            //     $payment->destination = $payment->destination ?: $destinationCity;
+            //     $payment->flight_route = $payment->flight_route ?: $flightRoute;
+            //     $payment->airline_id = $payment->airline_id ?: $airlineId;
+            //     $payment->save();
+            // }
+
+
+
+
             DB::commit();
             return [
                 'is_success' => 1,
                 'icon' => 'success',
                 'message' => getCurrentTranslation()['data_saved'] ?? 'data_saved'
             ];
-        } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error('Ticket store error', ['error' => $e->getMessage()]);
+        // } catch (\Exception $e) {
+        //     DB::rollBack();
+        //     \Log::error('Ticket store error', ['error' => $e->getMessage()]);
 
-            return [
-                'is_success' => 0,
-                'icon' => 'error',
-                'message' => getCurrentTranslation()['data_saving_error'] ?? 'data_saving_error'
-            ];
-        }
+        //     return [
+        //         'is_success' => 0,
+        //         'icon' => 'error',
+        //         'message' => getCurrentTranslation()['data_saving_error'] ?? 'data_saving_error'
+        //     ];
+        // }
     }
 
 

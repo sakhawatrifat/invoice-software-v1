@@ -1,0 +1,60 @@
+01.
+Graph: (daterange) by default 7 days
+	Total sale 
+	Airline Based Graph
+	Transit city based
+	Total departure city Graph
+	Total return city Graph (Only for Round trip)
+	Introduction source
+	issued supplier
+	issued by
+	country wise
+	transfer to wise
+	payment method wise
+	card type wise
+	card owner wise
+
+=======================
+
+02.
+Pie Chart:
+	Trip type
+	Payment Method
+	Issued Card Type
+	Payment Status
+
+=======================
+
+03. to do table for:
+	Seat Confirmation
+	Mobility Assistance
+	Transit Visa Application
+	Halal Meal Request
+	Transit Hotel
+
+=======================
+
+Report:
+	Profit/Loss and other summary
+
+
+====================================================================
+
+During the ticket deletion payment data also delete (use popup)
+
+====================================================================
+
+Manage ticket => Search by passenger name,phone,email, search by airline (Done)
+
+====================================================================
+
+Refund functionality:
+
+Ticket purchase price 90000
+Ticket selling price 100000
+
+cancellation_fee 10000+ service_fee 2000
+
+Refund 100000-12000= 880000 tk
+
+====================================================================

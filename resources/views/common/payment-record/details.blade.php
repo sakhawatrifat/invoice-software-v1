@@ -175,23 +175,130 @@
                                             @php
                                                 $tripFields = [
                                                     'trip_type', 'departure_date_time', 'return_date_time', 'departure', 
-                                                    'destination', 'flight_route', 'seat_confirmation', 'mobility_assistance',
-                                                    'airline', 'transit_visa_application', 'halal_meal_request', 'transit_hotel'
+                                                    'destination', 'flight_route', 'airline', 'seat_confirmation', 'mobility_assistance',
+                                                    'transit_visa_application', 'halal_meal_request', 'transit_hotel', 'note'
                                                 ];
                                             @endphp
                                             @foreach($tripFields as $field)
-                                                <div class="col-md-4 mb-3">
-                                                    <strong>{{ $getCurrentTranslation[$field.'_label'] ?? ucfirst(str_replace('_', ' ', $field)) }}:</strong>
-                                                    <p>
-                                                        @if($field === 'airline')
-                                                            {{ $editData->airline?->name ?? 'N/A' }}
-                                                        @elseif(in_array($field, ['departure_date_time', 'return_date_time']))
-                                                            {{ $editData->$field ? date('Y-m-d, H:i', strtotime($editData->$field)) : 'N/A' }}
-                                                        @else
-                                                            {{ $editData->$field ?? 'N/A' }}
-                                                        @endif
-                                                    </p>
-                                                </div>
+                                                @if($field == 'note')
+                                                    <div class="col-md-12 mb-3">
+                                                        <strong>{{ $getCurrentTranslation[$field.'_label'] ?? ucfirst(str_replace('_', ' ', $field)) }}:</strong>
+                                                        <p>
+                                                            @php
+                                                                $cleanNote = strip_tags($editData->note ?? '');
+                                                            @endphp
+
+                                                            <mark>{{ $cleanNote !== '' ? $cleanNote : 'N/A' }}</mark>
+                                                        </p>
+                                                    </div>
+                                                @else
+                                                    <div class="col-md-4 mb-3">
+                                                        <strong>{{ $getCurrentTranslation[$field.'_label'] ?? ucfirst(str_replace('_', ' ', $field)) }}:</strong>
+                                                        <p>
+                                                            @if($field === 'airline')
+                                                                {{ $editData->airline?->name ?? 'N/A' }}
+
+                                                            @elseif($field === 'seat_confirmation')
+                                                                @php
+                                                                    $options = ['Window', 'Aisle', 'Not Chosen'];
+                                                                    $value = $editData->$field;
+                                                                    if (empty($value)) {
+                                                                        $value = 'N/A';
+                                                                        $badgeClass = 'bg-light text-dark';
+                                                                    } else {
+                                                                        $badgeClass = match($value) {
+                                                                            'Window' => 'bg-primary',
+                                                                            'Aisle' => 'bg-success',
+                                                                            'Not Chosen' => 'bg-secondary text-dark',
+                                                                            default => 'bg-light text-dark'
+                                                                        };
+                                                                    }
+                                                                @endphp
+                                                                <span class="badge {{ $badgeClass }}">{{ $value }}</span>
+
+                                                            @elseif($field === 'mobility_assistance')
+                                                                @php
+                                                                    $options = ['Wheelchair', 'Baby Bassinet Seat', 'Meet & Assist', 'Not Chosen'];
+                                                                    $value = $editData->$field;
+                                                                    if (empty($value)) {
+                                                                        $value = 'N/A';
+                                                                        $badgeClass = 'bg-light text-dark';
+                                                                    } else {
+                                                                        $badgeClass = match($value) {
+                                                                            'Wheelchair' => 'bg-primary',
+                                                                            'Baby Bassinet Seat' => 'bg-info',
+                                                                            'Meet & Assist' => 'bg-success',
+                                                                            'Not Chosen' => 'bg-secondary text-dark',
+                                                                            default => 'bg-light text-dark'
+                                                                        };
+                                                                    }
+                                                                @endphp
+                                                                <span class="badge {{ $badgeClass }}">{{ $value }}</span>
+
+                                                            @elseif($field === 'transit_visa_application')
+                                                                @php
+                                                                    $options = ['Need To Do', 'Done', 'No Need'];
+                                                                    $value = $editData->$field;
+                                                                    if (empty($value)) {
+                                                                        $value = 'N/A';
+                                                                        $badgeClass = 'bg-light text-dark';
+                                                                    } else {
+                                                                        $badgeClass = match($value) {
+                                                                            'Need To Do' => 'bg-warning text-dark',
+                                                                            'Done' => 'bg-success',
+                                                                            'No Need' => 'bg-secondary text-dark',
+                                                                            default => 'bg-light text-dark'
+                                                                        };
+                                                                    }
+                                                                @endphp
+                                                                <span class="badge {{ $badgeClass }}">{{ $value }}</span>
+
+                                                            @elseif($field === 'halal_meal_request')
+                                                                @php
+                                                                    $options = ['Need To Do', 'Done', 'No Need'];
+                                                                    $value = $editData->$field;
+                                                                    if (empty($value)) {
+                                                                        $value = 'N/A';
+                                                                        $badgeClass = 'bg-light text-dark';
+                                                                    } else {
+                                                                        $badgeClass = match($value) {
+                                                                            'Need To Do' => 'bg-warning text-dark',
+                                                                            'Done' => 'bg-success',
+                                                                            'No Need' => 'bg-secondary text-dark',
+                                                                            default => 'bg-light text-dark'
+                                                                        };
+                                                                    }
+                                                                @endphp
+                                                                <span class="badge {{ $badgeClass }}">{{ $value }}</span>
+
+                                                            @elseif($field === 'transit_hotel')
+                                                                @php
+                                                                    $options = ['Need To Do', 'Done', 'No Need'];
+                                                                    $value = $editData->$field;
+                                                                    if (empty($value)) {
+                                                                        $value = 'N/A';
+                                                                        $badgeClass = 'bg-light text-dark';
+                                                                    } else {
+                                                                        $badgeClass = match($value) {
+                                                                            'Need To Do' => 'bg-warning text-dark',
+                                                                            'Done' => 'bg-success',
+                                                                            'No Need' => 'bg-secondary text-dark',
+                                                                            default => 'bg-light text-dark'
+                                                                        };
+                                                                    }
+                                                                @endphp
+                                                                <span class="badge {{ $badgeClass }}">{{ $value }}</span>
+
+                                                            @elseif(in_array($field, ['departure_date_time', 'return_date_time']))
+                                                                {{ $editData->$field ? date('Y-m-d, H:i', strtotime($editData->$field)) : 'N/A' }}
+
+                                                            @else
+                                                                {{ $editData->$field ?? 'N/A' }}
+                                                            @endif
+                                                        </p>
+
+                                                    </div>
+                                                @endif
                                             @endforeach
                                         </div>
                                     </div>
@@ -292,7 +399,7 @@
                                         <div class="row mt-3">
                                             <div class="col-md-6">
                                                 <strong>{{ $getCurrentTranslation['next_payment_deadline_label'] ?? 'next_payment_deadline_label' }}:</strong>
-                                                <p>{{ $editData->next_payment_deadline ? date('Y-M-d', strtotime($editData->next_payment_deadline)) : 'N/A' }}</p>
+                                                <p>{{ $editData->next_payment_deadline ? date('Y-m-d', strtotime($editData->next_payment_deadline)) : 'N/A' }}</p>
                                             </div>
                                             <div class="col-md-6">
                                                 <strong>{{ $getCurrentTranslation['payment_status_label'] ?? 'payment_status_label' }}:</strong> <br>

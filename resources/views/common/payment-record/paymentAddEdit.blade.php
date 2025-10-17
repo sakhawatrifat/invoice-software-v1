@@ -97,6 +97,16 @@
 
 							<div class="col-md-4">
 								<div class="form-item mb-5">
+									<label class="form-label">{{ $getCurrentTranslation['invoice_date_label'] ?? 'invoice_date_label' }}:</label>
+									<input type="text" placeholder="{{ $getCurrentTranslation['invoice_date_placeholder'] ?? 'invoice_date_placeholder' }}" class="form-control mb-2 flatpickr-input"  name="invoice_date" value="{{ $editData->invoice_date ?? '' }}"/>
+									@error('invoice_date')
+										<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+									@enderror
+								</div>
+							</div>
+
+							<div class="col-md-4">
+								<div class="form-item mb-5">
 									<label class="form-label">{{ $getCurrentTranslation['client_name_label'] ?? 'client_name_label' }}:</label>
 									<input type="text" placeholder="{{ $getCurrentTranslation['client_name_placeholder'] ?? 'client_name_placeholder' }}" class="form-control mb-2"  name="client_name" value="{{ $editData->client_name ?? '' }}" />
 									@error('client_name')
@@ -445,7 +455,7 @@
 							<div class="col-md-4">
 								<div class="form-item mb-5">
 									@php
-										$options = ['Wheelchair', 'Baby Bassinet Seat', 'Meet & Assist'];
+										$options = ['Wheelchair', 'Baby Bassinet Seat', 'Meet & Assist', 'Not Chosen'];
 
 										$selected = $editData->mobility_assistance ?? '';
 									@endphp
@@ -536,6 +546,19 @@
 										@endforeach
 									</select>
 									@error('transit_hotel')
+										<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+									@enderror
+								</div>
+							</div>
+
+							<div class="col-md-12">
+								<div class="form-item mb-5">
+									@php
+										$selected = $editData->note ?? '';
+									@endphp
+									<label class="form-label">{{ $getCurrentTranslation['note_label'] ?? 'note_label' }}:</label>
+									<textarea class="form-control" name="note" rows="3">{{ old('note') ?? $editData->note ?? '' }}</textarea>
+									@error('note')
 										<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 									@enderror
 								</div>
@@ -951,7 +974,21 @@
 		if (dataDetails) {
 			// Parse and show JSON in readable format
 			const ticketData = JSON.parse(dataDetails.replace(/&quot;/g, '"'));
-			console.log(ticketData); // shows as full JSON object
+			//console.log(ticketData); // shows as full JSON object
+
+			const today = new Date();
+			const formattedToday = today.getFullYear() + '-' +
+				String(today.getMonth() + 1).padStart(2, '0') + '-' +
+				String(today.getDate()).padStart(2, '0');
+
+			let invoiceDate = ticketData.invoice_date ? new Date(ticketData.invoice_date) : today;
+
+			// Format both cases as YYYY-MM-DD
+			const formattedInvoiceDate = invoiceDate.getFullYear() + '-' +
+				String(invoiceDate.getMonth() + 1).padStart(2, '0') + '-' +
+				String(invoiceDate.getDate()).padStart(2, '0');
+
+			$('[name="invoice_date"]').closest('div').find('input').val(formattedInvoiceDate);
 
 			$('[name="client_name"]').val(ticketData.passengers?.[0]?.name ?? '');
 			$('[name="client_phone"]').val(ticketData.passengers?.[0]?.phone ?? '');
@@ -978,7 +1015,7 @@
 			//finalArrivalTime = lastTransit?.arrival_date_time ?? finalArrivalTime;
 			}
 
-			if(firstFlight?.departure_date_time != finalDetermineTime){
+			if(ticketData.trip_type == 'Round Trip' && firstFlight?.departure_date_time != finalDetermineTime){
 				$('[name="return_date_time"]').closest('div').find('.flatpickr-input').val(finalDetermineTime).trigger('change');
 			}else{
 				$('[name="return_date_time"]').closest('div').find('.flatpickr-input').val('').trigger('change');

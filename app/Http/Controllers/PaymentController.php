@@ -135,9 +135,83 @@ class PaymentController extends Controller
                     $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
                     $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
 
-                    // Filter between departure and return date
-                    $query->whereBetween('departure_date_time', [$startDate, $endDate])
-                        ->orWhereBetween('return_date_time', [$startDate, $endDate]);
+                    $query->where(function ($q) use ($startDate, $endDate) {
+                        $q->whereBetween('departure_date_time', [$startDate, $endDate])
+                            ->orWhereBetween('return_date_time', [$startDate, $endDate]);
+                    });
+                }
+
+                if (!empty(request()->invoice_date_range) && request()->invoice_date_range != 0) {
+                    $invoiceDateRange = request()->invoice_date_range;
+                    // Split the string into start and end dates
+                    [$start, $end] = explode('-', $invoiceDateRange);
+
+                    // Convert to Carbon instances (optional but safer)
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+                    $query->where(function ($q) use ($startDate, $endDate) {
+                        $q->whereBetween('invoice_date', [$startDate, $endDate]);
+                    });
+                }
+
+                if (!empty(request()->transfer_to) && request()->transfer_to != 0) {
+                    $query->where('transfer_to_id', request()->transfer_to);
+                }
+
+                if (!empty(request()->payment_method) && request()->payment_method != 0) {
+                    $query->where('payment_method_id', request()->payment_method);
+                }
+
+                if (!empty(request()->issued_card_type) && request()->issued_card_type != 0) {
+                    $query->where('issued_card_type_id', request()->issued_card_type);
+                }
+
+                if (!empty(request()->card_owner) && request()->card_owner != 0) {
+                    $query->where('card_owner_id', request()->card_owner);
+                }
+
+                if (!empty(request()->payment_status) && request()->payment_status != 0) {
+                    $query->where('payment_status', request()->payment_status);
+                }
+
+                if (!empty(request()->payment_date_range) && request()->payment_date_range != 0) {
+                    $paymentDateRange = request()->payment_date_range;
+
+                    // Split the string into start and end dates
+                    [$start, $end] = explode('-', $paymentDateRange);
+
+                    // Convert to Carbon instances
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+                    $query->whereNotNull('paymentData')
+                        ->whereRaw("
+                            EXISTS (
+                                SELECT 1
+                                FROM JSON_TABLE(
+                                    paymentData,
+                                    '$[*]' COLUMNS (
+                                        pay_date DATE PATH '$.date'
+                                    )
+                                ) AS pd
+                                WHERE pd.pay_date BETWEEN ? AND ?
+                            )
+                        ", [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+                }
+
+                if (!empty(request()->next_payment_date_range) && request()->next_payment_date_range != 0) {
+                    $invoiceDateRange = request()->next_payment_date_range;
+                    // Split the string into start and end dates
+                    [$start, $end] = explode('-', $invoiceDateRange);
+
+                    // Convert to Carbon instances (optional but safer)
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+                    $query->where(function ($q) use ($startDate, $endDate) {
+                        $q->whereBetween('next_payment_deadline', [$startDate, $endDate]);
+                    });
                 }
             })
 
@@ -152,14 +226,22 @@ class PaymentController extends Controller
             ->addColumn('payment_invoice_id', function ($row) use ($getCurrentTranslation) {
                 $paymentInvoiceIDLabel = $getCurrentTranslation['payment_invoice_id_label'] ?? 'payment_invoice_id_label';
                 $ticketInvoiceIDLabel = $getCurrentTranslation['ticket_invoice_id_label'] ?? 'ticket_invoice_id_label';
+                $ticketReservationLabel = $getCurrentTranslation['reservation_number_label'] ?? 'reservation_number_label';
+                $ticketInvoiceDateLabel = $getCurrentTranslation['invoice_date_label'] ?? 'invoice_date_label';
 
                 $paymentInvoiceID = $row->payment_invoice_id ?? 'N/A';
                 $ticketInvoiceID = $row->ticket->invoice_id ?? 'N/A';
+                $ticketReservation = $row->ticket->reservation_number ?? 'N/A';
+                $ticketInvoiceDate = $row->invoice_date
+                                        ? date('Y-m-d', strtotime($row->invoice_date))
+                                        : 'N/A';
 
                 return "
                     <div>
                         <strong>{$paymentInvoiceIDLabel}:</strong> {$paymentInvoiceID}<br>
                         <strong>{$ticketInvoiceIDLabel}:</strong> {$ticketInvoiceID}<br>
+                        <strong>{$ticketReservationLabel}:</strong> {$ticketReservation}<br>
+                        <strong>{$ticketInvoiceDateLabel}:</strong> {$ticketInvoiceDate}<br>
                     </div>
                 ";
             })
@@ -200,6 +282,8 @@ class PaymentController extends Controller
                 $airlineLabel = $getCurrentTranslation['airline_label'] ?? 'airline_label';
                 $halalMealLabel = $getCurrentTranslation['halal_meal_label'] ?? 'halal_meal_label';
                 $hotelTransitLabel = $getCurrentTranslation['transit_hotel_label'] ?? 'transit_hotel_label';
+                $mobilityAssistLabel = $getCurrentTranslation['mobility_assistance_label'] ?? 'mobility_assistance_label';
+                $transitVisaLabel = $getCurrentTranslation['transit_visa_application_label'] ?? 'transit_visa_application_label';
 
                 $tripType = $row->trip_type ?? '—';
                 $departure = $row->departure_date_time ? date('Y-m-d, H:i', strtotime($row->departure_date_time)) : '—';
@@ -211,19 +295,57 @@ class PaymentController extends Controller
                 $airline = $row->airline->name ?? '—'; // assuming relation ->airline
                 $halalMeal = $row->halal_meal_request ?? '—';
                 $hotelTransit = $row->transit_hotel ?? '—';
+                $mobilityAssist = $row->mobility_assistance ?? '—';
+                $transitVisa = $row->transit_visa_application ?? '—';
+
+                $seatBadge = match($seat) {
+                    'Window' => '<span class="badge bg-primary">Window</span>',
+                    'Aisle' => '<span class="badge bg-success">Aisle</span>',
+                    'Not Chosen' => '<span class="badge bg-warning text-dark">Not Chosen</span>',
+                    default => '<span class="badge bg-light text-dark">—</span>'
+                };
+
+                $halalBadge = match($halalMeal) {
+                    'Need To Do' => '<span class="badge bg-warning text-dark">Need To Do</span>',
+                    'Done' => '<span class="badge bg-success">Done</span>',
+                    'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
+                    default => '<span class="badge bg-light text-dark">—</span>'
+                };
+
+                $hotelBadge = match($hotelTransit) {
+                    'Need To Do' => '<span class="badge bg-warning text-dark">Need To Do</span>',
+                    'Done' => '<span class="badge bg-success">Done</span>',
+                    'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
+                    default => '<span class="badge bg-light text-dark">—</span>'
+                };
+
+                $mobilityBadge = match($mobilityAssist) {
+                    'Wheelchair' => '<span class="badge bg-primary">Wheelchair</span>',
+                    'Baby Bassinet Seat' => '<span class="badge bg-info">Baby Bassinet Seat</span>',
+                    'Meet & Assist' => '<span class="badge bg-success">Meet & Assist</span>',
+                    'Not Chosen' => '<span class="badge bg-warning text-dark">Not Chosen</span>',
+                    default => '<span class="badge bg-light text-dark">—</span>'
+                };
+
+                $visaBadge = match($transitVisa) {
+                    'Need To Do' => '<span class="badge bg-warning text-dark">Need To Do</span>',
+                    'Done' => '<span class="badge bg-success">Done</span>',
+                    'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
+                    default => '<span class="badge bg-light text-dark">—</span>'
+                };
 
                 return "
-                    <div style=\"
-                        max-width: 280px;
-                    \">
+                    <div style='max-width: 280px; line-height: 1.6;'>
                         <strong>{$tripTypeLabel}:</strong> {$tripType}<br>
                         <strong>{$departureLabel}:</strong> {$departure}<br>
                         <strong>{$returnLabel}:</strong> {$return}<br>
                         <strong>{$flightRouteLabel}:</strong> {$flightRoute}<br>
-                        <strong>{$seatLabel}:</strong> {$seat}<br>
                         <strong>{$airlineLabel}:</strong> {$airline}<br>
-                        <strong>{$halalMealLabel}:</strong> {$halalMeal}<br>
-                        <strong>{$hotelTransitLabel}:</strong> {$hotelTransit}
+                        <strong>{$seatLabel}:</strong> {$seatBadge}<br>
+                        <strong>{$mobilityAssistLabel}:</strong> {$mobilityBadge}<br>
+                        <strong>{$transitVisaLabel}:</strong> {$visaBadge}<br>
+                        <strong>{$halalMealLabel}:</strong> {$halalBadge}<br>
+                        <strong>{$hotelTransitLabel}:</strong> {$hotelBadge}
                     </div>
                 ";
             })
@@ -244,7 +366,7 @@ class PaymentController extends Controller
 
                 // 🕒 Next Payment Deadline
                 $nextPayment = $row->next_payment_deadline
-                    ? date('d M Y', strtotime($row->next_payment_deadline))
+                    ? date('Y-m-d', strtotime($row->next_payment_deadline))
                     : '—';
 
                 // 💵 Calculate total paid amount from paymentData
@@ -545,11 +667,12 @@ class PaymentController extends Controller
             'destination'           => 'nullable|string',
             'flight_route'           => 'nullable|string',
             'seat_confirmation'      => 'nullable|in:Window,Aisle,Not Chosen',
-            'mobility_assistance'      => 'nullable|in:Wheelchair,Baby Bassinet Seat,Meet & Assist',
+            'mobility_assistance'      => 'nullable|in:Wheelchair,Baby Bassinet Seat,Meet & Assist,Not Chosen',
             'airline_id'             => 'nullable|integer',
             'transit_visa_application'     => 'nullable|in:Need To Do,Done,No Need',
             'halal_meal_request'     => 'nullable|in:Need To Do,Done,No Need',
             'transit_hotel'          => 'nullable|in:Need To Do,Done,No Need',
+            'note'          => 'nullable',
 
             'transfer_to_id'         => 'nullable|integer',
             'payment_method_id'      => 'nullable|integer',
@@ -619,6 +742,21 @@ class PaymentController extends Controller
             }
         }
 
+        if ($request->total_purchase_price > $request->total_selling_price) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'errors' => [
+                    'total_selling_price' => [
+                        getCurrentTranslation()['selling_price_must_be_greater_than_or_equal_of_purchase_price']
+                            ?? 'selling_price_must_be_greater_than_or_equal_of_purchase_price',
+                    ],
+                ],
+                //'message' => getCurrentTranslation()['selling_price_must_be_greater_than_or_equal_of_purchase_price'] ?? 'selling_price_must_be_greater_than_or_equal_of_purchase_price',
+            ]);
+        }
+
+
         if (empty($paymentData)) {
             $paymentData = new Payment();
             $paymentData->created_by = $authUser->id;
@@ -652,6 +790,7 @@ class PaymentController extends Controller
             $paymentData->transit_visa_application = $request->transit_visa_application ?? null;
             $paymentData->halal_meal_request = $request->halal_meal_request ?? null;
             $paymentData->transit_hotel = $request->transit_hotel ?? null;
+            $paymentData->note = $request->note ?? null;
             $paymentData->transfer_to_id = $request->transfer_to_id ?? null;
             $paymentData->payment_method_id = $request->payment_method_id ?? null;
             $paymentData->issued_card_type_id = $request->issued_card_type_id ?? null;
