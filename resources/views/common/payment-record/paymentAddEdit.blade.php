@@ -413,14 +413,14 @@
 
 							<div class="col-md-4">
 								<div class="form-item mb-5">
-									<label class="form-label">{{ $getCurrentTranslation['departure_label'] ?? 'departure_label' }}:</label>
+									<label class="form-label">{{ $getCurrentTranslation['departure_city_label'] ?? 'departure_city_label' }}:</label>
 									<input type="text" placeholder="{{ $getCurrentTranslation['departure_placeholder'] ?? 'departure_placeholder' }}" class="form-control mb-2" name="departure" value="{{ $editData->departure ?? '' }}"/>
 								</div>
 							</div>
 
 							<div class="col-md-4">
 								<div class="form-item mb-5">
-									<label class="form-label">{{ $getCurrentTranslation['destination_label'] ?? 'destination_label' }}:</label>
+									<label class="form-label">{{ $getCurrentTranslation['destination_city_label'] ?? 'destination_city_label' }}:</label>
 									<input type="text" placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" class="form-control mb-2" name="destination" value="{{ $editData->destination ?? '' }}"/>
 								</div>
 							</div>
@@ -566,7 +566,6 @@
 						</div>
 					</div>
 				</div>
-
 
 				<div class="card rounded border mt-5 bg-white append-item-container">
 					<div class="card-header">
@@ -828,7 +827,78 @@
 					</div>
 				</div>
 
+				@if(isset($editData))
+				<div class="card rounded border mt-5 bg-white refund-data-container">
+					<div class="card-header">
+						<h3 class="card-title">{{ $getCurrentTranslation['refund'] ?? 'refund' }}</h3>
+						<div class="card-toolbar">
+							<button type="button" class="btn btn-sm btn-secondary clear-refund-data-btn">
+								<i class="fas fa-broom"></i>
+								{{ $getCurrentTranslation['clear'] ?? 'clear' }}
+							</button>
+						</div>
+					</div>
+					<div class="card-body">
+						<div class="row">
 
+							<div class="col-4">
+								<div class="form-item mb-5">
+									<label class="form-label">
+										{{ $getCurrentTranslation['cancellation_fee_label'] ?? 'cancellation_fee_label' }}
+										({{Auth::user()->company_data->currency->short_name ?? ''}})
+										:
+									</label>
+									<input type="text" class="form-control number-validate calc-input cancellation-fee" placeholder="0.00" name="cancellation_fee" value="{{ $editData->cancellation_fee ?? '' }}"/>
+								</div>
+							</div>
+
+							<div class="col-4">
+								<div class="form-item mb-5">
+									<label class="form-label">
+										{{ $getCurrentTranslation['service_fee_label'] ?? 'service_fee_label' }}
+										({{Auth::user()->company_data->currency->short_name ?? ''}})
+										:
+									</label>
+									<input type="text" class="form-control number-validate calc-input service-fee" placeholder="0.00" name="service_fee" value="{{ $editData->service_fee ?? '' }}"/>
+								</div>
+							</div>
+
+							<div class="col-md-4">
+								<div class="form-item mb-5">
+									@php
+										$options = ['Unpaid', 'Paid'];
+
+										$selected = $editData->refund_payment_status ?? '';
+									@endphp
+									<label class="form-label">{{ $getCurrentTranslation['refund_payment_status_label'] ?? 'refund_payment_status_label' }}:</label>
+									<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['refund_payment_status_placeholder'] ?? 'refund_payment_status_placeholder' }}" name="refund_payment_status">
+										<option value="0">----</option>
+										@foreach($options as $option)
+											<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
+										@endforeach
+									</select>
+									@error('refund_payment_status')
+										<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+									@enderror
+								</div>
+							</div>
+
+							<div class="col-md-12">
+								<div class="form-item mb-5">
+									@php
+										$selected = $editData->refund_note ?? '';
+									@endphp
+									<label class="form-label">{{ $getCurrentTranslation['refund_note_label'] ?? 'refund_note_label' }}:</label>
+									<textarea class="form-control" name="refund_note" rows="3">{{ old('refund_note') ?? $editData->refund_note ?? '' }}</textarea>
+									@error('refund_note')
+										<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+									@enderror
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				@endif
 
 
 				<div class="d-flex justify-content-end my-10">
@@ -1115,6 +1185,41 @@
 			$('[name="next_payment_deadline"]').closest('div').find('.flatpickr-input').attr('ip-required', 'ip-required');
 		}
 	}
+
+
+	$(document).on('click', '.clear-refund-data-btn', function () {
+		var refundContainer = $('.refund-data-container');
+
+		Swal.fire({
+			title: '{{ $getCurrentTranslation['are_you_sure'] ?? 'are_you_sure' }}',
+			text: '{{ $getCurrentTranslation['clear_refund_data_warning'] ?? 'clear_refund_data_warning' }}',
+			icon: 'warning',
+			showCancelButton: true,
+			confirmButtonColor: '#d33',
+			cancelButtonColor: '#3085d6',
+			confirmButtonText: '{{ $getCurrentTranslation['yes_clear_it'] ?? 'yes_clear_it' }}',
+			cancelButtonText: '{{ $getCurrentTranslation['cancel'] ?? 'cancel' }}'
+		}).then((result) => {
+			if (result.isConfirmed) {
+				// Clear input and textarea values except .fixed-data
+				refundContainer.find('input:not(.fixed-data), textarea:not(.fixed-data)').val('');
+
+				// Reset select elements to their first option and trigger change
+				refundContainer.find('select:not(.fixed-data)').each(function () {
+					$(this).val($(this).find('option:first').val()).trigger('change');
+				});
+
+				Swal.fire({
+					title: '{{ $getCurrentTranslation['cleared'] ?? 'cleared' }}',
+					text: '{{ $getCurrentTranslation['refund_data_cleared_message'] ?? 'refund_data_cleared_message' }}',
+					icon: 'success',
+					timer: 1500,
+					showConfirmButton: false
+				});
+			}
+		});
+	});
+
 
 
 

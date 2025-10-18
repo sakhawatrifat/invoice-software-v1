@@ -51,6 +51,12 @@ return new class extends Migration
             $table->enum('payment_status', ['Unpaid', 'Paid', 'Partial', 'Unknown'])->nullable()->default('Unknown');
             $table->dateTime('next_payment_deadline')->nullable();
 
+            $table->boolean('is_refund')->nullable()->comment('0/1')->default(0);
+            $table->decimal('cancellation_fee', 20,2)->nullable()->default(0);
+            $table->decimal('service_fee', 20,2)->nullable()->default(0);
+            $table->enum('refund_payment_status', ['Unpaid', 'Paid'])->nullable();
+            $table->longText('refund_note')->nullable();
+
             $table->bigInteger('created_by')->nullable();
             $table->bigInteger('updated_by')->nullable();
             $table->bigInteger('deleted_by')->nullable();

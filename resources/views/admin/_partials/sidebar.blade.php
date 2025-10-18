@@ -216,7 +216,7 @@
 
 						@if(hasPermission('ticket.index'))
 						<div class="menu-item">
-							<a class="menu-link {{ getCurrentRouteName() == 'ticket.index' && request()->document_type == 'all' ? 'active' : '' }}" href="{{ route('ticket.index') }}?document_type=quotation">
+							<a class="menu-link {{ getCurrentRouteName() == 'ticket.index' && request()->document_type == 'quotation' ? 'active' : '' }}" href="{{ route('ticket.index') }}?document_type=quotation">
 								<span class="menu-bullet">
 									<span class="bullet bullet-dot"></span>
 								</span>
@@ -232,6 +232,17 @@
 									<span class="bullet bullet-dot"></span>
 								</span>
 								<span class="menu-title">{{ $getCurrentTranslation['create_quotation'] ?? 'create_quotation' }}</span>
+							</a>
+						</div>
+						@endif
+
+						@if(hasPermission('ticket.index'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'ticket.index' && request()->data_for == 'agent' && request()->document_type == 'all' ? 'active' : '' }}" href="{{ route('ticket.index') }}?data_for=agent&document_type=all">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['agent_documents'] ?? 'agent_documents' }}</span>
 							</a>
 						</div>
 						@endif
@@ -449,8 +460,6 @@
 						</div>
 						@endif
 
-
-
 					</div>
 				</div>
 				@endif
@@ -459,7 +468,7 @@
 					$reportRoutes = ['admin.profitLossReport'];
 				@endphp
 				@if(hasPermission('admin.profitLossReport'))
-				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($reportRoutes, 'hover show') }} d-none">
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($reportRoutes, 'hover show') }} ">
 					<span class="menu-link">
 						<span class="menu-icon">
 							<i class="fas fa-book h4 mb-0"></i>

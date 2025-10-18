@@ -67,9 +67,16 @@ class TicketController extends Controller
                     $query->where('user_id', $user->business_id);
                 }
 
+                // Filter by user
+                if (request()->has('data_for') && request()->data_for == 'agent') {
+                    $query->whereNotIn('user_id', [$user->business_id]);
+                }else{
+                    $query->where('user_id', $user->business_id);
+                }
+
                 // Filter by document type
                 if (request()->has('document_type') && request()->document_type != 'all') {
-                    $documentTypes = explode('-', request()->document_type);
+                    $documentTypes = array_map('strtolower', explode('-', request()->document_type));
                     $query->whereIn('document_type', $documentTypes);
                 }
 
@@ -776,8 +783,8 @@ class TicketController extends Controller
         $forUserId = $ticket->user_id;
         $userId = Auth::user()->id;
 
-        // DB::beginTransaction();
-        // try {
+        DB::beginTransaction();
+        try {
             // Handle TicketFlight
             TicketFlight::where('user_id', $forUserId)->where('ticket_id', $ticket->id)
                 ->each(function ($item) use ($userId) {
@@ -856,15 +863,15 @@ class TicketController extends Controller
                 'icon' => 'success',
                 'message' => getCurrentTranslation()['data_deleted'] ?? 'data_deleted'
             ];
-        // } catch (\Exception $e) {
-        //     DB::rollBack();
-        //     return [
-        //         'is_success' => 0,
-        //         'icon' => 'error',
-        //         'message' => getCurrentTranslation()['something_went_wrong'] ?? 'something_went_wrong',
-        //         'error' => $e->getMessage()
-        //     ];
-        // }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return [
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['something_went_wrong'] ?? 'something_went_wrong',
+                'error' => $e->getMessage()
+            ];
+        }
     }
 
 

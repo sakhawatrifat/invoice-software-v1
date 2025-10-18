@@ -209,7 +209,7 @@
                                                                         $badgeClass = match($value) {
                                                                             'Window' => 'bg-primary',
                                                                             'Aisle' => 'bg-success',
-                                                                            'Not Chosen' => 'bg-secondary text-dark',
+                                                                            'Not Chosen' => 'bg-warning text-dark',
                                                                             default => 'bg-light text-dark'
                                                                         };
                                                                     }
@@ -228,7 +228,7 @@
                                                                             'Wheelchair' => 'bg-primary',
                                                                             'Baby Bassinet Seat' => 'bg-info',
                                                                             'Meet & Assist' => 'bg-success',
-                                                                            'Not Chosen' => 'bg-secondary text-dark',
+                                                                            'Not Chosen' => 'bg-warning text-dark',
                                                                             default => 'bg-light text-dark'
                                                                         };
                                                                     }
@@ -244,7 +244,7 @@
                                                                         $badgeClass = 'bg-light text-dark';
                                                                     } else {
                                                                         $badgeClass = match($value) {
-                                                                            'Need To Do' => 'bg-warning text-dark',
+                                                                            'Need To Do' => 'bg-danger text-white',
                                                                             'Done' => 'bg-success',
                                                                             'No Need' => 'bg-secondary text-dark',
                                                                             default => 'bg-light text-dark'
@@ -262,7 +262,7 @@
                                                                         $badgeClass = 'bg-light text-dark';
                                                                     } else {
                                                                         $badgeClass = match($value) {
-                                                                            'Need To Do' => 'bg-warning text-dark',
+                                                                            'Need To Do' => 'bg-danger text-white',
                                                                             'Done' => 'bg-success',
                                                                             'No Need' => 'bg-secondary text-dark',
                                                                             default => 'bg-light text-dark'
@@ -280,7 +280,7 @@
                                                                         $badgeClass = 'bg-light text-dark';
                                                                     } else {
                                                                         $badgeClass = match($value) {
-                                                                            'Need To Do' => 'bg-warning text-dark',
+                                                                            'Need To Do' => 'bg-danger text-white',
                                                                             'Done' => 'bg-success',
                                                                             'No Need' => 'bg-secondary text-dark',
                                                                             default => 'bg-light text-dark'

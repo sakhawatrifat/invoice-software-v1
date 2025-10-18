@@ -169,7 +169,7 @@
 
 													$selected = request()->departure ?? '';
 												@endphp
-												<label class="form-label">{{ $getCurrentTranslation['departure_label'] ?? 'departure_label' }}:</label>
+												<label class="form-label">{{ $getCurrentTranslation['departure_city_label'] ?? 'departure_city_label' }}:</label>
 												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['departure_placeholder'] ?? 'departure_placeholder' }}" name="departure">
 													<option value="0">----</option>
 													@foreach($options as $option)
@@ -189,7 +189,7 @@
 
 													$selected = request()->destination ?? '';
 												@endphp
-												<label class="form-label">{{ $getCurrentTranslation['destination_label'] ?? 'destination_label' }}:</label>
+												<label class="form-label">{{ $getCurrentTranslation['destination_city_label'] ?? 'destination_city_label' }}:</label>
 												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" name="destination">
 													<option value="0">----</option>
 													@foreach($options as $option)
@@ -422,7 +422,6 @@
 					@php
 						// --- PREPROCESS: CALCULATE PAID & DUE AMOUNTS ---
 						$profitLossData = $profitLossData->map(function ($item) {
-							// Handle paymentData type safely
 							if (is_string($item->paymentData)) {
 								$payments = json_decode($item->paymentData, true);
 								if (json_last_error() !== JSON_ERROR_NONE) {
@@ -434,15 +433,12 @@
 								$payments = [];
 							}
 
-							// Calculate total paid amount
 							$totalPaid = is_array($payments)
 								? collect($payments)->sum('paid_amount')
 								: 0;
 
-							// Calculate due amount
 							$dueAmount = $item->total_selling_price - $totalPaid;
 
-							// Attach computed fields to the item
 							$item->total_paid = $totalPaid;
 							$item->due_amount = $dueAmount;
 
@@ -450,44 +446,47 @@
 						});
 
 						// --- SUMMARY CALCULATIONS ---
-						$summary = [
-							'total_airline' => $profitLossData->groupBy('airline_id')->count(),
-							'total_introduction_source' => $profitLossData->groupBy('introduction_source_id')->count(),
-							'total_country' => $profitLossData->groupBy('customer_country_id')->count(),
-							'total_issued_suppliers' => $profitLossData->pluck('issued_supplier_ids')
-								->map(function ($ids) {
-									if (is_string($ids)) {
-										return collect(json_decode($ids, true) ?? []);
-									} elseif (is_array($ids)) {
-										return collect($ids);
-									} else {
-										return collect([]);
-									}
-								})
-								->flatten()
-								->unique()
-								->count(),
-							'total_issued_by' => $profitLossData->groupBy('issued_by_id')->count(),
-							'total_trip_type' => $profitLossData->groupBy('trip_type')->count(),
-							'total_seat_confirmation' => $profitLossData->groupBy('seat_confirmation')->count(),
-							'total_mobility_assistance' => $profitLossData->groupBy('mobility_assistance')->count(),
-							'total_transit_visa_application' => $profitLossData->groupBy('transit_visa_application')->count(),
-							'total_halal_meal_request' => $profitLossData->groupBy('halal_meal_request')->count(),
-							'total_transit_hotel' => $profitLossData->groupBy('transit_hotel')->count(),
-							'total_transfer_to' => $profitLossData->groupBy('transfer_to_id')->count(),
-							'total_payment_method' => $profitLossData->groupBy('payment_method_id')->count(),
-							'total_issued_card_type' => $profitLossData->groupBy('issued_card_type_id')->count(),
-							'total_card_owner' => $profitLossData->groupBy('card_owner_id')->count(),
+						$total_airline = $profitLossData->groupBy('airline_id')->count();
+						$total_introduction_source = $profitLossData->groupBy('introduction_source_id')->count();
+						$total_country = $profitLossData->groupBy('customer_country_id')->count();
+						$total_issued_suppliers = $profitLossData->pluck('issued_supplier_ids')
+							->map(function ($ids) {
+								if (is_string($ids)) {
+									return collect(json_decode($ids, true) ?? []);
+								} elseif (is_array($ids)) {
+									return collect($ids);
+								} else {
+									return collect([]);
+								}
+							})
+							->flatten()
+							->unique()
+							->count();
+						$total_issued_by = $profitLossData->groupBy('issued_by_id')->count();
+						$total_trip_type = $profitLossData->groupBy('trip_type')->count();
+						$total_seat_confirmation = $profitLossData->groupBy('seat_confirmation')->count();
+						$total_mobility_assistance = $profitLossData->groupBy('mobility_assistance')->count();
+						$total_transit_visa_application = $profitLossData->groupBy('transit_visa_application')->count();
+						$total_halal_meal_request = $profitLossData->groupBy('halal_meal_request')->count();
+						$total_transit_hotel = $profitLossData->groupBy('transit_hotel')->count();
+						$total_transfer_to = $profitLossData->groupBy('transfer_to_id')->count();
+						$total_payment_method = $profitLossData->groupBy('payment_method_id')->count();
+						$total_issued_card_type = $profitLossData->groupBy('issued_card_type_id')->count();
+						$total_card_owner = $profitLossData->groupBy('card_owner_id')->count();
 
-							// Financial totals
-							'total_purchase_amount' => $profitLossData->sum('total_purchase_price'),
-							'total_selling_amount' => $profitLossData->sum('total_selling_price'),
-							'total_profit' => $profitLossData->sum('total_selling_price') - $profitLossData->sum('total_purchase_price'),
+						$total_purchase_amount = $profitLossData->sum('total_purchase_price');
+						$total_selling_amount = $profitLossData->sum('total_selling_price');
+						$total_profit = $profitLossData->sum('total_selling_price') - $profitLossData->sum('total_purchase_price');
+						// $total_refund_amount = $profitLossData
+						// 	->where('is_refund', 1)
+						// 	->sum(function ($item) {
+						// 		return ($item->total_selling_price ?? 0) - ($item->cancellation_fee ?? 0);
+						// 	});
 
-							// NEW: Payment-based totals
-							'total_paid_amount' => $profitLossData->sum('total_paid'),
-							'total_due_amount' => $profitLossData->sum('due_amount'),
-						];
+						$total_cancellation_fee = $profitLossData->where('is_refund', 1)->sum('cancellation_fee');
+						$total_profit_after_refund = $total_profit - $total_cancellation_fee;
+						$total_paid_amount = $profitLossData->sum('total_paid');
+						$total_due_amount = $profitLossData->sum('due_amount');
 
 						// --- PAYMENT STATUS SUMMARY ---
 						$paymentStatusSummary = $profitLossData
@@ -497,14 +496,13 @@
 									'count' => $group->count(),
 									'total_purchase_amount' => $group->sum('total_purchase_price'),
 									'total_selling_amount' => $group->sum('total_selling_price'),
+									'total_cancellation_fee' => $group->sum('cancellation_fee'),
 									'total_profit' => $group->sum('total_selling_price') - $group->sum('total_purchase_price'),
 									'total_paid_amount' => $group->sum('total_paid'),
 									'total_due_amount' => $group->sum('due_amount'),
 								];
 							});
-						@endphp
-
-
+					@endphp
 
 					{{-- ================= MAIN SUMMARY TABLE ================= --}}
 					<div class="row">
@@ -522,7 +520,7 @@
 											<tr>
 												<th>{{ $getCurrentTranslation['total_purchase'] ?? 'total_purchase' }}</th>
 												<td>
-													{{ number_format($summary['total_purchase_amount'], 2) }}
+													{{ number_format($total_purchase_amount, 2) }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
 												</td>
 											</tr>
@@ -530,21 +528,21 @@
 											<tr>
 												<th>{{ $getCurrentTranslation['total_selling'] ?? 'total_selling' }}</th>
 												<td>
-													{{ number_format($summary['total_selling_amount'], 2) }}
+													{{ number_format($total_selling_amount, 2) }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
 												</td>
 											</tr>
 
 											{{-- ✅ Dynamic Profit/Loss Row with Minus for Loss --}}
 											@php
-												$isProfit = $summary['total_profit'] >= 0;
+												$isProfit = $total_profit >= 0;
 												$profitLossLabel = $isProfit
-													? ($getCurrentTranslation['total_profit'] ?? 'Total Profit')
-													: ($getCurrentTranslation['total_loss'] ?? 'Total Loss');
+													? ($getCurrentTranslation['total_profit'] ?? 'total_profit')
+													: ($getCurrentTranslation['total_loss'] ?? 'total_loss');
 												$profitLossClass = $isProfit ? 'table-success text-success' : 'table-danger text-danger';
 												$profitLossValue = $isProfit
-													? number_format($summary['total_profit'], 2)
-													: '-' . number_format(abs($summary['total_profit']), 2);
+													? number_format($total_profit, 2)
+													: '-' . number_format(abs($total_profit), 2);
 											@endphp
 
 											<tr class="fw-bold {{ $profitLossClass }}">
@@ -555,11 +553,49 @@
 												</td>
 											</tr>
 
+											{{-- <tr>
+												<th>{{ $getCurrentTranslation['total_refund'] ?? 'total_refund' }}</th>
+												<td>
+													{{ number_format($total_refund_amount, 2) }}
+													{{ Auth::user()->company_data->currency->short_name ?? '' }}
+												</td>
+											</tr> --}}
+
+											<tr class="table-danger">
+												<th class="fw-semibold">{{ $getCurrentTranslation['total_cancellation_fee'] ?? 'total_cancellation_fee' }}</th>
+												<td class="fw-semibold">
+													{{ number_format($total_cancellation_fee, 2) }}
+													{{ Auth::user()->company_data->currency->short_name ?? '' }}
+												</td>
+											</tr>
+
+											{{-- ✅ Dynamic Profit/Loss After Refund Row with Minus for Loss --}}
+											@php
+												$isProfitAfterRefund = $total_profit_after_refund >= 0;
+												$profitLossAfterRefundLabel = $isProfitAfterRefund
+													? ($getCurrentTranslation['total_profit_after_refund'] ?? 'total_profit_after_refund')
+													: ($getCurrentTranslation['total_loss_after_refund'] ?? 'total_loss_after_refund');
+												$profitLossAfterRefundClass = $isProfitAfterRefund ? 'table-success text-success' : 'table-danger text-danger';
+												$profitLossAfterRefundValue = $isProfitAfterRefund
+													? number_format($total_profit_after_refund, 2)
+													: '-' . number_format(abs($total_profit_after_refund), 2);
+											@endphp
+
+											<tr class="fw-bold {{ $profitLossAfterRefundClass }}">
+												<th>{{ $profitLossAfterRefundLabel }}</th>
+												<td>
+													{{ $profitLossAfterRefundValue }}
+													{{ Auth::user()->company_data->currency->short_name ?? '' }}
+												</td>
+											</tr>
+
+
+
 											{{-- ✅ Paid & Due BELOW Profit/Loss --}}
 											<tr>
 												<th class="table-primary fw-semibold">{{ $getCurrentTranslation['total_paid'] ?? 'total_paid' }}</th>
 												<td class="table-primary fw-semibold">
-													{{ number_format($summary['total_paid_amount'], 2) }}
+													{{ number_format($total_paid_amount, 2) }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
 												</td>
 											</tr>
@@ -567,7 +603,7 @@
 											<tr>
 												<th class="table-warning fw-semibold">{{ $getCurrentTranslation['total_due'] ?? 'total_due' }}</th>
 												<td class="table-warning fw-semibold">
-													{{ number_format($summary['total_due_amount'], 2) }}
+													{{ number_format($total_due_amount, 2) }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
 												</td>
 											</tr>
@@ -577,10 +613,6 @@
 							</div>
 						</div>
 
-
-
-
-						
 						{{-- ================= PAYMENT STATUS ================= --}}
 						<div class="col-12">
 							<div class="card shadow-sm mb-4">
@@ -597,6 +629,7 @@
 												<th class="bg-light">{{ $getCurrentTranslation['total_count'] ?? 'total_count' }}</th>
 												<th class="bg-light">{{ $getCurrentTranslation['total_purchase_amount'] ?? 'total_purchase_amount' }}</th>
 												<th class="bg-light">{{ $getCurrentTranslation['total_selling_amount'] ?? 'total_selling_amount' }}</th>
+												<th class="table-danger">{{ $getCurrentTranslation['total_cancellation_fee'] ?? 'total_cancellation_fee' }}</th>
 												<th class="table-success table-danger-text">{{ $getCurrentTranslation['total_profit_loss'] ?? 'total_profit_loss' }}</th>
 												<th class="table-primary">{{ $getCurrentTranslation['total_paid'] ?? 'total_paid' }}</th>
 												<th class="table-warning">{{ $getCurrentTranslation['total_due'] ?? 'total_due' }}</th>
@@ -606,11 +639,14 @@
 											@if(count($paymentStatusSummary))
 												@foreach ($paymentStatusSummary as $status => $data)
 													@php
-														$isProfit = $data['total_profit'] >= 0;
+														// Calculate net profit after subtracting cancellation fee
+														$netProfit = $data['total_profit'] - ($data['total_cancellation_fee'] ?? 0);
+
+														$isProfit = $netProfit >= 0;
 														$profitLossClass = $isProfit ? 'table-success' : 'table-danger';
 														$profitLossValue = $isProfit
-															? number_format($data['total_profit'], 2)
-															: '-' . number_format(abs($data['total_profit']), 2);
+															? number_format($netProfit, 2)
+															: '-' . number_format(abs($netProfit), 2);
 													@endphp
 
 													<tr>
@@ -625,19 +661,21 @@
 															{{ Auth::user()->company_data->currency->short_name ?? '' }}
 														</td>
 
-														{{-- ✅ Profit/Loss with color background --}}
+														<td class="table-danger">
+															{{ number_format($data['total_cancellation_fee'], 2) }}
+															{{ Auth::user()->company_data->currency->short_name ?? '' }}
+														</td>
+
 														<td class="fw-semibold {{ $profitLossClass }}">
 															{{ $profitLossValue }}
 															{{ Auth::user()->company_data->currency->short_name ?? '' }}
 														</td>
 
-														{{-- ✅ Paid Column --}}
 														<td class="table-primary fw-semibold">
 															{{ number_format($data['total_paid_amount'], 2) }}
 															{{ Auth::user()->company_data->currency->short_name ?? '' }}
 														</td>
 
-														{{-- ✅ Due Column --}}
 														<td class="table-warning fw-semibold">
 															{{ number_format($data['total_due_amount'], 2) }}
 															{{ Auth::user()->company_data->currency->short_name ?? '' }}
@@ -656,8 +694,6 @@
 								</div>
 							</div>
 						</div>
-
-
 					</div>
 
 					{{-- ================= OTHER SUMMARY ================= --}}
@@ -670,31 +706,30 @@
 								<div class="card-body">
 									<table class="report-table table table-bordered table-striped table-hover align-middle mb-0">
 										<tbody>
-											<tr><th>{{ $getCurrentTranslation['total_airline'] ?? 'total_airline' }}</th><td>{{ $summary['total_airline'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_introduction_source'] ?? 'total_introduction_source' }}</th><td>{{ $summary['total_introduction_source'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_country'] ?? 'total_country' }}</th><td>{{ $summary['total_country'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_issued_suppliers'] ?? 'total_issued_suppliers' }}</th><td>{{ $summary['total_issued_suppliers'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_issued_by'] ?? 'total_issued_by' }}</th><td>{{ $summary['total_issued_by'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_trip_type'] ?? 'total_trip_type' }}</th><td>{{ $summary['total_trip_type'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_seat_confirmation'] ?? 'total_seat_confirmation' }}</th><td>{{ $summary['total_seat_confirmation'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_mobility_assistance'] ?? 'total_mobility_assistance' }}</th><td>{{ $summary['total_mobility_assistance'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_transit_visa_application'] ?? 'total_transit_visa_application' }}</th><td>{{ $summary['total_transit_visa_application'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_halal_meal_request'] ?? 'total_halal_meal_request' }}</th><td>{{ $summary['total_halal_meal_request'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_transit_hotel'] ?? 'total_transit_hotel' }}</th><td>{{ $summary['total_transit_hotel'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_transfer_to'] ?? 'total_transfer_to' }}</th><td>{{ $summary['total_transfer_to'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_payment_method'] ?? 'total_payment_method' }}</th><td>{{ $summary['total_payment_method'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_issued_card_type'] ?? 'total_issued_card_type' }}</th><td>{{ $summary['total_issued_card_type'] }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_card_owner'] ?? 'total_card_owner' }}</th><td>{{ $summary['total_card_owner'] }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_airline'] ?? 'total_airline' }}</th><td>{{ $total_airline }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_introduction_source'] ?? 'total_introduction_source' }}</th><td>{{ $total_introduction_source }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_country'] ?? 'total_country' }}</th><td>{{ $total_country }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_issued_suppliers'] ?? 'total_issued_suppliers' }}</th><td>{{ $total_issued_suppliers }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_issued_by'] ?? 'total_issued_by' }}</th><td>{{ $total_issued_by }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_trip_type'] ?? 'total_trip_type' }}</th><td>{{ $total_trip_type }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_seat_confirmation'] ?? 'total_seat_confirmation' }}</th><td>{{ $total_seat_confirmation }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_mobility_assistance'] ?? 'total_mobility_assistance' }}</th><td>{{ $total_mobility_assistance }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_transit_visa_application'] ?? 'total_transit_visa_application' }}</th><td>{{ $total_transit_visa_application }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_halal_meal_request'] ?? 'total_halal_meal_request' }}</th><td>{{ $total_halal_meal_request }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_transit_hotel'] ?? 'total_transit_hotel' }}</th><td>{{ $total_transit_hotel }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_transfer_to'] ?? 'total_transfer_to' }}</th><td>{{ $total_transfer_to }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_payment_method'] ?? 'total_payment_method' }}</th><td>{{ $total_payment_method }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_issued_card_type'] ?? 'total_issued_card_type' }}</th><td>{{ $total_issued_card_type }}</td></tr>
+											<tr><th>{{ $getCurrentTranslation['total_card_owner'] ?? 'total_card_owner' }}</th><td>{{ $total_card_owner }}</td></tr>
 										</tbody>
 									</table>
 								</div>
 							</div>
 						</div>
 					</div>
-
 				</div>
-
 			</div>
+
 		</div>
 		<!--end::Content container-->
 	</div>

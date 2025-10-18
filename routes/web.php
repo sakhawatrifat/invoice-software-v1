@@ -237,6 +237,8 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
     Route::controller(CommonPaymentController::class)->group(function () {
         Route::get('/payment-list', 'index')->name('payment.index');
         Route::get('/payment-datatble', 'datatable')->name('payment.datatable');
+        Route::get('/todo-list', 'toDoList')->name('payment.toDoList');
+        Route::get('/todo-datatble', 'toDoDatatable')->name('payment.toDoDatatable');
         Route::get('/payment/create', 'create')->name('payment.create');
         Route::get('/payment/ticket-search', 'ticketSearch')->name('payment.ticket.search');
         Route::post('/payment/store', 'store')->name('payment.store');

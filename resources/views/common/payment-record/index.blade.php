@@ -153,7 +153,7 @@
 
 													$selected = request()->departure ?? '';
 												@endphp
-												<label class="form-label">{{ $getCurrentTranslation['departure_label'] ?? 'departure_label' }}:</label>
+												<label class="form-label">{{ $getCurrentTranslation['departure_city_label'] ?? 'departure_city_label' }}:</label>
 												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['departure_placeholder'] ?? 'departure_placeholder' }}" name="departure">
 													<option value="0">----</option>
 													@foreach($options as $option)
@@ -173,7 +173,7 @@
 
 													$selected = request()->destination ?? '';
 												@endphp
-												<label class="form-label">{{ $getCurrentTranslation['destination_label'] ?? 'destination_label' }}:</label>
+												<label class="form-label">{{ $getCurrentTranslation['destination_city_label'] ?? 'destination_city_label' }}:</label>
 												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" name="destination">
 													<option value="0">----</option>
 													@foreach($options as $option)

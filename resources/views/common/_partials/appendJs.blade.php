@@ -196,6 +196,11 @@
 
 						toastr.success('Selected input data cleared successfully.');
 					}
+					if (typeof calculatePaymentAmount === 'function') {
+						setTimeout(function(){
+							calculatePaymentAmount();
+						},1000);
+					}
 				}
 			});
 		});

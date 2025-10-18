@@ -58,186 +58,196 @@
 
 				@if(Auth::user()->user_type == 'admin')
 					<form class="col-md-12" method="get">
-						<div class="col-md-12 mb-6 p-sticky-wrapper">
-							<div class="p-sticky-part d-flex align-items-center justify-content-end bg-white py-5 px-5">
-								<div class="col-md-3">
-									<div class="input-item-wrap">
-										{{-- <label class="form-label">{{ $getCurrentTranslation['date_range_label'] ?? '日付範囲' }}:</label> --}}
-										
-										@php
-											$defaultTodoStart = \Carbon\Carbon::today()->format('Y/m/d'); // today
-											$defaultTodoEnd = \Carbon\Carbon::today()->addDays(30)->format('Y/m/d'); //next 30 days
-											$selectedTodoDateRange = request()->todo_date_range ?? "$defaultTodoStart-$defaultTodoEnd";
+						
+						@if(hasPermission('toDoList'))
+							<div class="col-md-12 mb-6 p-sticky-wrapper">
+								<div class="p-sticky-part d-flex align-items-center justify-content-end bg-white py-5 px-5">
+									<div class="col-md-3">
+										<div class="input-item-wrap">
+											{{-- <label class="form-label">{{ $getCurrentTranslation['date_range_label'] ?? '日付範囲' }}:</label> --}}
+											
+											@php
+												$defaultTodoStart = \Carbon\Carbon::today()->format('Y/m/d'); // today
+												$defaultTodoEnd = \Carbon\Carbon::today()->addDays(30)->format('Y/m/d'); //next 30 days
+												$selectedTodoDateRange = request()->todo_date_range ?? "$defaultTodoStart-$defaultTodoEnd";
 
-											$toDoListData = toDoListData($selectedTodoDateRange);
+												$toDoListData = toDoListData($selectedTodoDateRange);
+												//dd($toDoListData);
+											@endphp
+
+											<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
+												<div class="cursor-pointer dateRangePicker future-date {{ $selectedTodoDateRange ? 'filled' : 'empty' }}">
+													<i class="fa fa-calendar"></i>&nbsp;
+													<span>{{ $selectedTodoDateRange }}</span> <i class="fa fa-caret-down"></i>
+
+													<input autocomplete="off" class="col-sm-12 form-control dateRangeInput" 
+														name="todo_date_range" 
+														data-value="{{ $selectedTodoDateRange }}" 
+														value="{{ $selectedTodoDateRange }}" 
+														style="position:absolute;top:0;left:0;width:100%;z-index:-999999;opacity:0;" />
+												</div>
+												<span class="clear-date-range"><i class="fa fa-times"></i></span>
+											</div>
+
+											@error('todo_date_range')
+												<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+											@enderror
+										</div>
+									</div>
+
+									<button type="submit" class="btn btn-primary">
+										{{ $getCurrentTranslation['filter'] ?? 'filter' }}
+									</button>
+
+									<a class="ms-2 btn btn-secondary" href="{{ route('admin.dashboard') }}">
+										{{ $getCurrentTranslation['reset'] ?? 'reset' }}
+									</a>
+								</div>
+
+
+								<div class="card rounded border mt-0 bg-white">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['to_do_list'] ?? 'to_do_list' }}
+											(Filtered By: Departure & Return Date {{$selectedTodoDateRange}}) <br>
+											@if(isset($toDoListData))
+											{{ $getCurrentTranslation['total_data'] ?? 'total_data' }}: {{ count($toDoListData) }}
+											@endif
+										</h3>
+										<div class="card-toolbar">
+											<a class="btn btn-primary btn-sm" href="{{ route('payment.toDoList') }}?flight_date_range={{ $selectedTodoDateRange }}">{{ $getCurrentTranslation['full_to_do_list'] ?? 'full_to_do_list' }}</a>
+										</div>
+									</div>
+									<div class="card-body">
+										@php
+											//$toDoListData = toDoListData($selectedTodoDateRange);
 											//dd($toDoListData);
 										@endphp
-
-										<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
-											<div class="cursor-pointer dateRangePicker future-date {{ $selectedTodoDateRange ? 'filled' : 'empty' }}">
-												<i class="fa fa-calendar"></i>&nbsp;
-												<span>{{ $selectedTodoDateRange }}</span> <i class="fa fa-caret-down"></i>
-
-												<input autocomplete="off" class="col-sm-12 form-control dateRangeInput" 
-													name="todo_date_range" 
-													data-value="{{ $selectedTodoDateRange }}" 
-													value="{{ $selectedTodoDateRange }}" 
-													style="position:absolute;top:0;left:0;width:100%;z-index:-999999;opacity:0;" />
-											</div>
-											<span class="clear-date-range"><i class="fa fa-times"></i></span>
-										</div>
-
-										@error('todo_date_range')
-											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
-										@enderror
-									</div>
-								</div>
-
-								<button type="submit" class="btn btn-primary">
-									{{ $getCurrentTranslation['filter'] ?? 'filter' }}
-								</button>
-
-								<a class="ms-2 btn btn-secondary" href="{{ route('admin.dashboard') }}">
-									{{ $getCurrentTranslation['reset'] ?? 'reset' }}
-								</a>
-							</div>
-
-
-							<div class="card rounded border mt-0 bg-white">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['to_do_list'] ?? 'to_do_list' }}
-										(Filtered By: Departure & Return Date {{$selectedTodoDateRange}}) <br>
-										@if(isset($toDoListData))
-										{{ $getCurrentTranslation['total_data'] ?? 'total_data' }}: {{ count($toDoListData) }}
-										@endif
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$toDoListData = toDoListData($selectedTodoDateRange);
-										//dd($toDoListData);
-									@endphp
-									<div class="todo-wrap">
-										@if(isset($toDoListData) && count($toDoListData))
-											<div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-												<table class="table table-bordered table-striped align-middle text-center mb-0">
-													<thead class="table-dark" style="position: sticky; top: 0; z-index: 10;">
-														<tr>
-															<th>#</th>
-															<th class="text-start">{{ $getCurrentTranslation['trip_info'] ?? 'trip_info' }}</th>
-															<th>{{ $getCurrentTranslation['seat_confirmation_label'] ?? 'seat_confirmation_label' }}</th>
-															<th>{{ $getCurrentTranslation['mobility_assistance_label'] ?? 'mobility_assistance_label' }}</th>
-															<th>{{ $getCurrentTranslation['transit_visa_application_label'] ?? 'transit_visa_application_label' }}</th>
-															<th>{{ $getCurrentTranslation['halal_meal_request_label'] ?? 'halal_meal_request_label' }}</th>
-															<th>{{ $getCurrentTranslation['transit_hotel_label'] ?? 'transit_hotel_label' }}</th>
-															<th>{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
-														</tr>
-													</thead>
-													<tbody>
-														@foreach($toDoListData as $index => $item)
-															@php
-																$seatBadge = match($item->seat_confirmation) {
-																	'Window' => '<span class="badge bg-primary">Window</span>',
-																	'Aisle' => '<span class="badge bg-success">Aisle</span>',
-																	'Not Chosen' => '<span class="badge bg-warning text-dark">Not Chosen</span>',
-																	default => '<span class="badge bg-light text-dark">—</span>',
-																};
-
-																$mobilityBadge = match($item->mobility_assistance) {
-																	'Wheelchair' => '<span class="badge bg-primary">Wheelchair</span>',
-																	'Baby Bassinet Seat' => '<span class="badge bg-info">Baby Bassinet Seat</span>',
-																	'Meet & Assist' => '<span class="badge bg-success">Meet & Assist</span>',
-																	'Not Chosen' => '<span class="badge bg-warning text-dark">Not Chosen</span>',
-																	default => '<span class="badge bg-light text-dark">—</span>',
-																};
-
-																$visaBadge = match($item->transit_visa_application) {
-																	'Need To Do' => '<span class="badge bg-warning text-dark">Need To Do</span>',
-																	'Done' => '<span class="badge bg-success">Done</span>',
-																	'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
-																	default => '<span class="badge bg-light text-dark">—</span>',
-																};
-
-																$halalBadge = match($item->halal_meal_request) {
-																	'Need To Do' => '<span class="badge bg-warning text-dark">Need To Do</span>',
-																	'Done' => '<span class="badge bg-success">Done</span>',
-																	'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
-																	default => '<span class="badge bg-light text-dark">—</span>',
-																};
-
-																$hotelBadge = match($item->transit_hotel) {
-																	'Need To Do' => '<span class="badge bg-warning text-dark">Need To Do</span>',
-																	'Done' => '<span class="badge bg-success">Done</span>',
-																	'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
-																	default => '<span class="badge bg-light text-dark">—</span>',
-																};
-															@endphp
-
+										<div class="todo-wrap">
+											@if(isset($toDoListData) && count($toDoListData))
+												<div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+													<table class="table table-bordered table-striped align-middle text-center mb-0">
+														<thead class="table-dark" style="position: sticky; top: 0; z-index: 10;">
 															<tr>
-																<td>{{ $index + 1 }}</td>
-																<td class="text-start">
-																	<strong>{{ $getCurrentTranslation['payment_invoice_id_label'] ?? 'payment_invoice_id_label' }} :</strong> {{ $item->payment_invoice_id ?? 'N/A' }} <br>
-																	<strong>{{ $getCurrentTranslation['ticket_invoice_id_label'] ?? 'ticket_invoice_id_label' }} :</strong> {{ $item->ticket->invoice_id ?? 'N/A' }} <br>
-
-																	<strong>{{ $getCurrentTranslation['trip_type_label'] ?? 'trip_type_label' }} :</strong> {{ $item->trip_type }} <br>
-																	
-																	<strong>{{ $getCurrentTranslation['flight_route_label'] ?? 'flight_route_label' }} :</strong> {{ $item->flight_route }} <br>
-																	
-																	<strong>{{ $getCurrentTranslation['departure_label'] ?? 'departure_label' }} :</strong>
-																	{{ $item->departure_date_time ? date('Y-m-d, H:i', strtotime($item->departure_date_time)) : 'N/A' }}
-																	<br>
-
-																	<strong>{{ $getCurrentTranslation['return_label'] ?? 'return_label' }} :</strong>
-																	{{ $item->return_date_time ? date('Y-m-d, H:i', strtotime($item->return_date_time)) : 'N/A' }}
-																	<br>
-
-																	<strong>{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }} :</strong> {{ $item->airline->name }} <br>
-
-																</td>
-
-																<td>{!! $seatBadge !!}</td>
-																<td>{!! $mobilityBadge !!}</td>
-																<td>{!! $visaBadge !!}</td>
-																<td>{!! $halalBadge !!}</td>
-																<td>{!! $hotelBadge !!}</td>
-																<td>
-																	@php $hasAction = false; @endphp
-
-																	@if(hasPermission('payment.show'))
-																		@php $hasAction = true; @endphp
-																		<a href="{{ route('payment.show', $item->id) }}" class="btn btn-sm btn-info my-1" title="Details">
-																			<i class="fa-solid fa-pager"></i>
-																		</a>
-																	@endif
-
-																	@if(hasPermission('payment.edit'))
-																		@php $hasAction = true; @endphp
-																		<a href="{{ route('payment.edit', $item->id) }}" class="btn btn-sm btn-primary my-1" title="Edit">
-																			<i class="fa-solid fa-pen-to-square"></i>
-																		</a>
-																	@endif
-
-																	@unless($hasAction)
-																		N/A
-																	@endunless
-																</td>
+																<th>#</th>
+																<th class="text-start">{{ $getCurrentTranslation['trip_info'] ?? 'trip_info' }}</th>
+																<th>{{ $getCurrentTranslation['seat_confirmation_label'] ?? 'seat_confirmation_label' }}</th>
+																<th>{{ $getCurrentTranslation['mobility_assistance_label'] ?? 'mobility_assistance_label' }}</th>
+																<th>{{ $getCurrentTranslation['transit_visa_application_label'] ?? 'transit_visa_application_label' }}</th>
+																<th>{{ $getCurrentTranslation['halal_meal_request_label'] ?? 'halal_meal_request_label' }}</th>
+																<th>{{ $getCurrentTranslation['transit_hotel_label'] ?? 'transit_hotel_label' }}</th>
+																<th>{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
 															</tr>
+														</thead>
+														<tbody>
+															@foreach($toDoListData as $index => $item)
+																@php
+																	$seatBadge = match($item->seat_confirmation) {
+																		'Window' => '<span class="badge bg-primary">Window</span>',
+																		'Aisle' => '<span class="badge bg-success">Aisle</span>',
+																		'Not Chosen' => '<span class="badge bg-warning text-dark">Not Chosen</span>',
+																		default => '<span class="badge bg-light text-dark">—</span>',
+																	};
 
-														@endforeach
-													</tbody>
-												</table>
-											</div>
-										@else
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_data_found_for_selected_filter'] ?? 'no_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+																	$mobilityBadge = match($item->mobility_assistance) {
+																		'Wheelchair' => '<span class="badge bg-primary">Wheelchair</span>',
+																		'Baby Bassinet Seat' => '<span class="badge bg-info">Baby Bassinet Seat</span>',
+																		'Meet & Assist' => '<span class="badge bg-success">Meet & Assist</span>',
+																		'Not Chosen' => '<span class="badge bg-warning text-dark">Not Chosen</span>',
+																		default => '<span class="badge bg-light text-dark">—</span>',
+																	};
+
+																	$visaBadge = match($item->transit_visa_application) {
+																		'Need To Do' => '<span class="badge bg-danger text-white">Need To Do</span>',
+																		'Done' => '<span class="badge bg-success">Done</span>',
+																		'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
+																		default => '<span class="badge bg-light text-dark">—</span>',
+																	};
+
+																	$halalBadge = match($item->halal_meal_request) {
+																		'Need To Do' => '<span class="badge bg-danger text-white">Need To Do</span>',
+																		'Done' => '<span class="badge bg-success">Done</span>',
+																		'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
+																		default => '<span class="badge bg-light text-dark">—</span>',
+																	};
+
+																	$hotelBadge = match($item->transit_hotel) {
+																		'Need To Do' => '<span class="badge bg-danger text-white">Need To Do</span>',
+																		'Done' => '<span class="badge bg-success">Done</span>',
+																		'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
+																		default => '<span class="badge bg-light text-dark">—</span>',
+																	};
+																@endphp
+
+																<tr>
+																	<td>{{ $index + 1 }}</td>
+																	<td class="text-start">
+																		<strong>{{ $getCurrentTranslation['payment_invoice_id_label'] ?? 'payment_invoice_id_label' }} :</strong> {{ $item->payment_invoice_id ?? 'N/A' }} <br>
+																		<strong>{{ $getCurrentTranslation['ticket_invoice_id_label'] ?? 'ticket_invoice_id_label' }} :</strong> {{ $item->ticket->invoice_id ?? 'N/A' }} <br>
+
+																		<strong>{{ $getCurrentTranslation['trip_type_label'] ?? 'trip_type_label' }} :</strong> {{ $item->trip_type }} <br>
+																		
+																		<strong>{{ $getCurrentTranslation['flight_route_label'] ?? 'flight_route_label' }} :</strong> {{ $item->flight_route }} <br>
+																		
+																		<strong>{{ $getCurrentTranslation['departure_label'] ?? 'departure_label' }} :</strong>
+																		{{ $item->departure_date_time ? date('Y-m-d, H:i', strtotime($item->departure_date_time)) : 'N/A' }}
+																		<br>
+
+																		<strong>{{ $getCurrentTranslation['return_label'] ?? 'return_label' }} :</strong>
+																		{{ $item->return_date_time ? date('Y-m-d, H:i', strtotime($item->return_date_time)) : 'N/A' }}
+																		<br>
+
+																		<strong>{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }} :</strong> {{ $item->airline->name }} <br>
+
+																	</td>
+
+																	<td>{!! $seatBadge !!}</td>
+																	<td>{!! $mobilityBadge !!}</td>
+																	<td>{!! $visaBadge !!}</td>
+																	<td>{!! $halalBadge !!}</td>
+																	<td>{!! $hotelBadge !!}</td>
+																	<td>
+																		@php $hasAction = false; @endphp
+
+																		@if(hasPermission('payment.show'))
+																			@php $hasAction = true; @endphp
+																			<a href="{{ route('payment.show', $item->id) }}" class="btn btn-sm btn-info my-1" title="Details">
+																				<i class="fa-solid fa-pager"></i>
+																			</a>
+																		@endif
+
+																		@if(hasPermission('payment.edit'))
+																			@php $hasAction = true; @endphp
+																			<a href="{{ route('payment.edit', $item->id) }}" class="btn btn-sm btn-primary my-1" title="Edit">
+																				<i class="fa-solid fa-pen-to-square"></i>
+																			</a>
+																		@endif
+
+																		@unless($hasAction)
+																			N/A
+																		@endunless
+																	</td>
+																</tr>
+
+															@endforeach
+														</tbody>
+													</table>
+												</div>
+											@else
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_data_found_for_selected_filter'] ?? 'no_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
 							</div>
-						</div>
-
+						@endif
+						
+						@php
+							$summaryPermissions = [
+								'toDoList', 'saleGraph', 'airlineBasedGraph', 'transitCityBasedGraph', 'departureCityBasedGraph', 'returnCityBasedGraph', 'introductionSourceBasedGraph', 'issuedSupplierBasedGraph', 'issuedByBasedGraph', 'countryBasedGraph', 'transferToBasedGraph', 'paymentMethodBasedGraph', 'cardTypeBasedGraph', 'cardOwnerBasedGraph' 
+							];
+						@endphp
 						<div class="col-md-12 mb-6 p-sticky-wrapper">
 							<div class="p-sticky-part d-flex align-items-center justify-content-end bg-white py-5 px-5">
 								<div class="col-md-3">
@@ -282,487 +292,514 @@
 								</a>
 							</div>
 
-
-							<div class="card rounded border mt-0 bg-white">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['sale_graph'] ?? 'sale_graph' }}
-										(Filtered By: Payment Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalSale']) && count($reportData['totalSale']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['sale_graph'] ?? 'sale_graph' }}</h6>
-											<canvas id="saleGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['sale_graph'] ?? 'sale_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('saleGraph'))
+								<div class="card rounded border mt-0 bg-white">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['sale_graph'] ?? 'sale_graph' }}
+											(Filtered By: Payment Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalSale']) && count($reportData['totalSale']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['sale_graph'] ?? 'sale_graph' }}</h6>
+												<canvas id="saleGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['sale_graph'] ?? 'sale_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
-
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['airline_based_graph'] ?? 'airline_based_graph' }}
-										(Filtered By: Invoice Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalAirline']) && count($reportData['totalAirline']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['airline_based_graph'] ?? 'airline_based_graph' }}</h6>
-											<canvas id="airlineGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['airline_based_graph'] ?? 'airline_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('airlineBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['airline_based_graph'] ?? 'airline_based_graph' }}
+											(Filtered By: Invoice Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalAirline']) && count($reportData['totalAirline']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['airline_based_graph'] ?? 'airline_based_graph' }}</h6>
+												<canvas id="airlineGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['airline_based_graph'] ?? 'airline_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 						
-
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['transit_city_based_graph'] ?? 'transit_city_based_graph' }} 
-										(Filtered By: Departure Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalTransitCity']) && count($reportData['totalTransitCity']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['transit_city_based_graph'] ?? 'transit_city_based_graph' }}</h6>
-											<canvas id="transitCityGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['transit_city_based_graph'] ?? 'transit_city_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('transitCityBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['transit_city_based_graph'] ?? 'transit_city_based_graph' }} 
+											(Filtered By: Departure Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalTransitCity']) && count($reportData['totalTransitCity']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['transit_city_based_graph'] ?? 'transit_city_based_graph' }}</h6>
+												<canvas id="transitCityGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['transit_city_based_graph'] ?? 'transit_city_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
-
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['departure_city_based_graph'] ?? 'departure_city_based_graph' }} 
-										(Filtered By: Departure Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalDepartureCity']) && count($reportData['totalDepartureCity']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['departure_city_based_graph'] ?? 'departure_city_based_graph' }}</h6>
-											<canvas id="departureCityGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['departure_city_based_graph'] ?? 'departure_city_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('departureCityBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['departure_city_based_graph'] ?? 'departure_city_based_graph' }} 
+											(Filtered By: Departure Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalDepartureCity']) && count($reportData['totalDepartureCity']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['departure_city_based_graph'] ?? 'departure_city_based_graph' }}</h6>
+												<canvas id="departureCityGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['departure_city_based_graph'] ?? 'departure_city_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
-
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['return_city_based_graph'] ?? 'return_city_based_graph' }} 
-										(Filtered By: Departure Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalReturnCity']) && count($reportData['totalReturnCity']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['return_city_based_graph'] ?? 'return_city_based_graph' }}</h6>
-											<canvas id="returnCityGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['return_city_based_graph'] ?? 'return_city_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('returnCityBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['return_city_based_graph'] ?? 'return_city_based_graph' }} 
+											(Filtered By: Departure Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalReturnCity']) && count($reportData['totalReturnCity']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['return_city_based_graph'] ?? 'return_city_based_graph' }}</h6>
+												<canvas id="returnCityGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['return_city_based_graph'] ?? 'return_city_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
-
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['introduction_source_based_graph'] ?? 'introduction_source_based_graph' }} 
-										(Filtered By: Invoice Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalIntroductionSource']) && count($reportData['totalIntroductionSource']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['introduction_source_based_graph'] ?? 'introduction_source_based_graph' }}</h6>
-											<canvas id="introductionSourceGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['introduction_source_based_graph'] ?? 'introduction_source_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('introductionSourceBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['introduction_source_based_graph'] ?? 'introduction_source_based_graph' }} 
+											(Filtered By: Invoice Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalIntroductionSource']) && count($reportData['totalIntroductionSource']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['introduction_source_based_graph'] ?? 'introduction_source_based_graph' }}</h6>
+												<canvas id="introductionSourceGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['introduction_source_based_graph'] ?? 'introduction_source_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
-
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['issued_supplier_based_graph'] ?? 'issued_supplier_based_graph' }} 
-										(Filtered By: Invoice Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalIssuedSupplier']) && count($reportData['totalIssuedSupplier']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['issued_supplier_based_graph'] ?? 'issued_supplier_based_graph' }}</h6>
-											<canvas id="issuedSupplierGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['issued_supplier_based_graph'] ?? 'issued_supplier_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('issuedSupplierBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['issued_supplier_based_graph'] ?? 'issued_supplier_based_graph' }} 
+											(Filtered By: Invoice Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalIssuedSupplier']) && count($reportData['totalIssuedSupplier']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['issued_supplier_based_graph'] ?? 'issued_supplier_based_graph' }}</h6>
+												<canvas id="issuedSupplierGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['issued_supplier_based_graph'] ?? 'issued_supplier_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
-
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['issued_by_based_graph'] ?? 'issued_by_based_graph' }} 
-										(Filtered By: Invoice Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalIssuedBy']) && count($reportData['totalIssuedBy']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['issued_by_based_graph'] ?? 'issued_by_based_graph' }}</h6>
-											<canvas id="issuedByGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['issued_by_based_graph'] ?? 'issued_by_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@endif
+							
+							@if(hasPermission('issuedByBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['issued_by_based_graph'] ?? 'issued_by_based_graph' }} 
+											(Filtered By: Invoice Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalIssuedBy']) && count($reportData['totalIssuedBy']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['issued_by_based_graph'] ?? 'issued_by_based_graph' }}</h6>
+												<canvas id="issuedByGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['issued_by_based_graph'] ?? 'issued_by_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['country_based_graph'] ?? 'country_based_graph' }} 
-										(Filtered By: Invoice Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalCountry']) && count($reportData['totalCountry']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['country_based_graph'] ?? 'country_based_graph' }}</h6>
-											<canvas id="countryGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['country_based_graph'] ?? 'country_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('countryBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['country_based_graph'] ?? 'country_based_graph' }} 
+											(Filtered By: Invoice Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalCountry']) && count($reportData['totalCountry']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['country_based_graph'] ?? 'country_based_graph' }}</h6>
+												<canvas id="countryGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['country_based_graph'] ?? 'country_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['transfer_to_based_graph'] ?? 'transfer_to_based_graph' }} 
-										(Filtered By: Invoice Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalTransferTo']) && count($reportData['totalTransferTo']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['transfer_to_based_graph'] ?? 'transfer_to_based_graph' }}</h6>
-											<canvas id="transferToGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['transfer_to_based_graph'] ?? 'transfer_to_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('transferToBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['transfer_to_based_graph'] ?? 'transfer_to_based_graph' }} 
+											(Filtered By: Invoice Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalTransferTo']) && count($reportData['totalTransferTo']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['transfer_to_based_graph'] ?? 'transfer_to_based_graph' }}</h6>
+												<canvas id="transferToGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['transfer_to_based_graph'] ?? 'transfer_to_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['payment_method_based_graph'] ?? 'payment_method_based_graph' }} 
-										(Filtered By: Invoice Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalPaymentMethod']) && count($reportData['totalPaymentMethod']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['payment_method_based_graph'] ?? 'payment_method_based_graph' }}</h6>
-											<canvas id="paymentMethodGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['payment_method_based_graph'] ?? 'payment_method_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('paymentMethodBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['payment_method_based_graph'] ?? 'payment_method_based_graph' }} 
+											(Filtered By: Invoice Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalPaymentMethod']) && count($reportData['totalPaymentMethod']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['payment_method_based_graph'] ?? 'payment_method_based_graph' }}</h6>
+												<canvas id="paymentMethodGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['payment_method_based_graph'] ?? 'payment_method_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['card_type_based_graph'] ?? 'card_type_based_graph' }} 
-										(Filtered By: Invoice Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalCardType']) && count($reportData['totalCardType']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['card_type_based_graph'] ?? 'card_type_based_graph' }}</h6>
-											<canvas id="cardTypeGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['card_type_based_graph'] ?? 'card_type_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('cardTypeBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['card_type_based_graph'] ?? 'card_type_based_graph' }} 
+											(Filtered By: Invoice Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalCardType']) && count($reportData['totalCardType']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['card_type_based_graph'] ?? 'card_type_based_graph' }}</h6>
+												<canvas id="cardTypeGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['card_type_based_graph'] ?? 'card_type_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
-							<div class="card rounded border mt-5 bg-white" style="display: none">
-								<div class="card-header">
-									<h3 class="card-title">
-										{{ $getCurrentTranslation['card_owner_based_graph'] ?? 'card_owner_based_graph' }} 
-										(Filtered By: Invoice Date {{$selectedDateRange}})
-									</h3>
-									<div class="card-toolbar"></div>
-								</div>
-								<div class="card-body">
-									@php
-										//$reportData = reportData(request()->date_range ?? null);
-										//dd($reportData);
-									@endphp
-									<div class="graph-wrap">
-										@if(isset($reportData) && isset($reportData['totalCardOwner']) && count($reportData['totalCardOwner']))
-											<h6 class="text-center title">{{ $getCurrentTranslation['card_owner_based_graph'] ?? 'card_owner_based_graph' }}</h6>
-											<canvas id="cardOwnerGraph" width="390" height="100"></canvas>
-										@else
-											<h6 class="text-center title">{{ $getCurrentTranslation['card_owner_based_graph'] ?? 'card_owner_based_graph' }}</h6>
-											<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
-											<hr>
-										@endif
+							@if(hasPermission('cardOwnerBasedGraph'))
+								<div class="card rounded border mt-5 bg-white" style="display: none">
+									<div class="card-header">
+										<h3 class="card-title">
+											{{ $getCurrentTranslation['card_owner_based_graph'] ?? 'card_owner_based_graph' }} 
+											(Filtered By: Invoice Date {{$selectedDateRange}})
+										</h3>
+										<div class="card-toolbar"></div>
+									</div>
+									<div class="card-body">
+										@php
+											//$reportData = reportData(request()->date_range ?? null);
+											//dd($reportData);
+										@endphp
+										<div class="graph-wrap">
+											@if(isset($reportData) && isset($reportData['totalCardOwner']) && count($reportData['totalCardOwner']))
+												<h6 class="text-center title">{{ $getCurrentTranslation['card_owner_based_graph'] ?? 'card_owner_based_graph' }}</h6>
+												<canvas id="cardOwnerGraph" width="390" height="100"></canvas>
+											@else
+												<h6 class="text-center title">{{ $getCurrentTranslation['card_owner_based_graph'] ?? 'card_owner_based_graph' }}</h6>
+												<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_graph_data_found_for_selected_filter'] ?? 'no_graph_data_found_for_selected_filter' }}</div>
+												<hr>
+											@endif
+										</div>
 									</div>
 								</div>
-							</div>
+							@endif
 
 							<div class="row">
-								<div class="col-md-6">
-									<div class="card rounded border mt-5 bg-white" style="display: none">
-										<div class="card-header">
-											<h3 class="card-title">
-												{{ $getCurrentTranslation['trip_type_based_pie_chart'] ?? 'trip_type_based_pie_chart' }} 
-												(Filtered By: Invoice Date {{$selectedDateRange}})
-											</h3>
-											<div class="card-toolbar"></div>
-										</div>
-										<div class="card-body">
-											@php
-												//$reportData = reportData(request()->date_range ?? null);
-												//dd($reportData);
-											@endphp
-											@if(isset($reportData) && isset($reportData['totalTripTypePie']) && count($reportData['totalTripTypePie']))
-												<br>
-												<div class="pie-chart-wrap">
-													<h6 class="text-center title">
-														{{ $getCurrentTranslation['trip_type_based_pie_chart'] ?? 'trip_type_based_pie_chart' }}
-													</h6>
+								@if(hasPermission('tripTypeBasedPieChart'))
+									<div class="col-md-6">
+										<div class="card rounded border mt-5 bg-white" style="display: none">
+											<div class="card-header">
+												<h3 class="card-title">
+													{{ $getCurrentTranslation['trip_type_based_pie_chart'] ?? 'trip_type_based_pie_chart' }} 
+													(Filtered By: Invoice Date {{$selectedDateRange}})
+												</h3>
+												<div class="card-toolbar"></div>
+											</div>
+											<div class="card-body">
+												@php
+													//$reportData = reportData(request()->date_range ?? null);
+													//dd($reportData);
+												@endphp
+												@if(isset($reportData) && isset($reportData['totalTripTypePie']) && count($reportData['totalTripTypePie']))
 													<br>
-													<canvas id="tripTypePieChart" width="390" height="390"></canvas>
-												</div>
-											@else
-												<div class="pie-chart-wrap">
-													<h6 class="text-center title" style="position: unset; transform: unset;">{{ $getCurrentTranslation['trip_type_based_pie_chart'] ?? 'trip_type_based_pie_chart' }}</h6>
-													<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_pie_chart_data_found_for_selected_filter'] ?? 'no_pie_chart_data_found_for_selected_filter' }}</div>
-													<hr>
-												</div>
-											@endif
+													<div class="pie-chart-wrap">
+														<h6 class="text-center title">
+															{{ $getCurrentTranslation['trip_type_based_pie_chart'] ?? 'trip_type_based_pie_chart' }}
+														</h6>
+														<br>
+														<canvas id="tripTypePieChart" width="390" height="390"></canvas>
+													</div>
+												@else
+													<div class="pie-chart-wrap">
+														<h6 class="text-center title" style="position: unset; transform: unset;">{{ $getCurrentTranslation['trip_type_based_pie_chart'] ?? 'trip_type_based_pie_chart' }}</h6>
+														<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_pie_chart_data_found_for_selected_filter'] ?? 'no_pie_chart_data_found_for_selected_filter' }}</div>
+														<hr>
+													</div>
+												@endif
+											</div>
 										</div>
 									</div>
-								</div>
+								@endif
 
-								<div class="col-md-6">
-									<div class="card rounded border mt-5 bg-white" style="display: none">
-										<div class="card-header">
-											<h3 class="card-title">
-												{{ $getCurrentTranslation['payment_method_based_pie_chart'] ?? 'payment_method_based_pie_chart' }} 
-												(Filtered By: Invoice Date {{$selectedDateRange}})
-											</h3>
-											<div class="card-toolbar"></div>
-										</div>
-										<div class="card-body">
-											@php
-												//$reportData = reportData(request()->date_range ?? null);
-												//dd($reportData);
-											@endphp
-											@if(isset($reportData) && isset($reportData['totalPaymentMethodPie']) && count($reportData['totalPaymentMethodPie']))
-												<br>
-												<div class="pie-chart-wrap">
-													<h6 class="text-center title">
-														{{ $getCurrentTranslation['payment_method_based_pie_chart'] ?? 'payment_method_based_pie_chart' }}
-													</h6>
+								@if(hasPermission('paymentMethodBasedPieChart'))
+									<div class="col-md-6">
+										<div class="card rounded border mt-5 bg-white" style="display: none">
+											<div class="card-header">
+												<h3 class="card-title">
+													{{ $getCurrentTranslation['payment_method_based_pie_chart'] ?? 'payment_method_based_pie_chart' }} 
+													(Filtered By: Invoice Date {{$selectedDateRange}})
+												</h3>
+												<div class="card-toolbar"></div>
+											</div>
+											<div class="card-body">
+												@php
+													//$reportData = reportData(request()->date_range ?? null);
+													//dd($reportData);
+												@endphp
+												@if(isset($reportData) && isset($reportData['totalPaymentMethodPie']) && count($reportData['totalPaymentMethodPie']))
 													<br>
-													<canvas id="paymentMethodPieChart" width="390" height="390"></canvas>
-												</div>
-											@else
-												<div class="pie-chart-wrap">
-													<h6 class="text-center title" style="position: unset; transform: unset;">{{ $getCurrentTranslation['payment_method_based_pie_chart'] ?? 'payment_method_based_pie_chart' }}</h6>
-													<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_pie_chart_data_found_for_selected_filter'] ?? 'no_pie_chart_data_found_for_selected_filter' }}</div>
-													<hr>
-												</div>
-											@endif
+													<div class="pie-chart-wrap">
+														<h6 class="text-center title">
+															{{ $getCurrentTranslation['payment_method_based_pie_chart'] ?? 'payment_method_based_pie_chart' }}
+														</h6>
+														<br>
+														<canvas id="paymentMethodPieChart" width="390" height="390"></canvas>
+													</div>
+												@else
+													<div class="pie-chart-wrap">
+														<h6 class="text-center title" style="position: unset; transform: unset;">{{ $getCurrentTranslation['payment_method_based_pie_chart'] ?? 'payment_method_based_pie_chart' }}</h6>
+														<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_pie_chart_data_found_for_selected_filter'] ?? 'no_pie_chart_data_found_for_selected_filter' }}</div>
+														<hr>
+													</div>
+												@endif
+											</div>
 										</div>
 									</div>
-								</div>
+								@endif
 
-								<div class="col-md-6">
-									<div class="card rounded border mt-5 bg-white" style="display: none">
-										<div class="card-header">
-											<h3 class="card-title">
-												{{ $getCurrentTranslation['issued_card_type_based_pie_chart'] ?? 'issued_card_type_based_pie_chart' }} 
-												(Filtered By: Invoice Date {{$selectedDateRange}})
-											</h3>
-											<div class="card-toolbar"></div>
-										</div>
-										<div class="card-body">
-											@php
-												//$reportData = reportData(request()->date_range ?? null);
-												//dd($reportData);
-											@endphp
-											@if(isset($reportData) && isset($reportData['totalIssuedCardTypePie']) && count($reportData['totalIssuedCardTypePie']))
-												<br>
-												<div class="pie-chart-wrap">
-													<h6 class="text-center title">
-														{{ $getCurrentTranslation['issued_card_type_based_pie_chart'] ?? 'issued_card_type_based_pie_chart' }}
-													</h6>
+								@if(hasPermission('issuedCardTypeBasedPieChart'))
+									<div class="col-md-6">
+										<div class="card rounded border mt-5 bg-white" style="display: none">
+											<div class="card-header">
+												<h3 class="card-title">
+													{{ $getCurrentTranslation['issued_card_type_based_pie_chart'] ?? 'issued_card_type_based_pie_chart' }} 
+													(Filtered By: Invoice Date {{$selectedDateRange}})
+												</h3>
+												<div class="card-toolbar"></div>
+											</div>
+											<div class="card-body">
+												@php
+													//$reportData = reportData(request()->date_range ?? null);
+													//dd($reportData);
+												@endphp
+												@if(isset($reportData) && isset($reportData['totalIssuedCardTypePie']) && count($reportData['totalIssuedCardTypePie']))
 													<br>
-													<canvas id="issuedCardTypePieChart" width="390" height="390"></canvas>
-												</div>
-											@else
-												<div class="pie-chart-wrap">
-													<h6 class="text-center title" style="position: unset; transform: unset;">{{ $getCurrentTranslation['issued_card_type_based_pie_chart'] ?? 'issued_card_type_based_pie_chart' }}</h6>
-													<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_pie_chart_data_found_for_selected_filter'] ?? 'no_pie_chart_data_found_for_selected_filter' }}</div>
-													<hr>
-												</div>
-											@endif
+													<div class="pie-chart-wrap">
+														<h6 class="text-center title">
+															{{ $getCurrentTranslation['issued_card_type_based_pie_chart'] ?? 'issued_card_type_based_pie_chart' }}
+														</h6>
+														<br>
+														<canvas id="issuedCardTypePieChart" width="390" height="390"></canvas>
+													</div>
+												@else
+													<div class="pie-chart-wrap">
+														<h6 class="text-center title" style="position: unset; transform: unset;">{{ $getCurrentTranslation['issued_card_type_based_pie_chart'] ?? 'issued_card_type_based_pie_chart' }}</h6>
+														<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_pie_chart_data_found_for_selected_filter'] ?? 'no_pie_chart_data_found_for_selected_filter' }}</div>
+														<hr>
+													</div>
+												@endif
+											</div>
 										</div>
 									</div>
-								</div>
+								@endif
 
-								<div class="col-md-6">
-									<div class="card rounded border mt-5 bg-white" style="display: none">
-										<div class="card-header">
-											<h3 class="card-title">
-												{{ $getCurrentTranslation['payment_status_based_pie_chart'] ?? 'payment_status_based_pie_chart' }} 
-												(Filtered By: Invoice Date {{$selectedDateRange}})
-											</h3>
-											<div class="card-toolbar"></div>
-										</div>
-										<div class="card-body">
-											@php
-												//$reportData = reportData(request()->date_range ?? null);
-												//dd($reportData);
-											@endphp
-											@if(isset($reportData) && isset($reportData['totalPaymentStatusPie']) && count($reportData['totalPaymentStatusPie']))
-												<br>
-												<div class="pie-chart-wrap">
-													<h6 class="text-center title">
-														{{ $getCurrentTranslation['payment_status_based_pie_chart'] ?? 'payment_status_based_pie_chart' }}
-													</h6>
+								@if(hasPermission('paymentStatusBasedPieChart'))
+									<div class="col-md-6">
+										<div class="card rounded border mt-5 bg-white" style="display: none">
+											<div class="card-header">
+												<h3 class="card-title">
+													{{ $getCurrentTranslation['payment_status_based_pie_chart'] ?? 'payment_status_based_pie_chart' }} 
+													(Filtered By: Invoice Date {{$selectedDateRange}})
+												</h3>
+												<div class="card-toolbar"></div>
+											</div>
+											<div class="card-body">
+												@php
+													//$reportData = reportData(request()->date_range ?? null);
+													//dd($reportData);
+												@endphp
+												@if(isset($reportData) && isset($reportData['totalPaymentStatusPie']) && count($reportData['totalPaymentStatusPie']))
 													<br>
-													<canvas id="paymentStatusPieChart" width="390" height="390"></canvas>
-												</div>
-											@else
-												<div class="pie-chart-wrap">
-													<h6 class="text-center title" style="position: unset; transform: unset;">{{ $getCurrentTranslation['payment_status_based_pie_chart'] ?? 'payment_status_based_pie_chart' }}</h6>
-													<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_pie_chart_data_found_for_selected_filter'] ?? 'no_pie_chart_data_found_for_selected_filter' }}</div>
-													<hr>
-												</div>
-											@endif
+													<div class="pie-chart-wrap">
+														<h6 class="text-center title">
+															{{ $getCurrentTranslation['payment_status_based_pie_chart'] ?? 'payment_status_based_pie_chart' }}
+														</h6>
+														<br>
+														<canvas id="paymentStatusPieChart" width="390" height="390"></canvas>
+													</div>
+												@else
+													<div class="pie-chart-wrap">
+														<h6 class="text-center title" style="position: unset; transform: unset;">{{ $getCurrentTranslation['payment_status_based_pie_chart'] ?? 'payment_status_based_pie_chart' }}</h6>
+														<div style="text-align: center; font-size: 14px; color: rgb(128, 128, 128); margin-bottom: 20px;">{{ $getCurrentTranslation['no_pie_chart_data_found_for_selected_filter'] ?? 'no_pie_chart_data_found_for_selected_filter' }}</div>
+														<hr>
+													</div>
+												@endif
+											</div>
 										</div>
 									</div>
-								</div>
+								@endif
 								
 							</div>
 
