@@ -773,7 +773,8 @@ class TranslationSeeder extends Seeder
                 'total_cancellation_fee' => 'Total Cancellation Fee',
                 'full_to_do_list' => 'Full To Do List',
                 'manage_dashboard_summary' => 'Manage Dashboard Summary',
-
+                'total_refunded' => 'Total Refunded',
+                'total_refundable' => 'Total Refundable',
             ],
 
 
@@ -1541,6 +1542,9 @@ class TranslationSeeder extends Seeder
                 'total_cancellation_fee' => '総キャンセル料金',
                 'full_to_do_list' => '完全なやることリスト',
                 'manage_dashboard_summary' => 'ダッシュボード概要の管理',
+                'total_refunded' => '合計返金額',
+                'total_refundable' => '返金可能合計額',
+
             ],
         ];
 

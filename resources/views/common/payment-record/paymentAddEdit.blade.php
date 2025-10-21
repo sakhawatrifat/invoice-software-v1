@@ -839,6 +839,13 @@
 						</div>
 					</div>
 					<div class="card-body">
+						<div class="refundable-amount text-danger text-end mb-5">
+							<h3 class="text-danger">
+									<span class="refunded-title" style="display: {{ isset($editData) && $editData->refund_payment_status == 'Paid' ? '' : 'none' }}">{{ $getCurrentTranslation['total_refunded'] ?? 'total_refunded' }}:</span>
+									<span class="refundable-title" style="display: {{ isset($editData) && $editData->refund_payment_status == 'Paid' ? 'none' : '' }}">{{ $getCurrentTranslation['total_refundable'] ?? 'total_refundable' }}:</span>
+								{{Auth::user()->company_data->currency->short_name ?? ''}} <span class="number">0.00</span>
+							</h3>
+						</div>
 						<div class="row">
 
 							<div class="col-4">
@@ -848,7 +855,7 @@
 										({{Auth::user()->company_data->currency->short_name ?? ''}})
 										:
 									</label>
-									<input type="text" class="form-control number-validate calc-input cancellation-fee" placeholder="0.00" name="cancellation_fee" value="{{ $editData->cancellation_fee ?? '' }}"/>
+									<input type="text" class="form-control number-validate c-calc-input cancellation-fee" placeholder="0.00" name="cancellation_fee" value="{{ $editData->cancellation_fee ?? '' }}"/>
 								</div>
 							</div>
 
@@ -859,7 +866,7 @@
 										({{Auth::user()->company_data->currency->short_name ?? ''}})
 										:
 									</label>
-									<input type="text" class="form-control number-validate calc-input service-fee" placeholder="0.00" name="service_fee" value="{{ $editData->service_fee ?? '' }}"/>
+									<input type="text" class="form-control number-validate c-calc-input service-fee" placeholder="0.00" name="service_fee" value="{{ $editData->service_fee ?? '' }}"/>
 								</div>
 							</div>
 
@@ -1202,12 +1209,14 @@
 		}).then((result) => {
 			if (result.isConfirmed) {
 				// Clear input and textarea values except .fixed-data
-				refundContainer.find('input:not(.fixed-data), textarea:not(.fixed-data)').val('');
+				refundContainer.find('input:not(.fixed-data), textarea:not(.fixed-data)').val('').trigger('change');
 
 				// Reset select elements to their first option and trigger change
 				refundContainer.find('select:not(.fixed-data)').each(function () {
 					$(this).val($(this).find('option:first').val()).trigger('change');
 				});
+
+				updateRefundableAmount();
 
 				Swal.fire({
 					title: '{{ $getCurrentTranslation['cleared'] ?? 'cleared' }}',
@@ -1220,6 +1229,53 @@
 		});
 	});
 
+
+	
+	$(document).ready(function(){
+		updateRefundableAmount();
+	});
+
+	$(document).on('input', '.c-calc-input', function() {
+		updateRefundableAmount();
+	});
+
+	$(document).on('change', '[name="refund_payment_status"]', function() {
+		updateRefundableAmount();
+	});
+
+	function updateRefundableAmount() {
+		// Get numeric values safely
+		var sellingPrice = parseFloat($('.ticket-selling-price').val()) || 0;
+		var cancellationFee = parseFloat($('.cancellation-fee').val()) || 0;
+		var serviceFee = parseFloat($('.service-fee').val()) || 0;
+		var refundStatus = $('[name="refund_payment_status"] option:selected').val();
+
+		// Calculate refundable amount
+		var refundableAmount = sellingPrice - (cancellationFee + serviceFee);
+
+		// Prevent negative or invalid amounts
+		if (isNaN(refundableAmount) || refundableAmount < 0) {
+			refundableAmount = 0;
+		}
+
+		$('.refundable-amount').show();
+		if(refundStatus == 'Paid'){
+			$('.refundable-title').hide();
+			$('.refunded-title').show();
+		}else{
+			$('.refunded-title').hide();
+			$('.refundable-title').show();
+		}
+
+		console.log(refundStatus);
+		if (cancellationFee <= 0 && serviceFee <= 0) {
+			$('.refundable-amount').hide();
+		}
+
+		// Update the UI
+		$('.refundable-amount .number').text(refundableAmount.toFixed(2));
+		
+	}
 
 
 

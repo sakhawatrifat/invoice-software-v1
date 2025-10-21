@@ -561,7 +561,7 @@
 												</td>
 											</tr> --}}
 
-											<tr class="table-danger">
+											<tr class="table-warning">
 												<th class="fw-semibold">{{ $getCurrentTranslation['total_cancellation_fee'] ?? 'total_cancellation_fee' }}</th>
 												<td class="fw-semibold">
 													{{ number_format($total_cancellation_fee, 2) }}
