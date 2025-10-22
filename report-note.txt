@@ -62,3 +62,23 @@ cancellation_fee 10000+ service_fee 2000
 Refund 100000-12000= 880000 tk
 
 ====================================================================
+
+
+
+#Refund Dropdown in list page for filter
+#Refund information in list under Total Price column
+===============================
+
+#Report Page:
+===============================
+Total Paid and total due summary table will be left side of Profit / Loss Summary table
+Total due summary and payment list should linkable to each payment record.
+===============================
+
+#Airline Based Summary:
+Airline name, Ticket Count
+
+===============================
+
+#Total Issued By
+Name, count

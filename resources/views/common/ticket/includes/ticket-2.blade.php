@@ -66,7 +66,7 @@
                      </td>
 
                      <!-- Company Info -->
-                     <td style="vertical-align: top; font-size: 11px; padding-left: 10px; color: #3c3c3c;">
+                     {{-- <td style="vertical-align: top; font-size: 11px; padding-left: 10px; color: #3c3c3c;">
                         <div>
                            <div style="font-family: {{ language_font(strip_tags($editData->user->company->address ?? '')) }};">
                               {!! $editData->user->company->address ?? '' !!}
@@ -83,7 +83,7 @@
                               @if($phone) <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['phone_label'] ?? 'phone_label')) }};">{{ $getCurrentTranslation['phone_label'] ?? 'phone_label' }}:</span> {{ $phone }} @endif
                            @endif
                         </div>
-                     </td>
+                     </td> --}}
                   </tr>
                </table>
             </td>
@@ -633,6 +633,20 @@
          </div>
       </div>
    @endif
+
+   @php
+      $email = $editData->user->company->email_1 ?? '';
+      $phone = $editData->user->company->phone_1 ?? '';
+   @endphp
+
+   <br>
+   <div style="">
+      @if($email || $phone)
+         @if($email) <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['email_label'] ?? 'email_label')) }};">{{ $getCurrentTranslation['email_label'] ?? 'email_label' }}:</span> {{ $email }} @endif
+         @if($email && $phone) <br> @endif
+         @if($phone) <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['phone_label'] ?? 'phone_label')) }};">{{ $getCurrentTranslation['phone_label'] ?? 'phone_label' }}:</span> {{ $phone }} @endif
+      @endif
+   </div>
 
    {{-- @if(!empty(strip_tags($editData->bank_details)))
       <div style="page-break-inside: avoid;">

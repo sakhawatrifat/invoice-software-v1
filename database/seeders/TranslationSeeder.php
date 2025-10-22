@@ -713,7 +713,7 @@ class TranslationSeeder extends Seeder
                 'issued_card_type_based_pie_chart' => 'Issued card type based pie chart',
                 'payment_status_based_pie_chart' => 'Payment status based pie chart',
                 'no_data_found_for_selected_filter' => 'No data available for the selected filter.',
-                'to_do_list' => 'To do list',
+                'to_do_list' => 'To Do List',
                 'search_label' => 'Search',
                 'search_placeholder' => 'Type Here...',
                 'manage_reports' => 'Manage Report',
