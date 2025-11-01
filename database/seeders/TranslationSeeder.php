@@ -775,6 +775,15 @@ class TranslationSeeder extends Seeder
                 'manage_dashboard_summary' => 'Manage Dashboard Summary',
                 'total_refunded' => 'Total Refunded',
                 'total_refundable' => 'Total Refundable',
+                'refund_status_label' => 'Refund Status',
+                'refund_type_label' => 'Refund Type',
+                'refund_type_placeholder' => 'Select Refund Type',
+                'paid_and_due_summary' => 'Paid & Due Summary',
+                'refund_informations' => 'Refund Informations',
+                'issued_by_name' => 'Issued By Name',
+                'airline_summary' => 'Airline Summary',
+                'issued_by_summary' => 'Issued By Summary',
+
             ],
 
 
@@ -1544,6 +1553,14 @@ class TranslationSeeder extends Seeder
                 'manage_dashboard_summary' => 'ダッシュボード概要の管理',
                 'total_refunded' => '合計返金額',
                 'total_refundable' => '返金可能合計額',
+                'refund_status_label' => '返金状況',
+                'refund_type_label' => '返金タイプ',
+                'refund_type_placeholder' => '返金タイプを選択',
+                'paid_and_due_summary' => '支払いと未払いの概要',
+                'refund_informations' => '返金情報',
+                'issued_by_name' => '発行者名',
+                'airline_summary' => '航空会社の概要',
+                'issued_by_summary' => '発行者の概要',
 
             ],
         ];

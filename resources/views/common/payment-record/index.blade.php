@@ -51,7 +51,7 @@
 													$selected = request()->introduction_source_id ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['introduction_source_label'] ?? 'introduction_source_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['introduction_source_placeholder'] ?? 'introduction_source_placeholder' }}" name="introduction_source_id" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['introduction_source_placeholder'] ?? 'introduction_source_placeholder' }}" name="introduction_source_id" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -68,7 +68,7 @@
 													$selected = request()->customer_country_id ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['customer_country_label'] ?? 'customer_country_label' }}:</label>
-												<select class="form-select select2-with-images" data-class="flag" data-placeholder="{{ $getCurrentTranslation['customer_country_placeholder'] ?? 'customer_country_placeholder' }}" name="customer_country_id" >
+												<select class="form-select dynamic-option select2-with-images" data-class="flag" data-placeholder="{{ $getCurrentTranslation['customer_country_placeholder'] ?? 'customer_country_placeholder' }}" name="customer_country_id" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" data-image="{{ getStaticFile('flags', strtolower($option->short_name))}}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -117,7 +117,7 @@
 													$selected = request()->issued_by_id ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['issued_by_label'] ?? 'issued_by_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['issued_by_placeholder'] ?? 'issued_by_placeholder' }}" name="issued_by_id" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['issued_by_placeholder'] ?? 'issued_by_placeholder' }}" name="issued_by_id" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -134,7 +134,7 @@
 													$selected = request()->trip_type ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['trip_type_label'] ?? 'trip_type_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['trip_type_placeholder'] ?? 'trip_type_placeholder' }}" name="trip_type">
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['trip_type_placeholder'] ?? 'trip_type_placeholder' }}" name="trip_type">
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
@@ -154,7 +154,7 @@
 													$selected = request()->departure ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['departure_city_label'] ?? 'departure_city_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['departure_placeholder'] ?? 'departure_placeholder' }}" name="departure">
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['departure_placeholder'] ?? 'departure_placeholder' }}" name="departure">
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
@@ -174,7 +174,7 @@
 													$selected = request()->destination ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['destination_city_label'] ?? 'destination_city_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" name="destination">
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" name="destination">
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
@@ -193,7 +193,7 @@
 													$selected = request()->airline_id ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="airline_id" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="airline_id" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -249,7 +249,7 @@
 													$selected = request()->transfer_to ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['transfer_to_label'] ?? 'transfer_to_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['transfer_to_placeholder'] ?? 'transfer_to_placeholder' }}" name="transfer_to" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['transfer_to_placeholder'] ?? 'transfer_to_placeholder' }}" name="transfer_to" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -265,7 +265,7 @@
 													$selected = request()->payment_method ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['payment_method_label'] ?? 'payment_method_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['payment_method_placeholder'] ?? 'payment_method_placeholder' }}" name="payment_method" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['payment_method_placeholder'] ?? 'payment_method_placeholder' }}" name="payment_method" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -281,7 +281,7 @@
 													$selected = request()->issued_card_type ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['issued_card_type_label'] ?? 'issued_card_type_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['issued_card_type_placeholder'] ?? 'issued_card_type_placeholder' }}" name="issued_card_type" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['issued_card_type_placeholder'] ?? 'issued_card_type_placeholder' }}" name="issued_card_type" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -297,7 +297,7 @@
 													$selected = request()->card_owner ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['card_owner_label'] ?? 'card_owner_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['card_owner_placeholder'] ?? 'card_owner_placeholder' }}" name="card_owner" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['card_owner_placeholder'] ?? 'card_owner_placeholder' }}" name="card_owner" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -314,7 +314,7 @@
 													$selected = request()->payment_status ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['payment_status_label'] ?? 'payment_status_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['payment_status_placeholder'] ?? 'payment_status_placeholder' }}" name="payment_status">
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['payment_status_placeholder'] ?? 'payment_status_placeholder' }}" name="payment_status">
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
@@ -326,7 +326,7 @@
 											</div>
 										</div>
 
-										{{-- <div class="col-md-3">
+										<div class="col-md-3">
 											<div class="input-item-wrap">
 												<label class="form-label">{{ $getCurrentTranslation['payment_date_range_label'] ?? 'payment_date_range_label' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
@@ -342,9 +342,9 @@
 													<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 												@enderror
 											</div>
-										</div> --}}
+										</div>
 
-										{{-- <div class="col-md-3">
+										<div class="col-md-3">
 											<div class="input-item-wrap">
 												<label class="form-label">{{ $getCurrentTranslation['next_payment_date_range_label'] ?? 'next_payment_date_range_label' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
@@ -360,7 +360,47 @@
 													<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 												@enderror
 											</div>
-										</div> --}}
+										</div>
+
+										<div class="col-md-3">
+											<div class="form-item mb-5">
+												@php
+													$options = ['Regular Only', 'Refund Only'];
+
+													$selected = request()->refund_type ?? '';
+												@endphp
+												<label class="form-label">{{ $getCurrentTranslation['refund_type_label'] ?? 'refund_type_label' }}:</label>
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['refund_type_placeholder'] ?? 'refund_type_placeholder' }}" name="refund_type">
+													<option value="0">----</option>
+													@foreach($options as $option)
+														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
+													@endforeach
+												</select>
+												@error('refund_type')
+													<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+												@enderror
+											</div>
+										</div>
+
+										<div class="col-md-3">
+											<div class="form-item mb-5">
+												@php
+													$options = ['Unpaid', 'Paid'];
+
+													$selected = request()->refund_payment_status ?? '';
+												@endphp
+												<label class="form-label">{{ $getCurrentTranslation['refund_payment_status_label'] ?? 'refund_payment_status_label' }}:</label>
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['refund_payment_status_placeholder'] ?? 'refund_payment_status_placeholder' }}" name="refund_payment_status">
+													<option value="0">----</option>
+													@foreach($options as $option)
+														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
+													@endforeach
+												</select>
+												@error('refund_payment_status')
+													<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+												@enderror
+											</div>
+										</div>
 
 										<div class="col-md-12">
 											<div class="d-flex justify-content-end mt-0">

@@ -63,16 +63,17 @@ Refund 100000-12000= 880000 tk
 
 ====================================================================
 
+Passenger name in dashboard to do list, also full list (Done)
 
 
-#Refund Dropdown in list page for filter
-#Refund information in list under Total Price column
+#Refund Dropdown in list page for filter (Done)
+#Refund information in list under Total Price column (Done)
 ===============================
 
 #Report Page:
 ===============================
-Total Paid and total due summary table will be left side of Profit / Loss Summary table
-Total due summary and payment list should linkable to each payment record.
+Total Paid and total due summary table will be left side of Profit / Loss Summary table (Done)
+Total due summary and payment list should linkable to each payment record. (Done)
 ===============================
 
 #Airline Based Summary:
@@ -82,3 +83,7 @@ Airline name, Ticket Count
 
 #Total Issued By
 Name, count
+
+================================
+
+Partial payment notification

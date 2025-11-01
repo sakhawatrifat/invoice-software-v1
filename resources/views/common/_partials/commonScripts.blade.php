@@ -153,19 +153,44 @@
 		$form.find('input:not([type="hidden"]):not([type="button"]):not([type="submit"])').val('');
 		$form.find('textarea').val('');
 
-		// Reset selects to first option
-		$form.find('select').each(function() {
-			$(this).val($(this).find('option:first').val()).trigger('change');
-		});
+		// Reset selects (including multiple selects)
+	    $form.find('select').each(function () {
+	        if ($(this).prop('multiple')) {
+	            $(this).val([]).trigger('change'); // Clear all selected options
+	        } else {
+	            $(this).val($(this).find('option:first').val()).trigger('change');
+	        }
+	    });
 
 		// Reset daterange picker
+		// Reset daterange picker
 		$form.find('.dateRangePicker').each(function () {
-			var $picker = $(this);
-			$picker.removeClass('filled').addClass('empty');
-			$picker.find('span').html('');
-			$picker.find('.dateRangeInput').val('');
-			$picker.closest('.daterange-picker-wrap').find('.clear-date-range').click();
+		    var $picker = $(this);
+		    var pickerInstance = $picker.data('daterangepicker');
+
+		    if (pickerInstance) {
+		        // Reset to plugin's min/max or default range instead of null
+		        var start = moment().startOf('day');
+		        var end = moment().endOf('day');
+
+		        // Update internal values safely (avoids null error)
+		        pickerInstance.setStartDate(start);
+		        pickerInstance.setEndDate(end);
+
+		        // Clear input + label but don't nullify moment objects
+		        $picker.find('span').html($picker.data('placeholder') || (getCurrentTranslation.select_date_range ?? 'select_date_range'));
+		        $picker.find('.dateRangeInput').val('');
+
+		        // Reset UI states
+		        pickerInstance.container.find('li.active, li.selected').removeClass('active selected');
+		        pickerInstance.container.find('input[name="daterangepicker_start"]').val('');
+		        pickerInstance.container.find('input[name="daterangepicker_end"]').val('');
+
+		        // Optionally trigger a "cleared" flag if you use filters
+		        $picker.removeClass('filled').addClass('empty').trigger('change');
+		    }
 		});
+
 
 		// Only reload DataTable if button has 'datatable-filter' class
 		if ($(this).hasClass('datatable-filter')) {

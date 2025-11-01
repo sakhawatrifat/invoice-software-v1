@@ -342,11 +342,19 @@
                                 </div>
 
                                 <!-- Payment Informations -->
-                                <div class="card mb-4">
+                                <div class="card mb-4 position-relative">
                                     <div class="card-header align-items-center bg-success text-white">
                                         <h5 class="mb-0">{{ $getCurrentTranslation['payment_informations'] ?? 'payment_informations' }}</h5>
                                     </div>
                                     <div class="card-body">
+                                        @if($editData->refund_payment_status == "Paid")
+                                        <!-- Refunded Seal -->
+                                            <div class="seal-refunded" role="img" aria-label="Refunded">
+                                              <span class="seal-text">REFUNDED</span>
+                                              <span class="seal-check" aria-hidden="true">✓</span>
+                                            </div>
+                                        @endif
+
                                         <div class="row mb-3">
                                             <div class="col-md-6">
                                                 <strong>{{ $getCurrentTranslation['total_purchase_price_label'] ?? 'total_purchase_price_label' }}:</strong>
@@ -416,6 +424,62 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Refund Informations -->
+                                @if(!empty($editData->is_refund) && $editData->is_refund == 1)
+                                    <div class="card mb-4 border-danger">
+                                        <div class="card-header align-items-center bg-danger text-white">
+                                            <h5 class="mb-0 text-white">{{ $getCurrentTranslation['refund_informations'] ?? 'refund_informations' }}</h5>
+                                        </div>
+
+                                        <div class="card-body">
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <strong>{{ $getCurrentTranslation['cancellation_fee_label'] ?? 'cancellation_fee_label' }}:</strong>
+                                                    <p class="text-danger mb-0">
+                                                        {{ Auth::user()->company_data->currency->short_name ?? '' }}
+                                                        {{ number_format($editData->cancellation_fee ?? 0, 2) }}
+                                                    </p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <strong>{{ $getCurrentTranslation['service_fee_label'] ?? 'service_fee_label' }}:</strong>
+                                                    <p class="text-info mb-0">
+                                                        {{ Auth::user()->company_data->currency->short_name ?? '' }}
+                                                        {{ number_format($editData->service_fee ?? 0, 2) }}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <strong>{{ $getCurrentTranslation['refund_status_label'] ?? 'refund_status_label' }}:</strong> <br>
+                                                    @php
+                                                        $refundBadgeClass = match ($editData->refund_payment_status) {
+                                                            'Paid' => 'badge badge-success',
+                                                            'Unpaid' => 'badge badge-danger',
+                                                            default => 'badge badge-secondary',
+                                                        };
+                                                    @endphp
+                                                    <span class="{{ $refundBadgeClass }}">{{ $editData->refund_payment_status ?? 'N/A' }}</span>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <strong>{{ $getCurrentTranslation['refund_note_label'] ?? 'refund_note_label' }}:</strong>
+                                                    <p class="mb-0 text-muted">
+                                                        {!! nl2br(e($editData->refund_note ?? '—')) !!}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {{-- <div class="mb-3">
+                                                <strong>{{ $getCurrentTranslation['refund_note_label'] ?? 'refund_note_label' }}:</strong>
+                                                <p class="mb-0 text-muted">
+                                                    {!! nl2br(e($editData->refund_note ?? '—')) !!}
+                                                </p>
+                                            </div> --}}
+                                        </div>
+                                    </div>
+                                @endif
+
 
                             </div>
                         </div>

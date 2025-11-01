@@ -182,6 +182,7 @@
 																<tr>
 																	<td>{{ $index + 1 }}</td>
 																	<td class="text-start">
+																		<strong>{{ $getCurrentTranslation['passenger_name_label'] ?? 'passenger_name_label' }} :</strong> {{ $item->client_name ?? 'N/A' }} <br>
 																		<strong>{{ $getCurrentTranslation['payment_invoice_id_label'] ?? 'payment_invoice_id_label' }} :</strong> {{ $item->payment_invoice_id ?? 'N/A' }} <br>
 																		<strong>{{ $getCurrentTranslation['ticket_invoice_id_label'] ?? 'ticket_invoice_id_label' }} :</strong> {{ $item->ticket->invoice_id ?? 'N/A' }} <br>
 
@@ -321,7 +322,7 @@
 							@endif
 
 							@if(hasPermission('airlineBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['airline_based_graph'] ?? 'airline_based_graph' }}
@@ -349,7 +350,7 @@
 							@endif
 						
 							@if(hasPermission('transitCityBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['transit_city_based_graph'] ?? 'transit_city_based_graph' }} 
@@ -377,7 +378,7 @@
 							@endif
 
 							@if(hasPermission('departureCityBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['departure_city_based_graph'] ?? 'departure_city_based_graph' }} 
@@ -405,7 +406,7 @@
 							@endif
 
 							@if(hasPermission('returnCityBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['return_city_based_graph'] ?? 'return_city_based_graph' }} 
@@ -433,7 +434,7 @@
 							@endif
 
 							@if(hasPermission('introductionSourceBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['introduction_source_based_graph'] ?? 'introduction_source_based_graph' }} 
@@ -461,7 +462,7 @@
 							@endif
 
 							@if(hasPermission('issuedSupplierBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['issued_supplier_based_graph'] ?? 'issued_supplier_based_graph' }} 
@@ -489,7 +490,7 @@
 							@endif
 							
 							@if(hasPermission('issuedByBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['issued_by_based_graph'] ?? 'issued_by_based_graph' }} 
@@ -517,7 +518,7 @@
 							@endif
 
 							@if(hasPermission('countryBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['country_based_graph'] ?? 'country_based_graph' }} 
@@ -545,7 +546,7 @@
 							@endif
 
 							@if(hasPermission('transferToBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['transfer_to_based_graph'] ?? 'transfer_to_based_graph' }} 
@@ -573,7 +574,7 @@
 							@endif
 
 							@if(hasPermission('paymentMethodBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['payment_method_based_graph'] ?? 'payment_method_based_graph' }} 
@@ -601,7 +602,7 @@
 							@endif
 
 							@if(hasPermission('cardTypeBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['card_type_based_graph'] ?? 'card_type_based_graph' }} 
@@ -629,7 +630,7 @@
 							@endif
 
 							@if(hasPermission('cardOwnerBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display: none">
+								<div class="card rounded border mt-5 bg-white" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['card_owner_based_graph'] ?? 'card_owner_based_graph' }} 
@@ -659,7 +660,7 @@
 							<div class="row">
 								@if(hasPermission('tripTypeBasedPieChart'))
 									<div class="col-md-6">
-										<div class="card rounded border mt-5 bg-white" style="display: none">
+										<div class="card rounded border mt-5 bg-white" style="display:">
 											<div class="card-header">
 												<h3 class="card-title">
 													{{ $getCurrentTranslation['trip_type_based_pie_chart'] ?? 'trip_type_based_pie_chart' }} 
@@ -695,7 +696,7 @@
 
 								@if(hasPermission('paymentMethodBasedPieChart'))
 									<div class="col-md-6">
-										<div class="card rounded border mt-5 bg-white" style="display: none">
+										<div class="card rounded border mt-5 bg-white" style="display:">
 											<div class="card-header">
 												<h3 class="card-title">
 													{{ $getCurrentTranslation['payment_method_based_pie_chart'] ?? 'payment_method_based_pie_chart' }} 
@@ -731,7 +732,7 @@
 
 								@if(hasPermission('issuedCardTypeBasedPieChart'))
 									<div class="col-md-6">
-										<div class="card rounded border mt-5 bg-white" style="display: none">
+										<div class="card rounded border mt-5 bg-white" style="display:">
 											<div class="card-header">
 												<h3 class="card-title">
 													{{ $getCurrentTranslation['issued_card_type_based_pie_chart'] ?? 'issued_card_type_based_pie_chart' }} 
@@ -767,7 +768,7 @@
 
 								@if(hasPermission('paymentStatusBasedPieChart'))
 									<div class="col-md-6">
-										<div class="card rounded border mt-5 bg-white" style="display: none">
+										<div class="card rounded border mt-5 bg-white" style="display:">
 											<div class="card-header">
 												<h3 class="card-title">
 													{{ $getCurrentTranslation['payment_status_based_pie_chart'] ?? 'payment_status_based_pie_chart' }} 

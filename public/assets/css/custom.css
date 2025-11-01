@@ -46,6 +46,14 @@
     width: 50%;
     display: inline-block;
 }
+.dataTables_filter label {
+    width: 100%;
+}
+.dataTables_filter label input {
+    width: calc( 100% - 50px )!important;
+    border: 2px solid #b9b6b6 !important;
+    height: 40px;
+}
 .radio-item .inputs {
     position: relative;
 }
@@ -462,4 +470,121 @@ td .mf-prev:before {
     .p-sticky-part {
         top: 0;
     }
+}
+
+
+/* ============================
+   Refunded Seal Styles
+   ============================ */
+
+/* Size control and absolute centering */
+.seal-refunded {
+  --seal-size: 100px;
+  position: absolute;
+  /* top: 50%; */
+  /* left: 50%; */
+  /* transform: translate(-50%, -50%) rotate(-30deg); */
+  top: 0;
+  right: 0;
+  transform: rotate(30deg);
+}
+
+/* Main seal appearance */
+.seal-refunded {
+  width: var(--seal-size);
+  height: var(--seal-size);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.08), transparent 20%),
+    linear-gradient(#fff, #f6f6f6);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.18),
+    inset 0 3px 6px rgba(255, 255, 255, 0.12);
+  border: 4px solid rgba(180, 0, 0, 0.95);
+  color: #a80000;
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  user-select: none;
+  height: 150px;
+  width: 150px;
+}
+
+/* Outer dashed ring */
+.seal-refunded::before {
+  content: "";
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  border: 2px dashed rgba(168, 0, 0, 0.9);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.02);
+  pointer-events: none;
+}
+
+/* Center content layout */
+.seal-refunded .seal-text {
+  font-weight: 700;
+  font-size: calc(var(--seal-size) * 0.18);
+  z-index: 2;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.25),
+    0 -1px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Checkmark badge inside the seal */
+.seal-refunded .seal-check {
+  /* position: absolute; */
+  /* right: 8%; */
+  /* bottom: 10%; */
+  /* background: #a80000; */
+  /* color: #fff; */
+  width: calc(var(--seal-size) * 0.28);
+  height: calc(var(--seal-size) * 0.28);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: calc(var(--seal-size) * 0.18);
+  z-index: 3;
+  transform: rotate(6deg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* Subtle worn / stamped texture overlay */
+.seal-refunded::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.02), transparent 8%),
+    radial-gradient(circle at 80% 80%, rgba(0, 0, 0, 0.02), transparent 8%),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.01) 0 2px,
+      transparent 2px 6px
+    );
+  opacity: 0.25;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* Outline variation */
+.seal-refunded.seal-outline {
+  background: transparent;
+  border-color: rgba(168, 0, 0, 0.9);
+  color: rgba(168, 0, 0, 0.95);
+  box-shadow: none;
+  transform: none;
+}
+@media (max-width: 767px) {
+    .seal-refunded{
+        --seal-size: 55px;
+        height: 100px;
+        width: 100px;
+    }
+
 }

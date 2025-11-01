@@ -55,7 +55,29 @@ class TicketController extends Controller
     public function datatable()
     {   
         $user = Auth::user();
-        $query = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'creator')->latest();
+        $hasFilter =
+            (request()->filled('trip_type') && request()->trip_type != 0) ||
+            (request()->filled('airline_id') && request()->airline_id != 0) ||
+            request()->filled('flight_date_range') ||
+            request()->filled('invoice_date_range') ||
+            (request()->has('search') && !empty(request('search')['value']));
+
+        $query = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'creator');
+
+        
+        if ($hasFilter) {
+            // ✅ Order by related flight’s departure_date_time using whereHas + orderBySub
+            $query->whereHas('flights') // ensures related flights exist
+                ->orderBy(
+                    TicketFlight::select('departure_date_time')
+                        ->whereColumn('ticket_flights.ticket_id', 'tickets.id')
+                        ->orderBy('departure_date_time', 'asc')
+                        ->limit(1),
+                    'asc'
+                );
+        } else {
+            $query->latest('tickets.created_at');
+        }
 
         $currentTranslation = getCurrentTranslation();
 

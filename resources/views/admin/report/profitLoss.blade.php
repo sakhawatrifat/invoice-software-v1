@@ -67,7 +67,7 @@
 													$selected = request()->introduction_source_id ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['introduction_source_label'] ?? 'introduction_source_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['introduction_source_placeholder'] ?? 'introduction_source_placeholder' }}" name="introduction_source_id" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['introduction_source_placeholder'] ?? 'introduction_source_placeholder' }}" name="introduction_source_id" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -84,7 +84,7 @@
 													$selected = request()->customer_country_id ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['customer_country_label'] ?? 'customer_country_label' }}:</label>
-												<select class="form-select select2-with-images" data-class="flag" data-placeholder="{{ $getCurrentTranslation['customer_country_placeholder'] ?? 'customer_country_placeholder' }}" name="customer_country_id" >
+												<select class="form-select dynamic-option select2-with-images" data-class="flag" data-placeholder="{{ $getCurrentTranslation['customer_country_placeholder'] ?? 'customer_country_placeholder' }}" name="customer_country_id" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" data-image="{{ getStaticFile('flags', strtolower($option->short_name))}}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -133,7 +133,7 @@
 													$selected = request()->issued_by_id ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['issued_by_label'] ?? 'issued_by_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['issued_by_placeholder'] ?? 'issued_by_placeholder' }}" name="issued_by_id" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['issued_by_placeholder'] ?? 'issued_by_placeholder' }}" name="issued_by_id" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -150,7 +150,7 @@
 													$selected = request()->trip_type ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['trip_type_label'] ?? 'trip_type_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['trip_type_placeholder'] ?? 'trip_type_placeholder' }}" name="trip_type">
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['trip_type_placeholder'] ?? 'trip_type_placeholder' }}" name="trip_type">
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
@@ -170,7 +170,7 @@
 													$selected = request()->departure ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['departure_city_label'] ?? 'departure_city_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['departure_placeholder'] ?? 'departure_placeholder' }}" name="departure">
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['departure_placeholder'] ?? 'departure_placeholder' }}" name="departure">
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
@@ -190,7 +190,7 @@
 													$selected = request()->destination ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['destination_city_label'] ?? 'destination_city_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" name="destination">
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" name="destination">
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
@@ -209,7 +209,7 @@
 													$selected = request()->airline_id ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="airline_id" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="airline_id" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -276,7 +276,7 @@
 													$selected = request()->transfer_to ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['transfer_to_label'] ?? 'transfer_to_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['transfer_to_placeholder'] ?? 'transfer_to_placeholder' }}" name="transfer_to" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['transfer_to_placeholder'] ?? 'transfer_to_placeholder' }}" name="transfer_to" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -292,7 +292,7 @@
 													$selected = request()->payment_method ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['payment_method_label'] ?? 'payment_method_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['payment_method_placeholder'] ?? 'payment_method_placeholder' }}" name="payment_method" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['payment_method_placeholder'] ?? 'payment_method_placeholder' }}" name="payment_method" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -308,7 +308,7 @@
 													$selected = request()->issued_card_type ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['issued_card_type_label'] ?? 'issued_card_type_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['issued_card_type_placeholder'] ?? 'issued_card_type_placeholder' }}" name="issued_card_type" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['issued_card_type_placeholder'] ?? 'issued_card_type_placeholder' }}" name="issued_card_type" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -324,7 +324,7 @@
 													$selected = request()->card_owner ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['card_owner_label'] ?? 'card_owner_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['card_owner_placeholder'] ?? 'card_owner_placeholder' }}" name="card_owner" >
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['card_owner_placeholder'] ?? 'card_owner_placeholder' }}" name="card_owner" >
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>
@@ -341,7 +341,7 @@
 													$selected = request()->payment_status ?? '';
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['payment_status_label'] ?? 'payment_status_label' }}:</label>
-												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['payment_status_placeholder'] ?? 'payment_status_placeholder' }}" name="payment_status">
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['payment_status_placeholder'] ?? 'payment_status_placeholder' }}" name="payment_status">
 													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
@@ -353,7 +353,7 @@
 											</div>
 										</div>
 
-										{{-- <div class="col-md-3">
+										<div class="col-md-3">
 											<div class="input-item-wrap">
 												<label class="form-label">{{ $getCurrentTranslation['payment_date_range_label'] ?? 'payment_date_range_label' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
@@ -369,9 +369,9 @@
 													<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 												@enderror
 											</div>
-										</div> --}}
+										</div>
 
-										{{-- <div class="col-md-3">
+										<div class="col-md-3">
 											<div class="input-item-wrap">
 												<label class="form-label">{{ $getCurrentTranslation['next_payment_date_range_label'] ?? 'next_payment_date_range_label' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
@@ -387,7 +387,7 @@
 													<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 												@enderror
 											</div>
-										</div> --}}
+										</div>
 
 										<div class="col-md-12">
 											<div class="d-flex justify-content-end mt-0">
@@ -487,6 +487,7 @@
 						$total_profit_after_refund = $total_profit - $total_cancellation_fee;
 						$total_paid_amount = $profitLossData->sum('total_paid');
 						$total_due_amount = $profitLossData->sum('due_amount');
+						$total_due_data = $profitLossData->where('due_amount', '>', 0);
 
 						// --- PAYMENT STATUS SUMMARY ---
 						$paymentStatusSummary = $profitLossData
@@ -507,8 +508,8 @@
 					{{-- ================= MAIN SUMMARY TABLE ================= --}}
 					<div class="row">
 						{{-- ================= PROFIT / LOSS SUMMARY ================= --}}
-						<div class="col-md-12">
-							<div class="card shadow-sm mb-4">
+						<div class="col-md-6 mb-4">
+							<div class="card shadow-sm h-100">
 								<div class="card-header bg-success text-white fw-bold align-items-center">
 									<h5 class="mb-0 text-white">
 										{{ $getCurrentTranslation['profit_loss_summary'] ?? 'profit_loss_summary' }}
@@ -588,9 +589,23 @@
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
 												</td>
 											</tr>
+											
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
 
-
-
+						<div class="col-md-6 mb-4">
+							<div class="card shadow-sm h-100">
+								<div class="card-header bg-primary text-white fw-bold align-items-center">
+									<h5 class="mb-0 text-white">
+										{{ $getCurrentTranslation['paid_and_due_summary'] ?? 'paid_and_due_summary' }}
+									</h5>
+								</div>
+								<div class="card-body">
+									<table class="report-table table table-bordered table-striped text-center mb-0">
+										<tbody>
 											{{-- ✅ Paid & Due BELOW Profit/Loss --}}
 											<tr>
 												<th class="table-primary fw-semibold">{{ $getCurrentTranslation['total_paid'] ?? 'total_paid' }}</th>
@@ -598,14 +613,25 @@
 													{{ number_format($total_paid_amount, 2) }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
 												</td>
+												<td class="table-primary fw-semibold">
+												</td>
 											</tr>
 
 											<tr>
-												<th class="table-warning fw-semibold">{{ $getCurrentTranslation['total_due'] ?? 'total_due' }}</th>
-												<td class="table-warning fw-semibold">
-													{{ number_format($total_due_amount, 2) }}
-													{{ Auth::user()->company_data->currency->short_name ?? '' }}
-												</td>
+											    <th class="table-warning fw-semibold">
+											        {{ $getCurrentTranslation['total_due'] ?? 'total_due' }}
+											    </th>
+											    <td class="table-warning fw-semibold">
+											        {{ number_format($total_due_amount, 2) }}
+											        {{ Auth::user()->company_data->currency->short_name ?? '' }}
+
+											    </td>
+											    <td class="table-warning fw-semibold">
+											        <!-- 🔗 Link to open modal -->
+											        <a href="#" data-bs-toggle="modal" data-bs-target="#dueListModal" class="ms-2 text-decoration-underline text-primary">
+											            View Details
+											        </a>
+											    </td>
 											</tr>
 										</tbody>
 									</table>
@@ -696,6 +722,112 @@
 						</div>
 					</div>
 
+					{{-- ✈️ Airline Data Summary --}}
+					<div class="row">
+			            <div class="col-md-6 mb-4">
+							@php
+							    // Group by airline and collect count + name + logo
+							    $airline_data = $profitLossData
+							        ->groupBy('airline_id')
+							        ->map(fn($items) => [
+							            'count' => $items->count(),
+							            'airline_name' => optional($items->first()->airline)->name ?? 'Unknown Airline',
+							            'logo_url' => optional($items->first()->airline)->logo_url ?? null,
+							        ]);
+							@endphp
+							<div class="card shadow-sm h-100">
+								<div class="card-header bg-primary text-white fw-bold align-items-center">
+									<h5 class="mb-0 text-white">
+										{{ $getCurrentTranslation['airline_summary'] ?? 'airline_summary' }}
+									</h5>
+								</div>
+								<div class="card-body">
+									<table class="report-table table table-bordered table-striped table-hover align-middle mb-0">
+								        <thead class="table-secondary">
+								            <tr class="bg-white">
+								                <th>#</th>
+								                <th>{{ $getCurrentTranslation['airline_logo'] ?? 'airline_logo' }}</th>
+								                <th>{{ $getCurrentTranslation['airline_name'] ?? 'airline_name' }}</th>
+								                <th>{{ $getCurrentTranslation['total_label'] ?? 'total_label' }}</th>
+								            </tr>
+								        </thead>
+								        <tbody>
+								            @forelse($airline_data as $index => $airline)
+								                <tr>
+								                    <td>{{ $loop->iteration }}</td>
+								                    <td>
+								                        @if($airline['logo_url'])
+								                            <img src="{{ $airline['logo_url'] }}"
+								                                 alt="{{ $airline['airline_name'] }} Logo"
+								                                 height="40">
+								                        @else
+								                            N/A
+								                        @endif
+								                    </td>
+								                    <td>{{ $airline['airline_name'] }}</td>
+								                    <td>{{ $airline['count'] }}</td>
+								                </tr>
+								            @empty
+								                <tr>
+								                    <td colspan="4" class="p-10 text-center">
+														{{ $getCurrentTranslation['no_data_found_for_selected_filter'] ?? 'no_data_found_for_selected_filter' }}
+													</td>
+								                </tr>
+								            @endforelse
+								        </tbody>
+								    </table>
+								</div>
+							</div>
+						</div>
+
+						{{-- 🧾 Issued By Summary --}}
+					    <div class="col-md-6 mb-4">
+					        @php
+					            // Group by issued_by_id and collect count + name
+					            $issued_by_data = $profitLossData
+					                ->groupBy('issued_by_id')
+					                ->map(fn($items) => [
+					                    'count' => $items->count(),
+					                    'issued_by_name' => optional($items->first()->issuedBy)->name ?? 'Unknown',
+					                ]);
+					        @endphp
+
+					        <div class="card shadow-sm h-100">
+					            <div class="card-header bg-success text-white fw-bold align-items-center">
+					                <h5 class="mb-0 text-white">
+					                    {{ $getCurrentTranslation['issued_by_summary'] ?? 'issued_by_summary' }}
+					                </h5>
+					            </div>
+					            <div class="card-body">
+					                <table class="report-table table table-bordered table-striped table-hover align-middle mb-0">
+					                    <thead class="table-secondary">
+					                        <tr>
+					                            <th>#</th>
+					                            <th>{{ $getCurrentTranslation['issued_by_name'] ?? 'issued_by_name' }}</th>
+					                            <th>{{ $getCurrentTranslation['total_label'] ?? 'total_label' }}</th>
+					                        </tr>
+					                    </thead>
+					                    <tbody>
+					                        @forelse($issued_by_data as $index => $issuedBy)
+					                            <tr>
+					                                <td>{{ $loop->iteration }}</td>
+					                                <td>{{ $issuedBy['issued_by_name'] }}</td>
+					                                <td>{{ $issuedBy['count'] }}</td>
+					                            </tr>
+					                        @empty
+					                            <tr>
+					                                <td colspan="3" class="p-10 text-center">
+														{{ $getCurrentTranslation['no_data_found_for_selected_filter'] ?? 'no_data_found_for_selected_filter' }}
+													</td>
+					                            </tr>
+					                        @endforelse
+					                    </tbody>
+					                </table>
+					            </div>
+					        </div>
+					    </div>
+					</div>
+
 					{{-- ================= OTHER SUMMARY ================= --}}
 					<div class="row">
 						<div class="col-md-12">
@@ -733,6 +865,88 @@
 		</div>
 		<!--end::Content container-->
 	</div>
+</div>
+
+
+
+<!-- 💬 Modal for showing due data list -->
+<div class="modal fade" id="dueListModal" tabindex="-1" aria-labelledby="dueListModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title fw-bold" id="dueListModalLabel">
+                    {{ $getCurrentTranslation['remaining_due'] ?? 'remaining_due' }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                @if(!empty($total_due_data) && count($total_due_data) > 0)
+                    <table class="table table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>{{ $getCurrentTranslation['client_info'] ?? 'client_info' }}</th>
+                                <th>{{ $getCurrentTranslation['invoice'] ?? 'invoice' }}</th>
+                                <th>{{ $getCurrentTranslation['due'] ?? 'due' }}</th>
+                                <th>{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($total_due_data as $index => $dueData)
+                                <tr>
+                                    <td>{{ $loop->iteration }}</td>
+                                    <td>
+                                    	<b>{{ $getCurrentTranslation['name'] ?? 'name' }}:</b> {{ $dueData->client_name ?? 'N/A' }}
+                                    	@if($dueData->client_email)
+                                    		<br>
+                                    		<b>{{ $getCurrentTranslation['email'] ?? 'email' }}:</b> {{ $dueData->client_email ?? 'N/A' }}
+                                    	@endif
+                                    	@if($dueData->client_phone)
+                                    		<br>
+                                    		<b>{{ $getCurrentTranslation['phone'] ?? 'phone' }}:</b> {{ $dueData->client_phone ?? 'N/A' }}
+                                    	@endif
+                                    </td>
+                                    <td>
+                                    	<b>{{$getCurrentTranslation['payment_invoice_id_label'] ?? 'payment_invoice_id_label'}}:</b>
+                                    	{{ $dueData->payment_invoice_id ?? 'N/A' }}
+
+                                    	<br>
+                                    	<b>{{ $getCurrentTranslation['ticket_invoice_id_label'] ?? 'ticket_invoice_id_label' }}:</b>
+                                    	{{ $dueData->ticket->invoice_id ?? 'N/A'; }}
+
+                                    	<br>
+                                    	<b>{{ $getCurrentTranslation['reservation_number_label'] ?? 'reservation_number_label' }}:</b>
+                                    	{{ $dueData->ticket->reservation_number ?? 'N/A'; }}
+                                    	
+                                    	<br>
+                                    	<b>{{ $getCurrentTranslation['invoice_date_label'] ?? 'invoice_date_label' }}:</b>
+                                    	{{ $dueData->invoice_date ? date('Y-m-d', strtotime($dueData->invoice_date)) : 'N/A'; }}
+                                    </td>
+                                    <td>
+                                        {{ number_format($dueData->due_amount ?? 0, 2) }}
+                                        {{ Auth::user()->company_data->currency->short_name ?? '' }}
+                                    </td>
+                                    <td>
+                                        <a href="{{ route('payment.show', $dueData->id) }}" 
+                                           class="btn btn-sm btn-primary">
+                                           View
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <p class="text-muted mb-0 text-center">No due data found.</p>
+                @endif
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 

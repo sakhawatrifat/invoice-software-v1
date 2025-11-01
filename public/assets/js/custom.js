@@ -227,6 +227,30 @@ $(document).ready(function () {
     });
 });
 
+$(document).ready(function () {
+    $('select.dynamic-option').each(function () {
+        var $select = $(this);
+        var placeholder = $select.data('placeholder') || '--Select or type--';
+
+        $select.select2({
+            placeholder: placeholder,
+            allowClear: true,
+            width: '100%',
+            tags: true,               // enable adding new items
+            tokenSeparators: [','],   // split new items by comma if typing multiple
+            createTag: function (params) {
+                var term = $.trim(params.term);
+                if (term === '') return null;
+                return {
+                    id: term,       // use the typed term as id and text
+                    text: term,
+                    newTag: true    // mark it as new
+                };
+            }
+        });
+    });
+});
+
 
 $(document).on('click', '.toggle-password', function () {
     const $input = $(this).closest('div').find('.password');

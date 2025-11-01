@@ -49,7 +49,42 @@ class PaymentController extends Controller
     {
         $user = Auth::user();
 
-        $query = Payment::with('ticket', 'paymentDocuments', 'introductionSource', 'country', 'issuedBy', 'airline', 'transferTo', 'paymentMethod', 'issuedCardType', 'cardOwner')->latest();
+        $query = Payment::with('ticket', 'paymentDocuments', 'introductionSource', 'country', 'issuedBy', 'airline', 'transferTo', 'paymentMethod', 'issuedCardType', 'cardOwner');
+
+        // ✅ Detect if any filter applied
+        $hasFilter =
+            (request()->filled('trip_type') && request()->trip_type != 0) ||
+            (request()->filled('airline_id') && request()->airline_id != 0) ||
+            (request()->filled('flight_date_range') && request()->flight_date_range != 0) ||
+            (request()->filled('invoice_date_range') && request()->invoice_date_range != 0) ||
+            (request()->filled('introduction_source_id') && request()->introduction_source_id != 0) ||
+            (request()->filled('customer_country_id') && request()->customer_country_id != 0) ||
+            (request()->filled('issued_supplier_ids') && request()->issued_supplier_ids != 0) ||
+            (request()->filled('issued_by_id') && request()->issued_by_id != 0) ||
+            (request()->filled('departure') && request()->departure != 0) ||
+            (request()->filled('destination') && request()->destination != 0) ||
+            (request()->filled('transfer_to') && request()->transfer_to != 0) ||
+            (request()->filled('payment_method') && request()->payment_method != 0) ||
+            (request()->filled('issued_card_type') && request()->issued_card_type != 0) ||
+            (request()->filled('card_owner') && request()->card_owner != 0) ||
+            (request()->filled('payment_status') && request()->payment_status != 0) ||
+            request()->filled('payment_date_range') ||
+            request()->filled('next_payment_date_range') ||
+            (request()->filled('refund_type') && request()->refund_type != 0) ||
+            (request()->filled('refund_payment_status') && request()->refund_payment_status != 0) ||
+            (request()->has('search') && !empty(request('search')['value']));
+
+        // ✅ Conditional order (from payments table itself)
+        if ($hasFilter) {
+            $query->orderByRaw("
+                CASE
+                    WHEN departure_date_time IS NOT NULL THEN departure_date_time
+                    ELSE return_date_time
+                END ASC
+            ");
+        } else {
+            $query->latest();
+        }
 
         $getCurrentTranslation = getCurrentTranslation();
 
@@ -212,6 +247,18 @@ class PaymentController extends Controller
                     $query->where(function ($q) use ($startDate, $endDate) {
                         $q->whereBetween('next_payment_deadline', [$startDate, $endDate]);
                     });
+                }
+
+                if (!empty(request()->refund_type) && request()->refund_type != 0) {
+                    $refundType = 0;
+                    if(request()->refund_type == 'Refund Only'){
+                        $refundType = 1;
+                    }
+                    $query->where('is_refund', $refundType);
+                }
+
+                if (!empty(request()->refund_payment_status) && request()->refund_payment_status != 0) {
+                    $query->where('refund_payment_status', request()->refund_payment_status);
                 }
             })
 
@@ -390,7 +437,12 @@ class PaymentController extends Controller
                 $totalPaidLabel = $getCurrentTranslation['total_paid'] ?? 'total_paid';
                 $totalDueLabel = $getCurrentTranslation['due'] ?? 'due';
                 $nextPaymentLabel = $getCurrentTranslation['next_payment'] ?? 'next_payment';
-                $statusLabel = $getCurrentTranslation['status'] ?? 'status';
+                $statusLabel = $getCurrentTranslation['payment_status'] ?? 'payment_status';
+                $refundLabel = $getCurrentTranslation['refund'] ?? 'refund';
+                $refundStatusLabel = $getCurrentTranslation['refund_status_label'] ?? 'refund_status_label';
+                $refundNoteLabel = $getCurrentTranslation['refund_note_label'] ?? 'refund_note_label';
+                $serviceFeeLabel = $getCurrentTranslation['service_fee_label'] ?? 'service_fee_label';
+                $cancellationFeeLabel = $getCurrentTranslation['cancellation_fee_label'] ?? 'cancellation_fee_label';
 
                 $totalProfitLoss = ($row->total_selling_price ?? 0) - ($row->total_purchase_price ?? 0);
 
@@ -415,6 +467,16 @@ class PaymentController extends Controller
                     $nextPaymentHtml = '<div><strong>' . e($nextPaymentLabel) . ':</strong> ' . e($nextPayment) . '</div>';
                 }
 
+                // ✅ Refund section (only when is_refund == 1)
+                $refundHtml = '';
+                if (!empty($row->is_refund) && $row->is_refund == 1) {
+                    $refundHtml = '
+                        <div><strong>' . e($cancellationFeeLabel) . ':</strong> <span class="text-danger">' . $currency . number_format($row->cancellation_fee ?? 0, 2) . '</span></div>
+                        <div><strong>' . e($serviceFeeLabel) . ':</strong> <span class="text-info">' . $currency . number_format($row->service_fee ?? 0, 2) . '</span></div>
+                        <div><strong>' . e($refundStatusLabel) . ':</strong> <span class="badge ' . (($row->refund_payment_status == 'Paid') ? 'badge-success' : 'badge-danger') . '">' . e($row->refund_payment_status ?? 'Unpaid') . '</span></div>
+                    ';
+                }
+
                 // ✅ Build HTML output (ordered as requested)
                 return '
                     <div>
@@ -425,8 +487,10 @@ class PaymentController extends Controller
                         <div><strong>' . e($totalDueLabel) . ':</strong> <span class="text-warning">' . $currency . number_format($totalDue, 2) . '</span></div>
                         ' . $nextPaymentHtml . '
                         <div><strong>' . e($statusLabel) . ':</strong> <span class="' . $paymentBadgeClass . '">' . e($row->payment_status) . '</span></div>
+                        ' . $refundHtml . '
                     </div>';
             })
+
 
 
             // ✅ Created At
@@ -797,8 +861,8 @@ class PaymentController extends Controller
 
         //dd($paymentData);
 
-        DB::beginTransaction();
-        try {
+        // DB::beginTransaction();
+        // try {
             $paymentData->invoice_date = $request->invoice_date ?? date('Y-m-d H:i:s');
             $paymentData->payment_invoice_id = $request->payment_invoice_id ?? null;
             $paymentData->ticket_id = $request->ticket_id ?? null;
@@ -833,11 +897,11 @@ class PaymentController extends Controller
             $paymentData->payment_status = $request->payment_status ?? null;
             $paymentData->next_payment_deadline = $request->next_payment_deadline ?? null;
 
-            $refundStatus = 0;
+            $isStatus = 0;
             if((isset($request->cancellation_fee) && $request->cancellation_fee) > 0 || (isset($request->service_fee) && $request->service_fee)){
-                $refundStatus = 1;
+                $isStatus = 1;
             }
-            $paymentData->is_refund = $refundStatus;
+            $paymentData->is_refund = $isStatus;
             $paymentData->cancellation_fee = $request->cancellation_fee ?? 0;
             $paymentData->service_fee = $request->service_fee ?? 0;
             $refundStatus = $request->refund_payment_status != 0 ? $request->refund_payment_status : null;
@@ -916,22 +980,22 @@ class PaymentController extends Controller
                     $oldDoc->delete();
                 });
 
-            //DB::commit();
+            DB::commit();
             return [
                 'is_success' => 1,
                 'icon' => 'success',
                 'message' => getCurrentTranslation()['data_saved'] ?? 'data_saved'
             ];
-        } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error('User store error', ['error' => $e->getMessage()]);
+        // } catch (\Exception $e) {
+        //     DB::rollBack();
+        //     \Log::error('User store error', ['error' => $e->getMessage()]);
 
-            return [
-                'is_success' => 0,
-                'icon' => 'error',
-                'message' => getCurrentTranslation()['data_saving_error'] ?? 'data_saving_error'
-            ];
-        }
+        //     return [
+        //         'is_success' => 0,
+        //         'icon' => 'error',
+        //         'message' => getCurrentTranslation()['data_saving_error'] ?? 'data_saving_error'
+        //     ];
+        // }
     }
 
 
@@ -1119,6 +1183,7 @@ class PaymentController extends Controller
             ->addIndexColumn()
 
             ->addColumn('trip_info', function ($row) use ($getCurrentTranslation) {
+                $passengerNameLabel = isset($getCurrentTranslation['passenger_name_label']) ? $getCurrentTranslation['passenger_name_label'] : 'passenger_name_label';
                 $paymentInvoiceLabel = isset($getCurrentTranslation['payment_invoice_id_label']) ? $getCurrentTranslation['payment_invoice_id_label'] : 'payment_invoice_id_label';
                 $ticketInvoiceLabel  = isset($getCurrentTranslation['ticket_invoice_id_label']) ? $getCurrentTranslation['ticket_invoice_id_label'] : 'ticket_invoice_id_label';
                 $tripTypeLabel       = isset($getCurrentTranslation['trip_type_label']) ? $getCurrentTranslation['trip_type_label'] : 'trip_type_label';
@@ -1133,6 +1198,7 @@ class PaymentController extends Controller
                 $ticketInvoice = $row->ticket->invoice_id ?? 'N/A';
 
                 return '<div style="max-width: 280px; line-height: 1.6; text-align: left;">
+                    <strong>' . $passengerNameLabel . ':</strong> ' . $row->client_name . '<br>
                     <strong>' . $paymentInvoiceLabel . ':</strong> ' . $row->payment_invoice_id . '<br>
                     <strong>' . $ticketInvoiceLabel . ':</strong> ' . $ticketInvoice . '<br>
                     <strong>' . $tripTypeLabel . ':</strong> ' . $row->trip_type . '<br>
