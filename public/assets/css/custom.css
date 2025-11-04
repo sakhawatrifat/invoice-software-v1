@@ -148,7 +148,24 @@ textarea.ck-editor.ckeditor-initialized {
 .custom-pagination p {
     margin-bottom: 0;
 }
+.notification-toggle{
+    position: relative;
+}
 
+.notification-toggle .notification-count {
+    position: absolute;
+    top: 0;
+    right: 0px;
+    width: 20px;
+    height: 20px;
+    border-radius: 100%;
+    font-size: 12px;
+    background: #009ef7;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 .dashboard-card .card-header {
     transition: all 0.3s ease;
     position: relative;
@@ -587,4 +604,22 @@ td .mf-prev:before {
         width: 100px;
     }
 
+}
+
+.app-sidebar-logo a {
+    display: block;
+    height: 100%;
+    padding: 8px 0px;
+}
+
+.app-sidebar-logo {
+    justify-content: center;
+}
+
+.app-sidebar-logo a img {
+    height: 100%!important;
+}
+
+a.brand-logo-min img {
+    height: 50px!important;
 }

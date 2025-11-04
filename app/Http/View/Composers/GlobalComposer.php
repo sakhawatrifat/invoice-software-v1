@@ -6,6 +6,7 @@ use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Homepage;
 use App\Models\User;
+use App\Models\Notification;
 
 class GlobalComposer
 {
@@ -41,6 +42,8 @@ class GlobalComposer
             $globalData->permissions = $permissions;
             $globalData->save();
         }
+
+        generateNotifications();
 
         $globalHomepageData = Homepage::where('lang', 'en')->first();
 

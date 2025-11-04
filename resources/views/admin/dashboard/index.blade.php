@@ -60,7 +60,7 @@
 					<form class="col-md-12" method="get">
 						
 						@if(hasPermission('toDoList'))
-							<div class="col-md-12 mb-6 p-sticky-wrapper">
+							<div class="col-md-12 mb-6 p-sticky-wrapper todo-list-section">
 								<div class="p-sticky-part d-flex align-items-center justify-content-end bg-white py-5 px-5">
 									<div class="col-md-3">
 										<div class="input-item-wrap">
@@ -129,14 +129,14 @@
 													<table class="table table-bordered table-striped align-middle text-center mb-0">
 														<thead class="table-dark" style="position: sticky; top: 0; z-index: 10;">
 															<tr>
-																<th>#</th>
+																<th class="ps-2">#</th>
 																<th class="text-start">{{ $getCurrentTranslation['trip_info'] ?? 'trip_info' }}</th>
 																<th>{{ $getCurrentTranslation['seat_confirmation_label'] ?? 'seat_confirmation_label' }}</th>
 																<th>{{ $getCurrentTranslation['mobility_assistance_label'] ?? 'mobility_assistance_label' }}</th>
 																<th>{{ $getCurrentTranslation['transit_visa_application_label'] ?? 'transit_visa_application_label' }}</th>
 																<th>{{ $getCurrentTranslation['halal_meal_request_label'] ?? 'halal_meal_request_label' }}</th>
 																<th>{{ $getCurrentTranslation['transit_hotel_label'] ?? 'transit_hotel_label' }}</th>
-																<th>{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
+																<th class="pe-2">{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
 															</tr>
 														</thead>
 														<tbody>
@@ -180,13 +180,15 @@
 																@endphp
 
 																<tr>
-																	<td>{{ $index + 1 }}</td>
+																	<td class="ps-2">{{ $index + 1 }}</td>
 																	<td class="text-start">
 																		<strong>{{ $getCurrentTranslation['passenger_name_label'] ?? 'passenger_name_label' }} :</strong> {{ $item->client_name ?? 'N/A' }} <br>
 																		<strong>{{ $getCurrentTranslation['payment_invoice_id_label'] ?? 'payment_invoice_id_label' }} :</strong> {{ $item->payment_invoice_id ?? 'N/A' }} <br>
 																		<strong>{{ $getCurrentTranslation['ticket_invoice_id_label'] ?? 'ticket_invoice_id_label' }} :</strong> {{ $item->ticket->invoice_id ?? 'N/A' }} <br>
 
 																		<strong>{{ $getCurrentTranslation['trip_type_label'] ?? 'trip_type_label' }} :</strong> {{ $item->trip_type }} <br>
+
+																		<strong>{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }} :</strong> {{ $item->airline->name }} <br>
 																		
 																		<strong>{{ $getCurrentTranslation['flight_route_label'] ?? 'flight_route_label' }} :</strong> {{ $item->flight_route }} <br>
 																		
@@ -198,8 +200,6 @@
 																		{{ $item->return_date_time ? date('Y-m-d, H:i', strtotime($item->return_date_time)) : 'N/A' }}
 																		<br>
 
-																		<strong>{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }} :</strong> {{ $item->airline->name }} <br>
-
 																	</td>
 
 																	<td>{!! $seatBadge !!}</td>
@@ -207,7 +207,7 @@
 																	<td>{!! $visaBadge !!}</td>
 																	<td>{!! $halalBadge !!}</td>
 																	<td>{!! $hotelBadge !!}</td>
-																	<td>
+																	<td class="pe-2">
 																		@php $hasAction = false; @endphp
 
 																		@if(hasPermission('payment.show'))
@@ -294,7 +294,7 @@
 							</div>
 
 							@if(hasPermission('saleGraph'))
-								<div class="card rounded border mt-0 bg-white">
+								<div class="card rounded border mt-0 bg-white sale-graph-section">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['sale_graph'] ?? 'sale_graph' }}
@@ -322,7 +322,7 @@
 							@endif
 
 							@if(hasPermission('airlineBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white airline-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['airline_based_graph'] ?? 'airline_based_graph' }}
@@ -350,7 +350,7 @@
 							@endif
 						
 							@if(hasPermission('transitCityBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white transit-city-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['transit_city_based_graph'] ?? 'transit_city_based_graph' }} 
@@ -378,7 +378,7 @@
 							@endif
 
 							@if(hasPermission('departureCityBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white departure-city-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['departure_city_based_graph'] ?? 'departure_city_based_graph' }} 
@@ -406,7 +406,7 @@
 							@endif
 
 							@if(hasPermission('returnCityBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white return-city-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['return_city_based_graph'] ?? 'return_city_based_graph' }} 
@@ -434,7 +434,7 @@
 							@endif
 
 							@if(hasPermission('introductionSourceBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white introduction-source-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['introduction_source_based_graph'] ?? 'introduction_source_based_graph' }} 
@@ -462,7 +462,7 @@
 							@endif
 
 							@if(hasPermission('issuedSupplierBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white issued-supplier-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['issued_supplier_based_graph'] ?? 'issued_supplier_based_graph' }} 
@@ -490,7 +490,7 @@
 							@endif
 							
 							@if(hasPermission('issuedByBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white issued-by-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['issued_by_based_graph'] ?? 'issued_by_based_graph' }} 
@@ -518,7 +518,7 @@
 							@endif
 
 							@if(hasPermission('countryBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white country-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['country_based_graph'] ?? 'country_based_graph' }} 
@@ -546,7 +546,7 @@
 							@endif
 
 							@if(hasPermission('transferToBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white transfer-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['transfer_to_based_graph'] ?? 'transfer_to_based_graph' }} 
@@ -574,7 +574,7 @@
 							@endif
 
 							@if(hasPermission('paymentMethodBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white payment-method-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['payment_method_based_graph'] ?? 'payment_method_based_graph' }} 
@@ -602,7 +602,7 @@
 							@endif
 
 							@if(hasPermission('cardTypeBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white card-type-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['card_type_based_graph'] ?? 'card_type_based_graph' }} 
@@ -630,7 +630,7 @@
 							@endif
 
 							@if(hasPermission('cardOwnerBasedGraph'))
-								<div class="card rounded border mt-5 bg-white" style="display:">
+								<div class="card rounded border mt-5 bg-white card-owner-based-graph-section" style="display:">
 									<div class="card-header">
 										<h3 class="card-title">
 											{{ $getCurrentTranslation['card_owner_based_graph'] ?? 'card_owner_based_graph' }} 
@@ -660,7 +660,7 @@
 							<div class="row">
 								@if(hasPermission('tripTypeBasedPieChart'))
 									<div class="col-md-6">
-										<div class="card rounded border mt-5 bg-white" style="display:">
+										<div class="card rounded border mt-5 bg-white trip-type-based-chart-section" style="display:">
 											<div class="card-header">
 												<h3 class="card-title">
 													{{ $getCurrentTranslation['trip_type_based_pie_chart'] ?? 'trip_type_based_pie_chart' }} 
@@ -696,7 +696,7 @@
 
 								@if(hasPermission('paymentMethodBasedPieChart'))
 									<div class="col-md-6">
-										<div class="card rounded border mt-5 bg-white" style="display:">
+										<div class="card rounded border mt-5 bg-white payment-method-based-chart-section" style="display:">
 											<div class="card-header">
 												<h3 class="card-title">
 													{{ $getCurrentTranslation['payment_method_based_pie_chart'] ?? 'payment_method_based_pie_chart' }} 
@@ -732,7 +732,7 @@
 
 								@if(hasPermission('issuedCardTypeBasedPieChart'))
 									<div class="col-md-6">
-										<div class="card rounded border mt-5 bg-white" style="display:">
+										<div class="card rounded border mt-5 bg-white issued-card-type-based-chart-section" style="display:">
 											<div class="card-header">
 												<h3 class="card-title">
 													{{ $getCurrentTranslation['issued_card_type_based_pie_chart'] ?? 'issued_card_type_based_pie_chart' }} 
@@ -768,7 +768,7 @@
 
 								@if(hasPermission('paymentStatusBasedPieChart'))
 									<div class="col-md-6">
-										<div class="card rounded border mt-5 bg-white" style="display:">
+										<div class="card rounded border mt-5 bg-white payment-status-based-chart-section" style="display:">
 											<div class="card-header">
 												<h3 class="card-title">
 													{{ $getCurrentTranslation['payment_status_based_pie_chart'] ?? 'payment_status_based_pie_chart' }} 
@@ -801,10 +801,7 @@
 										</div>
 									</div>
 								@endif
-								
 							</div>
-
-
 
 						</div>
 					</form>
@@ -1435,6 +1432,66 @@
 			});
 		});
 
+
+    </script>
+
+
+    <script>
+    	$(document).ready(function () {
+		    var headerOffset = 150; // height of your fixed header
+
+		    // List of sections to track
+		    var sections = [
+		        '.todo-list-section',
+		        '.sale-graph-section',
+		        '.airline-based-graph-section',
+		        '.transit-city-based-graph-section',
+		        '.departure-city-based-graph-section',
+		        '.return-city-based-graph-section',
+		        '.introduction-source-based-graph-section',
+		        '.issued-supplier-based-graph-section',
+		        '.issued-by-based-graph-section',
+		        '.country-based-graph-section',
+		        '.transfer-based-graph-section',
+		        '.payment-method-based-graph-section',
+		        '.card-type-based-graph-section',
+		        '.card-owner-based-graph-section',
+		        '.trip-type-based-chart-section',
+		        '.payment-method-based-chart-section',
+		        '.issued-card-type-based-chart-section',
+		        '.payment-status-based-chart-section'
+		    ];
+
+		    // Scroll to previous section on page load
+		    var lastScrolledSection = localStorage.getItem('lastScrolledSection');
+		    if (lastScrolledSection && $(lastScrolledSection).length) {
+		        $('html, body').animate({
+		            scrollTop: $(lastScrolledSection).offset().top - headerOffset
+		        }, 500);
+		    } else {
+		        $(window).scrollTop(0);
+		    }
+
+		    // Track scrolling
+		    $(window).on('scroll', function () {
+		        var scrollTop = $(window).scrollTop();
+		        var windowHeight = $(window).height();
+
+		        for (var i = 0; i < sections.length; i++) {
+		            var section = $(sections[i]);
+		            if (section.length) {
+		                var sectionTop = section.offset().top;
+		                var sectionBottom = sectionTop + section.outerHeight();
+
+		                // Check if the section is in view
+		                if (scrollTop + windowHeight / 2 >= sectionTop && scrollTop + windowHeight / 2 < sectionBottom) {
+		                    localStorage.setItem('lastScrolledSection', sections[i]);
+		                    break;
+		                }
+		            }
+		        }
+		    });
+		});
 
     </script>
 @endpush

@@ -107,9 +107,20 @@ $('.flatpickr-input').each(function () {
         altInput: true,
         altFormat: isDateTime ? "Y-m-d H:i" : "Y-m-d",
         dateFormat: isDateTime ? "Y-m-d H:i" : "Y-m-d",
+        onReady: function (selectedDates, dateStr, instance) {
+            const clearButton = document.createElement('button');
+            clearButton.type = 'button';
+            clearButton.textContent = 'Clear';
+            clearButton.className = 'flatpickr-clear-btn btn btn-sm btn-outline-secondary ms-2';
+            clearButton.addEventListener('click', () => {
+                instance.clear();
+            });
+            instance.calendarContainer.appendChild(clearButton);
+        }
     });
 });
 
+// Time-only picker
 $('.flatpickr-input-time').flatpickr({
     enableTime: true,
     noCalendar: true,
@@ -117,7 +128,18 @@ $('.flatpickr-input-time').flatpickr({
     altInput: true,
     altFormat: "H:i",
     dateFormat: "H:i",
+    onReady: function (selectedDates, dateStr, instance) {
+        const clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.textContent = 'Clear';
+        clearButton.className = 'flatpickr-clear-btn btn btn-sm btn-outline-secondary ms-2';
+        clearButton.addEventListener('click', () => {
+            instance.clear();
+        });
+        instance.calendarContainer.appendChild(clearButton);
+    }
 });
+
 
 // $('.wheel-datepicker-input').mobiscroll().datepicker({
 //     controls: ['date', 'time'],

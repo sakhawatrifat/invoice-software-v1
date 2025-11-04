@@ -272,16 +272,16 @@
                   {{-- <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['flight'] ?? 'flight')) }}; width: 230px; text-align: left; font-size: 14px; color: #32323b; font-weight: bold;padding: 15px 10px;">
                      {{ $getCurrentTranslation['flight'] ?? 'flight' }} {{ $key+1 }}
                   </th> --}}
-                  <th colspan="2" style="width: 230px; text-align: left; font-size: 14px; background-color: #672828; color: #fcfffe; font-weight: bold;padding: 5px 10px;">
-                     Layover in {{ extractPrimaryCity($transit->leaving_from) }}
+                  <th colspan="3" style="width: 230px; text-align: left; font-size: 14px; background-color: #672828; color: #fcfffe; font-weight: bold;padding: 5px 10px; text-align: center;">
+                     Layover in {{ extractPrimaryCity($transit->leaving_from) }} • 
+                     <span style="font-family: {{ language_font(strip_tags($transit->total_transit_time ?? '')) }};">{{ $transit->total_transit_time }}</span>
                   </th>
                   {{-- <th style="text-align: left; font-size: 14px; color: #32323b; font-weight: bold;padding: 15px 10px;">
                      {{ \Carbon\Carbon::parse($transit->departure_date_time)->format('d M, Y') }}
                   </th> --}}
-                  <th style="text-align: right; font-size: 14px; background-color: #672828; color: #fcfffe; font-weight: bold;padding: 5px 10px; font-family: {{ language_font(strip_tags($transit->total_transit_time ?? '')) }};">
-                     {{-- {{ $editData->ticket_type }} --}}
+                  {{-- <th style="text-align: right; font-size: 14px; background-color: #672828; color: #fcfffe; font-weight: bold;padding: 5px 10px; font-family: {{ language_font(strip_tags($transit->total_transit_time ?? '')) }};">
                      {{ $transit->total_transit_time }}
-                  </th>
+                  </th> --}}
                </tr>
 
                <tr>

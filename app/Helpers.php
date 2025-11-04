@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\Carbon;
+use App\Models\Notification;
 use App\Models\Homepage;
 use App\Models\User;
 use App\Models\Country;
@@ -1088,6 +1089,7 @@ if (!function_exists('getCurrentTranslation')) {
     {
         $lang = Auth::user()->default_language ?? 'en';
 
+        //dd($lang);
         $translations = Translation::where('lang', $lang)->pluck('lang_value', 'lang_key')->toArray();
 
         return $translations;
@@ -1965,13 +1967,13 @@ if (!function_exists('reportData')) {
 
 
 if (!function_exists('toDoListData')) {
-    function toDoListData($todo_date_range = null)
+    function toDoListData($date_range = null)
     {
         $startDate = Carbon::now()->toDateString();
         $endDate = Carbon::today()->addDays(30)->toDateString();
 
-        if (isset($todo_date_range)) {
-            $dateRange = $todo_date_range;
+        if (isset($date_range)) {
+            $dateRange = $date_range;
             list($startDateString, $endDateString) = explode("-", $dateRange);
             $startDate = date("Y-m-d", strtotime($startDateString));
             $endDate = date("Y-m-d 23:59:59", strtotime($endDateString));
@@ -1986,12 +1988,59 @@ if (!function_exists('toDoListData')) {
             })
             ->where(function ($query) {
                 $query->where('seat_confirmation', 'Not Chosen')
+                    ->orWhereNull('seat_confirmation')
+
                     ->orWhere('mobility_assistance', 'Not Chosen')
+                    ->orWhereNull('mobility_assistance')
+
                     ->orWhere('transit_visa_application', 'Need To Do')
+                    ->orWhereNull('transit_visa_application')
+
                     ->orWhere('halal_meal_request', 'Need To Do')
-                    ->orWhere('transit_hotel', 'Need To Do');
+                    ->orWhereNull('halal_meal_request')
+
+                    ->orWhere('transit_hotel', 'Need To Do')
+                    ->orWhereNull('transit_hotel');
             })
-            ->orderBy('departure_date_time', 'asc')
+            ->orderByRaw("
+                CASE
+                    WHEN departure_date_time IS NOT NULL THEN departure_date_time
+                    ELSE return_date_time
+                END ASC
+            ")
+            ->get();
+
+        return $toDoData;
+    }
+}
+
+
+if (!function_exists('flightListData')) {
+    function flightListData($date_range = null)
+    {
+        $startDate = Carbon::now()->toDateString();
+        $endDate = Carbon::today()->addDays(30)->toDateString();
+
+        if (isset($date_range)) {
+            $dateRange = $date_range;
+            list($startDateString, $endDateString) = explode("-", $dateRange);
+            $startDate = date("Y-m-d", strtotime($startDateString));
+            $endDate = date("Y-m-d 23:59:59", strtotime($endDateString));
+        }
+
+        $rangeType = determineRangeType($startDate, $endDate); //keep the commented line
+
+        $toDoData = Payment::with('ticket', 'country', 'issuedBy', 'airline')
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('departure_date_time', [$startDate, $endDate])
+                    ->orWhereBetween('return_date_time', [$startDate, $endDate]);
+            })
+            ->orderByRaw("
+                CASE
+                    WHEN departure_date_time IS NOT NULL THEN departure_date_time
+                    ELSE return_date_time
+                END ASC
+            ")
             ->get();
 
         return $toDoData;
@@ -2018,4 +2067,67 @@ if (!function_exists('getDateRange')) {
     }
 }
 
+if (!function_exists('generateNotifications')) {
+    function generateNotifications()
+    {
+        if (Auth::check()) {
+            $missedPayments = Payment::where(function ($query) {
+                    $query->whereRaw("
+                        (
+                            SELECT COALESCE(SUM(JSON_EXTRACT(value, '$.paid_amount')), 0)
+                            FROM JSON_TABLE(paymentData, '$[*]' COLUMNS (value JSON PATH '$')) AS payments
+                        ) < total_selling_price
+                    ");
+                })
+                ->where('next_payment_deadline', '<', Carbon::now()->subDay()) // 1+ day passed
+                ->get();
 
+            $now = now();
+            foreach ($missedPayments as $index => $payment) {
+                $url = route('payment.show', $payment->id, false);
+
+                $exists = Notification::where('user_id', Auth::user()->business_id)
+                    ->where('url', $url)
+                    ->whereDate('deadline', Carbon::parse($payment->next_payment_deadline)->toDateString())
+                    ->exists();
+
+                if (!$exists) {
+                    $model = new Notification();
+                    $model->user_id = Auth::user()->business_id;
+                    $model->title = $payment->payment_invoice_id . ' - Missed Payment Deadline!';
+                    $model->url = $url;
+                    $model->deadline = $payment->next_payment_deadline;
+
+                    // Add small offset per iteration to created_at
+                    $model->created_at = $now->copy()->addSeconds($index);
+                    $model->updated_at = $now->copy()->addSeconds($index);
+
+                    $model->save();
+                }
+            }
+        }
+    }
+}
+
+
+if (!function_exists('getNotifications')) {
+    function getNotifications($seenStatus = 'all', $limit = null)
+    {
+        if (!Auth::check()) {
+            return collect(); // return empty collection instead of null
+        }
+
+        $query = Notification::where('user_id', Auth::user()->business_id)
+            ->orderByDesc('id');
+
+        if ($seenStatus !== 'all') {
+            $query->where('read_status', $seenStatus); // use read_status (consistent with your model)
+        }
+
+        if (!is_null($limit)) {
+            $query->limit($limit);
+        }
+
+        return $query->get();
+    }
+}

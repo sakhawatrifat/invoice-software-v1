@@ -90,8 +90,10 @@
                 [getCurrentTranslation.yesterday ?? 'Yesterday']: [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
                 [getCurrentTranslation.next7Days ?? 'Next 7 Days']: [moment(), moment().add(7, 'days')],
                 [getCurrentTranslation.next15Days ?? 'Next 15 Days']: [moment(), moment().add(15, 'days')],
-                [getCurrentTranslation.next30Days ?? 'Next 30 Days']: [moment(), moment().add(30, 'days')]
+                [getCurrentTranslation.next30Days ?? 'Next 30 Days']: [moment(), moment().add(30, 'days')],
+                [getCurrentTranslation.last7Days ?? 'Last 7 Days']: [moment().subtract(7, 'days'), moment()]
             };
+
 
             // Choose ranges
             var rangesToUse = picker.hasClass('future-date') ? futureRanges : defaultRanges;

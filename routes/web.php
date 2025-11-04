@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Artisan;
 
 
 // Common Controllers
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Auth\UserAuthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\TicketController as CommonTicketController;
@@ -254,6 +255,10 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::get('/payment/edit/{id}', 'edit')->name('payment.edit');
         Route::put('/payment/update/{id}', 'update')->name('payment.update');
         Route::delete('/payment/delete/{id}', 'destroy')->name('payment.destroy');
+
+
+        Route::get('/flight-list', 'flightList')->name('flight.list');
+        Route::get('/flight-list-datatable', 'flightListDatatable')->name('flight.list.datatable');
     });
 
     //Common IntroductionSource Routes
@@ -358,6 +363,15 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::post('/ticket-reminder-mail-form', 'saveReminderInformation')->name('ticket.reminder.save');
 
         //Route::get('/reminder-mail', 'sendReminderMail');
+    });
+
+    //Common Notification Routes
+    Route::controller(NotificationController::class)->group(function () {
+        Route::get('/notification-list', 'index')->name('notification.index');
+        Route::get('/notification-datatble', 'datatable')->name('notification.datatable');
+        Route::get('/notification/read/{id}', 'read')->name('notification.read');
+        Route::get('/notification/read-all', 'readAll')->name('notification.readAll');
+        Route::delete('/notification/delete/{id}', 'read')->name('notification.destroy');
     });
 
 

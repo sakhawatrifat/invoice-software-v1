@@ -382,7 +382,7 @@
 											</div>
 										</div>
 
-										<div class="col-md-3">
+										<div class="col-md-3 refund_payment_status" style="display: none">
 											<div class="form-item mb-5">
 												@php
 													$options = ['Unpaid', 'Paid'];
@@ -397,6 +397,46 @@
 													@endforeach
 												</select>
 												@error('refund_payment_status')
+													<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+												@enderror
+											</div>
+										</div>
+
+										<div class="col-md-3">
+											<div class="form-item mb-5">
+												@php
+													$options = ['Under Loss'];
+
+													$selected = request()->under_loss ?? '';
+												@endphp
+												<label class="form-label">{{ $getCurrentTranslation['under_loss_label'] ?? 'under_loss_label' }}:</label>
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['under_loss_placeholder'] ?? 'under_loss_placeholder' }}" name="under_loss">
+													<option value="0">----</option>
+													@foreach($options as $option)
+														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
+													@endforeach
+												</select>
+												@error('under_loss')
+													<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+												@enderror
+											</div>
+										</div>
+
+										<div class="col-md-3">
+											<div class="form-item mb-5">
+												@php
+													$options = ['Under Due'];
+
+													$selected = request()->under_due ?? '';
+												@endphp
+												<label class="form-label">{{ $getCurrentTranslation['under_due_label'] ?? 'under_due_label' }}:</label>
+												<select class="form-select dynamic-option" data-control="select2" data-placeholder="{{ $getCurrentTranslation['under_due_placeholder'] ?? 'under_due_placeholder' }}" name="under_due">
+													<option value="0">----</option>
+													@foreach($options as $option)
+														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
+													@endforeach
+												</select>
+												@error('under_due')
 													<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 												@enderror
 											</div>
@@ -541,6 +581,16 @@
 			dataTable.ajax.url(newUrl).load();
 		});
 
+	});
+
+
+	$(document).on('change', '[name="refund_type"]', function(){
+		if($(this).val() == 'Refund Only'){
+			$('.refund_payment_status').slideDown('500');
+		}else{
+			$('.refund_payment_status').slideUp('500');
+			$('[name="refund_payment_status"]').prop('selectedIndex', 0).trigger('change');
+		}
 	});
 
 

@@ -49,7 +49,7 @@
 
 								<div class="col-md-6">
 									<div class="input-item-wrap mb-5">
-										<label>{{ $getCurrentTranslation['image'] ?? 'image' }}:</label>
+										<label>{{ $getCurrentTranslation['image'] ?? 'image' }} (100x100):</label>
 										@php
 											$selected = old('image') ?? ($editData->image_url ?? '');
 

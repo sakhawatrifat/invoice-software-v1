@@ -519,7 +519,7 @@
 									<table class="report-table table table-bordered table-striped text-center mb-0">
 										<tbody>
 											<tr>
-												<th>{{ $getCurrentTranslation['total_purchase'] ?? 'total_purchase' }}</th>
+												<th class="fw-semibold">{{ $getCurrentTranslation['total_purchase'] ?? 'total_purchase' }}</th>
 												<td>
 													{{ number_format($total_purchase_amount, 2) }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
@@ -527,7 +527,7 @@
 											</tr>
 
 											<tr>
-												<th>{{ $getCurrentTranslation['total_selling'] ?? 'total_selling' }}</th>
+												<th class="fw-semibold">{{ $getCurrentTranslation['total_selling'] ?? 'total_selling' }}</th>
 												<td>
 													{{ number_format($total_selling_amount, 2) }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
@@ -547,7 +547,7 @@
 											@endphp
 
 											<tr class="fw-bold {{ $profitLossClass }}">
-												<th>{{ $profitLossLabel }}</th>
+												<th class="fw-semibold">{{ $profitLossLabel }}</th>
 												<td>
 													{{ $profitLossValue }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
@@ -555,7 +555,7 @@
 											</tr>
 
 											{{-- <tr>
-												<th>{{ $getCurrentTranslation['total_refund'] ?? 'total_refund' }}</th>
+												<th class="fw-semibold">{{ $getCurrentTranslation['total_refund'] ?? 'total_refund' }}</th>
 												<td>
 													{{ number_format($total_refund_amount, 2) }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
@@ -565,7 +565,7 @@
 											<tr class="table-warning">
 												<th class="fw-semibold">{{ $getCurrentTranslation['total_cancellation_fee'] ?? 'total_cancellation_fee' }}</th>
 												<td class="fw-semibold">
-													{{ number_format($total_cancellation_fee, 2) }}
+													-{{ number_format($total_cancellation_fee, 2) }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
 												</td>
 											</tr>
@@ -583,7 +583,7 @@
 											@endphp
 
 											<tr class="fw-bold {{ $profitLossAfterRefundClass }}">
-												<th>{{ $profitLossAfterRefundLabel }}</th>
+												<th class="fw-semibold">{{ $profitLossAfterRefundLabel }}</th>
 												<td>
 													{{ $profitLossAfterRefundValue }}
 													{{ Auth::user()->company_data->currency->short_name ?? '' }}
@@ -629,7 +629,7 @@
 											    <td class="table-warning fw-semibold">
 											        <!-- 🔗 Link to open modal -->
 											        <a href="#" data-bs-toggle="modal" data-bs-target="#dueListModal" class="ms-2 text-decoration-underline text-primary">
-											            View Details
+											            {{ $getCurrentTranslation['view_details'] ?? 'view_details' }} ({{count($total_due_data)}})
 											        </a>
 											    </td>
 											</tr>
@@ -651,14 +651,14 @@
 									<table class="report-table table table-bordered table-striped text-center align-middle mb-0">
 										<thead>
 											<tr>
-												<th class="bg-light">{{ $getCurrentTranslation['payment_status'] ?? 'payment_status' }}</th>
-												<th class="bg-light">{{ $getCurrentTranslation['total_count'] ?? 'total_count' }}</th>
-												<th class="bg-light">{{ $getCurrentTranslation['total_purchase_amount'] ?? 'total_purchase_amount' }}</th>
-												<th class="bg-light">{{ $getCurrentTranslation['total_selling_amount'] ?? 'total_selling_amount' }}</th>
-												<th class="table-danger">{{ $getCurrentTranslation['total_cancellation_fee'] ?? 'total_cancellation_fee' }}</th>
-												<th class="table-success table-danger-text">{{ $getCurrentTranslation['total_profit_loss'] ?? 'total_profit_loss' }}</th>
-												<th class="table-primary">{{ $getCurrentTranslation['total_paid'] ?? 'total_paid' }}</th>
-												<th class="table-warning">{{ $getCurrentTranslation['total_due'] ?? 'total_due' }}</th>
+												<th class="fw-semibold bg-light">{{ $getCurrentTranslation['payment_status'] ?? 'payment_status' }}</th>
+												<th class="fw-semibold bg-light">{{ $getCurrentTranslation['total_count'] ?? 'total_count' }}</th>
+												<th class="fw-semibold bg-light">{{ $getCurrentTranslation['total_purchase_amount'] ?? 'total_purchase_amount' }}</th>
+												<th class="fw-semibold bg-light">{{ $getCurrentTranslation['total_selling_amount'] ?? 'total_selling_amount' }}</th>
+												<th class="fw-semibold table-danger">{{ $getCurrentTranslation['total_cancellation_fee'] ?? 'total_cancellation_fee' }}</th>
+												<th class="fw-semibold table-success table-danger-text">{{ $getCurrentTranslation['total_profit_loss'] ?? 'total_profit_loss' }}</th>
+												<th class="fw-semibold table-primary">{{ $getCurrentTranslation['total_paid'] ?? 'total_paid' }}</th>
+												<th class="fw-semibold table-warning">{{ $getCurrentTranslation['total_due'] ?? 'total_due' }}</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -688,7 +688,7 @@
 														</td>
 
 														<td class="table-danger">
-															{{ number_format($data['total_cancellation_fee'], 2) }}
+															-{{ number_format($data['total_cancellation_fee'], 2) }}
 															{{ Auth::user()->company_data->currency->short_name ?? '' }}
 														</td>
 
@@ -722,8 +722,8 @@
 						</div>
 					</div>
 
-					{{-- ✈️ Airline Data Summary --}}
 					<div class="row">
+						{{-- ✈️ Airline Data Summary --}}
 			            <div class="col-md-6 mb-4">
 							@php
 							    // Group by airline and collect count + name + logo
@@ -745,10 +745,10 @@
 									<table class="report-table table table-bordered table-striped table-hover align-middle mb-0">
 								        <thead class="table-secondary">
 								            <tr class="bg-white">
-								                <th>#</th>
-								                <th>{{ $getCurrentTranslation['airline_logo'] ?? 'airline_logo' }}</th>
-								                <th>{{ $getCurrentTranslation['airline_name'] ?? 'airline_name' }}</th>
-								                <th>{{ $getCurrentTranslation['total_label'] ?? 'total_label' }}</th>
+								                <th class="fw-semibold">#</th>
+								                <th class="fw-semibold">{{ $getCurrentTranslation['airline_logo'] ?? 'airline_logo' }}</th>
+								                <th class="fw-semibold">{{ $getCurrentTranslation['airline_name'] ?? 'airline_name' }}</th>
+								                <th class="fw-semibold">{{ $getCurrentTranslation['total_label'] ?? 'total_label' }}</th>
 								            </tr>
 								        </thead>
 								        <tbody>
@@ -802,9 +802,9 @@
 					                <table class="report-table table table-bordered table-striped table-hover align-middle mb-0">
 					                    <thead class="table-secondary">
 					                        <tr>
-					                            <th>#</th>
-					                            <th>{{ $getCurrentTranslation['issued_by_name'] ?? 'issued_by_name' }}</th>
-					                            <th>{{ $getCurrentTranslation['total_label'] ?? 'total_label' }}</th>
+					                            <th class="fw-semibold">#</th>
+					                            <th class="fw-semibold">{{ $getCurrentTranslation['issued_by_name'] ?? 'issued_by_name' }}</th>
+					                            <th class="fw-semibold">{{ $getCurrentTranslation['total_label'] ?? 'total_label' }}</th>
 					                        </tr>
 					                    </thead>
 					                    <tbody>
@@ -828,31 +828,153 @@
 					    </div>
 					</div>
 
+					<div class="row">
+						{{-- 🌐 Introduction Source Summary --}}
+						<div class="col-md-6 mb-4">
+						    @php
+						        // Group by introduction_source_id and collect count + name
+						        $introduction_source_data = $profitLossData
+						            ->groupBy('introduction_source_id')
+						            ->map(fn($items) => [
+						                'count' => $items->count(),
+						                'source_name' => optional($items->first()->introductionSource)->name ?? 'Unknown Source',
+						            ]);
+						    @endphp
+
+						    <div class="card shadow-sm h-100">
+						        <div class="card-header bg-success text-white fw-bold align-items-center">
+						            <h5 class="mb-0 text-white">
+						                {{ $getCurrentTranslation['introduction_source_summary'] ?? 'introduction_source_summary' }}
+						            </h5>
+						        </div>
+						        <div class="card-body">
+						            <table class="report-table table table-bordered table-striped table-hover align-middle mb-0">
+						                <thead class="table-secondary">
+						                    <tr class="bg-white">
+						                        <th class="fw-semibold">#</th>
+						                        <th class="fw-semibold">{{ $getCurrentTranslation['introduction_source_label'] ?? 'introduction_source_label' }}</th>
+						                        <th class="fw-semibold">{{ $getCurrentTranslation['total_label'] ?? 'total_label' }}</th>
+						                    </tr>
+						                </thead>
+						                <tbody>
+						                    @forelse($introduction_source_data as $index => $source)
+						                        <tr>
+						                            <td>{{ $loop->iteration }}</td>
+						                            <td>
+						                                {{ $source['source_name'] }}
+						                            </td>
+						                            <td>{{ $source['count'] }}</td>
+						                        </tr>
+						                    @empty
+						                        <tr>
+						                            <td colspan="3" class="p-10 text-center">
+						                                {{ $getCurrentTranslation['no_data_found_for_selected_filter'] ?? 'no_data_found_for_selected_filter' }}
+						                            </td>
+						                        </tr>
+						                    @endforelse
+						                </tbody>
+						            </table>
+						        </div>
+						    </div>
+						</div>
+
+						{{-- 🏢 Issued Supplier Summary --}}
+						<div class="col-md-6 mb-4">
+						    @php
+						        // Flatten all supplier IDs from the JSON/array column across all items
+						        $issued_supplier_data = $profitLossData
+						            ->flatMap(function ($item) {
+						                $ids = $item->issued_supplier_ids;
+
+						                // Ensure it’s always an array
+						                if (is_string($ids)) {
+						                    $ids = json_decode($ids, true);
+						                }
+
+						                return collect($ids ?? []);
+						            })
+						            ->filter()
+						            ->groupBy(fn($id) => $id)
+						            ->map(function ($ids, $id) use ($profitLossData) {
+						                // Find supplier name if available via relationship or fallback
+						                $supplier = optional(
+						                    $profitLossData
+						                        ->map(fn($item) => optional($item->issuedSuppliers)
+						                            ->firstWhere('id', $id))
+						                        ->filter()
+						                        ->first()
+						                );
+
+						                return [
+						                    'count' => $ids->count(),
+						                    'supplier_name' => $supplier->name ?? 'Unknown Supplier',
+						                ];
+						            });
+						    @endphp
+
+						    <div class="card shadow-sm h-100">
+						        <div class="card-header bg-primary text-white fw-bold align-items-center">
+						            <h5 class="mb-0 text-white">
+						                {{ $getCurrentTranslation['issued_supplier_summary'] ?? 'issued_supplier_summary' }}
+						            </h5>
+						        </div>
+						        <div class="card-body">
+						            <table class="report-table table table-bordered table-striped table-hover align-middle mb-0">
+						                <thead class="table-secondary">
+						                    <tr class="bg-white">
+						                        <th class="fw-semibold">#</th>
+						                        <th class="fw-semibold">{{ $getCurrentTranslation['issued_supplier_label'] ?? 'issued_supplier_label' }}</th>
+						                        <th class="fw-semibold">{{ $getCurrentTranslation['total_label'] ?? 'total_label' }}</th>
+						                    </tr>
+						                </thead>
+						                <tbody>
+						                    @forelse($issued_supplier_data as $index => $supplier)
+						                        <tr>
+						                            <td>{{ $loop->iteration }}</td>
+						                            <td>{{ $supplier['supplier_name'] }}</td>
+						                            <td>{{ $supplier['count'] }}</td>
+						                        </tr>
+						                    @empty
+						                        <tr>
+						                            <td colspan="3" class="p-10 text-center">
+						                                {{ $getCurrentTranslation['no_data_found_for_selected_filter'] ?? 'no_data_found_for_selected_filter' }}
+						                            </td>
+						                        </tr>
+						                    @endforelse
+						                </tbody>
+						            </table>
+						        </div>
+						    </div>
+						</div>
+
+
+					</div>
+
 					{{-- ================= OTHER SUMMARY ================= --}}
 					<div class="row">
 						<div class="col-md-12">
 							<div class="card shadow-sm mb-4">
-								<div class="card-header bg-primary text-white fw-bold align-items-center">
+								<div class="card-header bg-info text-white fw-bold align-items-center">
 									<h5 class="mb-0 text-white">{{ $getCurrentTranslation['summary_overview'] ?? 'summary_overview' }}</h5>
 								</div>
 								<div class="card-body">
 									<table class="report-table table table-bordered table-striped table-hover align-middle mb-0">
 										<tbody>
-											<tr><th>{{ $getCurrentTranslation['total_airline'] ?? 'total_airline' }}</th><td>{{ $total_airline }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_introduction_source'] ?? 'total_introduction_source' }}</th><td>{{ $total_introduction_source }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_country'] ?? 'total_country' }}</th><td>{{ $total_country }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_issued_suppliers'] ?? 'total_issued_suppliers' }}</th><td>{{ $total_issued_suppliers }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_issued_by'] ?? 'total_issued_by' }}</th><td>{{ $total_issued_by }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_trip_type'] ?? 'total_trip_type' }}</th><td>{{ $total_trip_type }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_seat_confirmation'] ?? 'total_seat_confirmation' }}</th><td>{{ $total_seat_confirmation }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_mobility_assistance'] ?? 'total_mobility_assistance' }}</th><td>{{ $total_mobility_assistance }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_transit_visa_application'] ?? 'total_transit_visa_application' }}</th><td>{{ $total_transit_visa_application }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_halal_meal_request'] ?? 'total_halal_meal_request' }}</th><td>{{ $total_halal_meal_request }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_transit_hotel'] ?? 'total_transit_hotel' }}</th><td>{{ $total_transit_hotel }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_transfer_to'] ?? 'total_transfer_to' }}</th><td>{{ $total_transfer_to }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_payment_method'] ?? 'total_payment_method' }}</th><td>{{ $total_payment_method }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_issued_card_type'] ?? 'total_issued_card_type' }}</th><td>{{ $total_issued_card_type }}</td></tr>
-											<tr><th>{{ $getCurrentTranslation['total_card_owner'] ?? 'total_card_owner' }}</th><td>{{ $total_card_owner }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_airline'] ?? 'total_airline' }}</th><td>{{ $total_airline }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_introduction_source'] ?? 'total_introduction_source' }}</th><td>{{ $total_introduction_source }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_country'] ?? 'total_country' }}</th><td>{{ $total_country }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_issued_suppliers'] ?? 'total_issued_suppliers' }}</th><td>{{ $total_issued_suppliers }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_issued_by'] ?? 'total_issued_by' }}</th><td>{{ $total_issued_by }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_trip_type'] ?? 'total_trip_type' }}</th><td>{{ $total_trip_type }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_seat_confirmation'] ?? 'total_seat_confirmation' }}</th><td>{{ $total_seat_confirmation }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_mobility_assistance'] ?? 'total_mobility_assistance' }}</th><td>{{ $total_mobility_assistance }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_transit_visa_application'] ?? 'total_transit_visa_application' }}</th><td>{{ $total_transit_visa_application }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_halal_meal_request'] ?? 'total_halal_meal_request' }}</th><td>{{ $total_halal_meal_request }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_transit_hotel'] ?? 'total_transit_hotel' }}</th><td>{{ $total_transit_hotel }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_transfer_to'] ?? 'total_transfer_to' }}</th><td>{{ $total_transfer_to }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_payment_method'] ?? 'total_payment_method' }}</th><td>{{ $total_payment_method }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_issued_card_type'] ?? 'total_issued_card_type' }}</th><td>{{ $total_issued_card_type }}</td></tr>
+											<tr><th class="fw-semibold">{{ $getCurrentTranslation['total_card_owner'] ?? 'total_card_owner' }}</th><td>{{ $total_card_owner }}</td></tr>
 										</tbody>
 									</table>
 								</div>
@@ -875,7 +997,7 @@
         <div class="modal-content">
             <div class="modal-header bg-warning">
                 <h5 class="modal-title fw-bold" id="dueListModalLabel">
-                    {{ $getCurrentTranslation['remaining_due'] ?? 'remaining_due' }}
+                    {{ $getCurrentTranslation['remaining_due'] ?? 'remaining_due' }} ({{count($total_due_data)}})
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -885,11 +1007,11 @@
                     <table class="table table-bordered align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>#</th>
-                                <th>{{ $getCurrentTranslation['client_info'] ?? 'client_info' }}</th>
-                                <th>{{ $getCurrentTranslation['invoice'] ?? 'invoice' }}</th>
-                                <th>{{ $getCurrentTranslation['due'] ?? 'due' }}</th>
-                                <th>{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
+                                <th class="fw-semibold">#</th>
+                                <th class="fw-semibold">{{ $getCurrentTranslation['client_info'] ?? 'client_info' }}</th>
+                                <th class="fw-semibold">{{ $getCurrentTranslation['invoice'] ?? 'invoice' }}</th>
+                                <th class="fw-semibold">{{ $getCurrentTranslation['due'] ?? 'due' }}</th>
+                                <th class="fw-semibold">{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
                             </tr>
                         </thead>
                         <tbody>

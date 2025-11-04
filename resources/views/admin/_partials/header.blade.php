@@ -1,5 +1,15 @@
 @php
 	$getCurrentTranslation = getCurrentTranslation();
+	$notifications = getNotifications('all', 20); //$seenStatus(0/1/'all'), $limit = (20/null);
+	$countNotification = DB::table('notifications')->where('user_id', Auth::user()->business_id)->where('read_status', 0)->count();
+
+
+	$defaultflightStart = \Carbon\Carbon::today()->format('Y/m/d'); // today
+	$defaultflightEnd = \Carbon\Carbon::today()->addDays(30)->format('Y/m/d'); //next 30 days
+	$selectedflightDateRange = request()->flight_date_range ?? "$defaultflightStart-$defaultflightEnd";
+
+	$flightListData = flightListData($selectedflightDateRange);
+	//dd($flightListData);
 @endphp
 
 <!--begin::Header-->
@@ -16,7 +26,7 @@
 			</div>
 		</div>
 		<div class="d-flex align-items-center flex-grow-1 flex-lg-grow-0">
-			<a href="" class="d-lg-none">
+			<a href="" class="d-lg-none brand-logo-min">
 				<img alt="{{ $globalData->company_data->company_name ?? 'N/A' }}" src="{{ $globalData->company_data->dark_logo_url ?? '' }}" class="h-30px" />
 			</a>
 		</div>
@@ -106,6 +116,24 @@
 						</div> --}}
 					</div>
 				</div>
+
+				<div class="app-navbar-item ms-1 ms-md-4">
+			        <!--begin::Drawer toggle-->
+			        <div class="menu-link px-3 py-2 cursor-pointer" id="kt_flight_list_toggle">
+			            <i class="fa-solid fa-plane fa-2x"></i>
+			        </div>
+			        <!--end::Drawer toggle-->
+			    </div>
+
+				<div class="app-navbar-item me-3">
+			        <!--begin::Drawer toggle-->
+			        <div class="menu-link px-3 py-2 cursor-pointer notification-toggle" id="kt_notification_toggle">
+			            <i class="fas fa-bell fa-2x"></i>
+			            <span class="notification-count">{{ $countNotification }}</span>
+			        </div>
+			        <!--end::Drawer toggle-->
+			    </div>
+
 				<div class="app-navbar-item me-2 me-lg-3">
 					<a href="{{ route('home') }}" target="_blank" class="menu-link px-3 py-2"><i class="fa-solid fa-globe fa-2x"></i></a>
 				</div>
@@ -150,30 +178,6 @@
 				                <button type="submit">{{ $getCurrentTranslation['logout'] ?? 'logout' }}</button>
 				            </form> 
 						</div>
-						{{-- <div class="menu-item px-5" data-kt-menu-trigger="{default: 'click', lg: 'hover'}" data-kt-menu-placement="left-start">
-							<a href="#" class="menu-link px-5">
-								<span class="menu-title">My Subscription</span>
-								<span class="menu-arrow"></span>
-							</a>
-							<div class="menu-sub menu-sub-dropdown w-175px py-4">
-								<div class="menu-item px-3">
-									<a href="" class="menu-link px-5">Referrals</a>
-								</div>
-								<div class="menu-item px-3">
-									<a href="" class="menu-link d-flex flex-stack px-5">Statements
-									<i class="fas fa-exclamation-circle ms-2 fs-7" data-bs-toggle="tooltip" title="View your statements"></i></a>
-								</div>
-								<div class="separator my-2"></div>
-								<div class="menu-item px-3">
-									<div class="menu-content px-3">
-										<label class="form-check form-switch form-check-custom form-check-solid">
-											<input class="form-check-input w-30px h-20px" type="checkbox" value="1" checked="checked" name="notifications" />
-											<span class="form-check-label text-muted fs-7">Notifications</span>
-										</label>
-									</div>
-								</div>
-							</div>
-						</div> --}}
 					</div>
 				</div>
 				<div class="app-navbar-item d-lg-none ms-2 me-n3" title="Show header menu">
@@ -190,3 +194,328 @@
 		</div>
 	</div>
 </div>
+
+
+
+
+<!--begin::Drawers-->
+<!--begin::flight drawer-->
+<div
+    id="kt_flight_list"
+    class="bg-body"
+    data-kt-drawer="true"
+    data-kt-drawer-name="flight"
+    data-kt-drawer-activate="true"
+    data-kt-drawer-overlay="true"
+    data-kt-drawer-width="{default:'300px', 'lg': '900px'}"
+    data-kt-drawer-direction="end"
+    data-kt-drawer-toggle="#kt_flight_list_toggle"
+    data-kt-drawer-close="#kt_flight_list_close"
+>
+    <div class="card shadow-none border-0 rounded-0">
+        <!--begin::Header-->
+        <div class="card-header" id="kt_flight_list_header">
+            <h3 class="card-title fw-bold text-gray-900">{{ $getCurrentTranslation['upcomming_flights'] ?? 'upcomming_flights' }}</h3>
+
+            <div class="card-toolbar">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-icon btn-active-light-primary me-n5"
+                    id="kt_flight_list_close"
+                >
+                    <i class="fas fa-times fa-2x"></i>
+                </button>
+            </div>
+        </div>
+        <!--end::Header-->
+
+        <!--begin::Body-->
+        <div class="card-body position-relative" id="kt_flight_list_body">
+            <!--begin::Content-->
+            <div
+                id="kt_flight_list_scroll"
+                class="position-relative scroll-y me-n5 pe-5"
+                data-kt-scroll="true"
+                data-kt-scroll-height="auto"
+                data-kt-scroll-wrappers="#kt_flight_list_body"
+                data-kt-scroll-dependencies="#kt_flight_list_header, #kt_flight_list_footer"
+                data-kt-scroll-offset="5px"
+            >
+                <!--begin::Timeline items-->
+                <div class="timeline timeline-border-dashed">
+                    
+                    <!--begin::Timeline item-->
+                    <div class="timeline-item">
+                        <div class="timeline-line"></div>
+                        <div class="timeline-icon">
+                            <i class="ki-duotone ki-message-text-2 fs-2 text-gray-500">
+                                <span class="path1"></span>
+                                <span class="path2"></span>
+                                <span class="path3"></span>
+                            </i>
+                        </div>
+
+                        <div class="timeline-content mb-10 mt-n1">
+                            <div class="pe-3 mb-5">
+                                <div class="fs-5 fw-semibold mb-2 w-100 d-flex justify-content-between mt-1">
+                                    <div>
+                                    	{{ $getCurrentTranslation['here_the_upcomming_flight_list'] ?? 'here_the_upcomming_flight_list' }} ({{ $selectedflightDateRange }}) <br>
+
+                                    	@if(isset($toDoListData))
+											{{ $getCurrentTranslation['total_data'] ?? 'total_data' }}: {{ count($flightListData) }}
+										@endif
+                                    </div>
+
+                                    {{-- <div>
+                                    	<a href="{{ route('notification.readAll') }}" class="btn btn-sm fw-bold btn-primary data-confirm-button" title="{{ $getCurrentTranslation['marks_all_as_read'] ?? 'marks_all_as_read' }}">{{ $getCurrentTranslation['marks_all_as_read'] ?? 'marks_all_as_read' }}</a>
+                                    </div> --}}
+                                </div>
+
+                                {{-- <div class="d-flex align-items-center mt-1 fs-6">
+                                    <div class="text-muted me-2 fs-7">Added at 4:23 PM by</div>
+                                    <div
+                                        class="symbol symbol-circle symbol-25px"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-boundary="window"
+                                        data-bs-placement="top"
+                                        title="Nina Nilson"
+                                    >
+                                        <img src="/metronic8/demo1/assets/media/avatars/300-14.jpg" alt="img" />
+                                    </div>
+                                </div> --}}
+                            </div>
+
+                            <div class="overflow-auto pb-5">
+							    @if(count($flightListData))
+							        @foreach($flightListData as $flight)
+									    <div 
+									        class="d-flex align-items-center border rounded min-w-750px px-7 py-3 mb-3 position-relative 
+									               transition-all duration-200 bg-light hover-shadow-sm hover-border-primary"
+									    >
+									        <div>
+									            <div class="fs-5 fw-semibold text-gray-800 mb-1">
+									                <b>{{ $getCurrentTranslation['passenger_name_label'] ?? 'passenger_name_label' }}:</b> 
+									                {{ $flight->client_name ?? 'N/A' }}
+									            </div>
+									            <div class="fs-7 text-gray-800 mb-0">
+									                <b>{{ $getCurrentTranslation['passenger_phone_label'] ?? 'passenger_phone_label' }}:</b> 
+									                {{ $flight->client_phone ?? 'N/A' }}
+									            </div>
+									            <div class="fs-7 text-gray-800 mb-0">
+									                <b>{{ $getCurrentTranslation['passenger_email_label'] ?? 'passenger_email_label' }}:</b> 
+									                {{ $flight->client_email ?? 'N/A' }}
+									            </div>
+									            <div class="fs-7 text-gray-800 mb-0">
+									                <b>{{ $getCurrentTranslation['trip_type_label'] ?? 'trip_type_label' }}:</b> 
+									                {{ $flight->trip_type ?? '' }}
+									            </div>
+									            <div class="fs-7 text-gray-800 mb-0">
+									                <b>{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</b> 
+									                {{ $flight->airline->name ?? 'Unknown Airline' }}
+									            </div>
+									            <div class="fs-7 text-gray-800 mb-0">
+									                <b>{{ $getCurrentTranslation['flight_route_label'] ?? 'flight_route_label' }}:</b> 
+									                {{ $flight->flight_route ?? 'N/A' }}
+									            </div>
+									            <div class="fs-7 text-gray-800 mb-0">
+									                <b>{{ $getCurrentTranslation['departure_label'] ?? 'departure_label' }}:</b> 
+									                {{ \Carbon\Carbon::parse($flight->departure_date_time)->format('Y-m-d, H:i') }}
+									            </div>
+									            <div class="fs-7 text-gray-800">
+									                <b>{{ $getCurrentTranslation['return_label'] ?? 'return_label' }}:</b> 
+									                {{ \Carbon\Carbon::parse($flight->return_date_time)->format('Y-m-d, H:i') }}
+									            </div>
+									        </div>
+
+									        <div class="ms-auto">
+									            <a href="{{ route('payment.show', $flight->id) }}" 
+									               class="btn btn-sm btn-info">
+									                <i class="fa-solid fa-pager"></i>
+									            </a>
+									        </div>
+									    </div>
+									@endforeach
+							    @else
+							        <div class="text-center text-muted py-5">
+							            {{ $getCurrentTranslation['no_upcomming_flight_data_found'] ?? 'no_upcomming_flight_data_found' }}
+							        </div>
+							    @endif
+							</div>
+
+
+
+                        </div>
+                    </div>
+                    <!--end::Timeline item-->
+                </div>
+                <!--end::Timeline items-->
+            </div>
+            <!--end::Content-->
+        </div>
+        <!--end::Body-->
+
+        <!--begin::Footer-->
+        <div class="card-footer py-5 text-center" id="kt_flight_list_footer">
+            <a href="{{ route('flight.list') }}?flight_date_range={{ $selectedflightDateRange }}" class="btn btn-bg-body text-primary">
+                {{ $getCurrentTranslation['view_all_flights'] ?? 'view_all_flights' }}
+                <i class="ki-duotone ki-arrow-right fs-3 text-primary">
+                    <span class="path1"></span>
+                    <span class="path2"></span>
+                </i>
+            </a>
+        </div>
+        <!--end::Footer-->
+    </div>
+</div>
+<!--end::flight drawer-->
+<!--end::Drawers-->
+
+
+<!--begin::Drawers-->
+<!--begin::notification drawer-->
+<div
+    id="kt_notification"
+    class="bg-body"
+    data-kt-drawer="true"
+    data-kt-drawer-name="notification"
+    data-kt-drawer-activate="true"
+    data-kt-drawer-overlay="true"
+    data-kt-drawer-width="{default:'300px', 'lg': '900px'}"
+    data-kt-drawer-direction="end"
+    data-kt-drawer-toggle="#kt_notification_toggle"
+    data-kt-drawer-close="#kt_notification_close"
+>
+    <div class="card shadow-none border-0 rounded-0">
+        <!--begin::Header-->
+        <div class="card-header" id="kt_notification_header">
+            <h3 class="card-title fw-bold text-gray-900">{{ $getCurrentTranslation['notifications'] ?? 'notifications' }}</h3>
+
+            <div class="card-toolbar">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-icon btn-active-light-primary me-n5"
+                    id="kt_notification_close"
+                >
+                    <i class="fas fa-times fa-2x"></i>
+                </button>
+            </div>
+        </div>
+        <!--end::Header-->
+
+        <!--begin::Body-->
+        <div class="card-body position-relative" id="kt_notification_body">
+            <!--begin::Content-->
+            <div
+                id="kt_notification_scroll"
+                class="position-relative scroll-y me-n5 pe-5"
+                data-kt-scroll="true"
+                data-kt-scroll-height="auto"
+                data-kt-scroll-wrappers="#kt_notification_body"
+                data-kt-scroll-dependencies="#kt_notification_header, #kt_notification_footer"
+                data-kt-scroll-offset="5px"
+            >
+                <!--begin::Timeline items-->
+                <div class="timeline timeline-border-dashed">
+                    
+                    <!--begin::Timeline item-->
+                    <div class="timeline-item">
+                        <div class="timeline-line"></div>
+                        <div class="timeline-icon">
+                            <i class="ki-duotone ki-message-text-2 fs-2 text-gray-500">
+                                <span class="path1"></span>
+                                <span class="path2"></span>
+                                <span class="path3"></span>
+                            </i>
+                        </div>
+
+                        <div class="timeline-content mb-10 mt-n1">
+                            <div class="pe-3 mb-5">
+                                <div class="fs-5 fw-semibold mb-2 w-100 d-flex justify-content-between mt-1">
+                                    <div>
+                                    	{{ $getCurrentTranslation['you_have_new'] ?? 'you_have_new' }} {{ $countNotification }} {{ $getCurrentTranslation['notifications'] ?? 'notifications' }}
+                                    </div>
+
+                                    <div>
+                                    	<a href="{{ route('notification.readAll') }}" class="btn btn-sm fw-bold btn-primary data-confirm-button" title="{{ $getCurrentTranslation['marks_all_as_read'] ?? 'marks_all_as_read' }}">{{ $getCurrentTranslation['marks_all_as_read'] ?? 'marks_all_as_read' }}</a>
+                                    </div>
+                                </div>
+
+                                {{-- <div class="d-flex align-items-center mt-1 fs-6">
+                                    <div class="text-muted me-2 fs-7">Added at 4:23 PM by</div>
+                                    <div
+                                        class="symbol symbol-circle symbol-25px"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-boundary="window"
+                                        data-bs-placement="top"
+                                        title="Nina Nilson"
+                                    >
+                                        <img src="/metronic8/demo1/assets/media/avatars/300-14.jpg" alt="img" />
+                                    </div>
+                                </div> --}}
+                            </div>
+
+                            <div class="overflow-auto pb-5">
+							    @if(count($notifications))
+							        @foreach($notifications as $notification)
+							            <a 
+							                href="{{ route('notification.read', $notification->id) }}" 
+							                class="text-reset text-decoration-none"
+							            >
+							                <div
+							                    class="d-flex align-items-center border rounded min-w-750px px-7 py-3 mb-3 position-relative 
+							                           transition-all duration-200 
+							                           {{ $notification->read_status 
+							                                ? 'bg-light border-gray-300' 
+							                                : 'bg-primary border-primary shadow-sm' }}
+							                           hover-shadow-sm hover-border-primary"
+							                    style="cursor: pointer;"
+							                >
+							                    <span 
+							                        class="fs-5 fw-semibold 
+							                               {{ $notification->read_status ? 'text-gray-700' : 'text-white' }}"
+							                    >
+							                        {{ $notification->title }}
+							                    </span>
+
+							                    @if($notification->deadline)
+							                        <span class="ms-auto fs-7 {{ $notification->read_status ? 'text-muted' : 'text-white' }}">
+							                            {{ \Carbon\Carbon::parse($notification->deadline)->format('d M Y') }}
+							                        </span>
+							                    @endif
+							                </div>
+							            </a>
+							        @endforeach
+							    @else
+							        <div class="text-center text-muted py-5">
+							            {{ $getCurrentTranslation['no_notification_found'] ?? 'no_notification_found' }}
+							        </div>
+							    @endif
+							</div>
+
+
+
+                        </div>
+                    </div>
+                    <!--end::Timeline item-->
+                </div>
+                <!--end::Timeline items-->
+            </div>
+            <!--end::Content-->
+        </div>
+        <!--end::Body-->
+
+        <!--begin::Footer-->
+        <div class="card-footer py-5 text-center" id="kt_notification_footer">
+            <a href="{{ route('notification.index') }}" class="btn btn-bg-body text-primary">
+                {{ $getCurrentTranslation['view_all_notification'] ?? 'view_all_notification' }}
+                <i class="ki-duotone ki-arrow-right fs-3 text-primary">
+                    <span class="path1"></span>
+                    <span class="path2"></span>
+                </i>
+            </a>
+        </div>
+        <!--end::Footer-->
+    </div>
+</div>
+<!--end::notification drawer-->
+<!--end::Drawers-->

@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 
+use App\Models\Notification;
 use App\Models\Language;
 use App\Models\Currency;
 use App\Models\User;
@@ -68,6 +69,8 @@ class PaymentController extends Controller
             (request()->filled('issued_card_type') && request()->issued_card_type != 0) ||
             (request()->filled('card_owner') && request()->card_owner != 0) ||
             (request()->filled('payment_status') && request()->payment_status != 0) ||
+            (request()->filled('under_loss') && request()->under_loss != 0) ||
+            (request()->filled('under_due') && request()->under_due != 0) ||
             request()->filled('payment_date_range') ||
             request()->filled('next_payment_date_range') ||
             (request()->filled('refund_type') && request()->refund_type != 0) ||
@@ -209,6 +212,19 @@ class PaymentController extends Controller
                 if (!empty(request()->payment_status) && request()->payment_status != 0) {
                     $query->where('payment_status', request()->payment_status);
                 }
+
+                if (!empty(request()->under_loss) && request()->under_loss != 0) {
+                    $query->whereColumn('total_purchase_price', '>', 'total_selling_price');
+                }
+
+                if (!empty(request()->under_due) && request()->under_due != 0) {
+                    $query->whereRaw("
+                        (SELECT COALESCE(SUM(JSON_EXTRACT(p, '$.paid_amount')), 0)
+                         FROM JSON_TABLE(paymentData, '$[*]' COLUMNS (p JSON PATH '$')) AS t)
+                         < total_selling_price
+                    ");
+                }
+
 
                 if (!empty(request()->payment_date_range) && request()->payment_date_range != 0) {
                     $paymentDateRange = request()->payment_date_range;
@@ -980,6 +996,11 @@ class PaymentController extends Controller
                     $oldDoc->delete();
                 });
 
+            if ($paymentData->payment_status == 'Paid') {
+                Notification::where('url', route('payment.show', $paymentData->id, false))->delete();
+            }
+
+
             DB::commit();
             return [
                 'is_success' => 1,
@@ -1015,7 +1036,62 @@ class PaymentController extends Controller
     {
         $user = Auth::user();
 
-        $query = Payment::with('ticket', 'paymentDocuments', 'introductionSource', 'country', 'issuedBy', 'airline', 'transferTo', 'paymentMethod', 'issuedCardType', 'cardOwner')->latest();
+        $query = Payment::with([
+            'ticket', 'paymentDocuments', 'introductionSource', 'country',
+            'issuedBy', 'airline', 'transferTo', 'paymentMethod',
+            'issuedCardType', 'cardOwner'
+        ])
+        ->where(function ($q) {
+            $q->where('seat_confirmation', 'Not Chosen')
+                ->orWhereNull('seat_confirmation')
+
+                ->orWhere('mobility_assistance', 'Not Chosen')
+                ->orWhereNull('mobility_assistance')
+
+                ->orWhere('transit_visa_application', 'Need To Do')
+                ->orWhereNull('transit_visa_application')
+
+                ->orWhere('halal_meal_request', 'Need To Do')
+                ->orWhereNull('halal_meal_request')
+
+                ->orWhere('transit_hotel', 'Need To Do')
+                ->orWhereNull('transit_hotel');
+        });
+
+        // ✅ Detect if any filter applied
+        $hasFilter =
+            (request()->filled('trip_type') && request()->trip_type != 0) ||
+            (request()->filled('airline_id') && request()->airline_id != 0) ||
+            (request()->filled('flight_date_range') && request()->flight_date_range != 0) ||
+            (request()->filled('invoice_date_range') && request()->invoice_date_range != 0) ||
+            (request()->filled('introduction_source_id') && request()->introduction_source_id != 0) ||
+            (request()->filled('customer_country_id') && request()->customer_country_id != 0) ||
+            (request()->filled('issued_supplier_ids') && request()->issued_supplier_ids != 0) ||
+            (request()->filled('issued_by_id') && request()->issued_by_id != 0) ||
+            (request()->filled('departure') && request()->departure != 0) ||
+            (request()->filled('destination') && request()->destination != 0) ||
+            (request()->filled('transfer_to') && request()->transfer_to != 0) ||
+            (request()->filled('payment_method') && request()->payment_method != 0) ||
+            (request()->filled('issued_card_type') && request()->issued_card_type != 0) ||
+            (request()->filled('card_owner') && request()->card_owner != 0) ||
+            (request()->filled('payment_status') && request()->payment_status != 0) ||
+            request()->filled('payment_date_range') ||
+            request()->filled('next_payment_date_range') ||
+            (request()->filled('refund_type') && request()->refund_type != 0) ||
+            (request()->filled('refund_payment_status') && request()->refund_payment_status != 0) ||
+            (request()->has('search') && !empty(request('search')['value']));
+
+        // ✅ Conditional order (from payments table itself)
+        if ($hasFilter) {
+            $query->orderByRaw("
+                CASE
+                    WHEN departure_date_time IS NOT NULL THEN departure_date_time
+                    ELSE return_date_time
+                END ASC
+            ");
+        } else {
+            $query->latest();
+        }
 
         $getCurrentTranslation = getCurrentTranslation();
 
@@ -1183,31 +1259,385 @@ class PaymentController extends Controller
             ->addIndexColumn()
 
             ->addColumn('trip_info', function ($row) use ($getCurrentTranslation) {
-                $passengerNameLabel = isset($getCurrentTranslation['passenger_name_label']) ? $getCurrentTranslation['passenger_name_label'] : 'passenger_name_label';
-                $paymentInvoiceLabel = isset($getCurrentTranslation['payment_invoice_id_label']) ? $getCurrentTranslation['payment_invoice_id_label'] : 'payment_invoice_id_label';
-                $ticketInvoiceLabel  = isset($getCurrentTranslation['ticket_invoice_id_label']) ? $getCurrentTranslation['ticket_invoice_id_label'] : 'ticket_invoice_id_label';
-                $tripTypeLabel       = isset($getCurrentTranslation['trip_type_label']) ? $getCurrentTranslation['trip_type_label'] : 'trip_type_label';
-                $flightRouteLabel    = isset($getCurrentTranslation['flight_route_label']) ? $getCurrentTranslation['flight_route_label'] : 'flight_route_label';
-                $departureLabel      = isset($getCurrentTranslation['departure_label']) ? $getCurrentTranslation['departure_label'] : 'departure_label';
-                $returnLabel         = isset($getCurrentTranslation['return_label']) ? $getCurrentTranslation['return_label'] : 'return_label';
-                $airlineLabel        = isset($getCurrentTranslation['airline_label']) ? $getCurrentTranslation['airline_label'] : 'airline_label';
+                $passengerNameLabel   = $getCurrentTranslation['passenger_name_label'] ?? 'passenger_name_label';
+                $passengerPhoneLabel  = $getCurrentTranslation['passenger_phone_label'] ?? 'passenger_phone_label';
+                $passengerEmailLabel  = $getCurrentTranslation['passenger_email_label'] ?? 'passenger_email_label';
+                $paymentInvoiceLabel  = $getCurrentTranslation['payment_invoice_id_label'] ?? 'payment_invoice_id_label';
+                $ticketInvoiceLabel   = $getCurrentTranslation['ticket_invoice_id_label'] ?? 'ticket_invoice_id_label';
+                $tripTypeLabel        = $getCurrentTranslation['trip_type_label'] ?? 'trip_type_label';
+                $flightRouteLabel     = $getCurrentTranslation['flight_route_label'] ?? 'flight_route_label';
+                $departureLabel       = $getCurrentTranslation['departure_label'] ?? 'departure_label';
+                $returnLabel          = $getCurrentTranslation['return_label'] ?? 'return_label';
+                $airlineLabel         = $getCurrentTranslation['airline_label'] ?? 'airline_label';
 
-                $departure = $row->departure_date_time ? date('Y-m-d, H:i', strtotime($row->departure_date_time)) : 'N/A';
-                $return    = $row->return_date_time ? date('Y-m-d, H:i', strtotime($row->return_date_time)) : 'N/A';
-                $airline   = $row->airline->name ?? 'N/A';
+                $departure     = $row->departure_date_time ? date('Y-m-d, H:i', strtotime($row->departure_date_time)) : 'N/A';
+                $return        = $row->return_date_time ? date('Y-m-d, H:i', strtotime($row->return_date_time)) : 'N/A';
+                $airline       = $row->airline->name ?? 'N/A';
                 $ticketInvoice = $row->ticket->invoice_id ?? 'N/A';
 
                 return '<div style="max-width: 280px; line-height: 1.6; text-align: left;">
                     <strong>' . $passengerNameLabel . ':</strong> ' . $row->client_name . '<br>
+                    <strong>' . $passengerPhoneLabel . ':</strong> ' . ($row->client_phone ?? 'N/A') . '<br>
+                    <strong>' . $passengerEmailLabel . ':</strong> ' . ($row->client_email ?? 'N/A') . '<br>
                     <strong>' . $paymentInvoiceLabel . ':</strong> ' . $row->payment_invoice_id . '<br>
                     <strong>' . $ticketInvoiceLabel . ':</strong> ' . $ticketInvoice . '<br>
                     <strong>' . $tripTypeLabel . ':</strong> ' . $row->trip_type . '<br>
+                    <strong>' . $airlineLabel . ':</strong> ' . $airline . '<br>
                     <strong>' . $flightRouteLabel . ':</strong> ' . $row->flight_route . '<br>
                     <strong>' . $departureLabel . ':</strong> ' . $departure . '<br>
                     <strong>' . $returnLabel . ':</strong> ' . $return . '<br>
-                    <strong>' . $airlineLabel . ':</strong> ' . $airline . '
                 </div>';
             })
+
+
+            // ✅ Seat Confirmation
+            ->addColumn('seat_confirmation', function ($row) {
+                return match($row->seat_confirmation) {
+                    'Window' => '<span class="badge bg-primary">Window</span>',
+                    'Aisle' => '<span class="badge bg-success">Aisle</span>',
+                    'Not Chosen' => '<span class="badge bg-warning text-dark">Not Chosen</span>',
+                    default => '<span class="badge bg-light text-dark">—</span>',
+                };
+            })
+
+            // ✅ Mobility Assistance
+            ->addColumn('mobility_assistance', function ($row) {
+                return match($row->mobility_assistance) {
+                    'Wheelchair' => '<span class="badge bg-primary">Wheelchair</span>',
+                    'Baby Bassinet Seat' => '<span class="badge bg-info">Baby Bassinet Seat</span>',
+                    'Meet & Assist' => '<span class="badge bg-success">Meet & Assist</span>',
+                    'Not Chosen' => '<span class="badge bg-warning text-dark">Not Chosen</span>',
+                    default => '<span class="badge bg-light text-dark">—</span>',
+                };
+            })
+
+            // ✅ Transit Visa Application
+            ->addColumn('transit_visa_application', function ($row) {
+                return match($row->transit_visa_application) {
+                    'Need To Do' => '<span class="badge bg-danger text-white">Need To Do</span>',
+                    'Done' => '<span class="badge bg-success">Done</span>',
+                    'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
+                    default => '<span class="badge bg-light text-dark">—</span>',
+                };
+            })
+
+            // ✅ Halal Meal Request
+            ->addColumn('halal_meal_request', function ($row) {
+                return match($row->halal_meal_request) {
+                    'Need To Do' => '<span class="badge bg-danger text-white">Need To Do</span>',
+                    'Done' => '<span class="badge bg-success">Done</span>',
+                    'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
+                    default => '<span class="badge bg-light text-dark">—</span>',
+                };
+            })
+
+            // ✅ Transit Hotel
+            ->addColumn('transit_hotel', function ($row) {
+                return match($row->transit_hotel) {
+                    'Need To Do' => '<span class="badge bg-danger text-white">Need To Do</span>',
+                    'Done' => '<span class="badge bg-success">Done</span>',
+                    'No Need' => '<span class="badge bg-secondary text-dark">No Need</span>',
+                    default => '<span class="badge bg-light text-dark">—</span>',
+                };
+            })
+
+            // ✅ Actions
+            ->addColumn('action', function ($row) {
+                $detailsUrl   = route('payment.show', $row->id);
+                $editUrl      = route('payment.edit', $row->id);
+                $deleteUrl    = route('payment.destroy', $row->id);
+
+                $buttons = '';
+
+                // 👁️ Details
+                if (hasPermission('payment.show')) {
+                    $buttons .= '
+                        <a href="' . $detailsUrl . '" class="btn btn-sm btn-info my-1" title="Details">
+                            <i class="fa-solid fa-pager"></i>
+                        </a>
+                    ';
+                }
+
+                // ✏️ Edit
+                if (hasPermission('payment.edit')) {
+                    $buttons .= '
+                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1" title="Edit">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                    ';
+                }
+
+                // 🗑️ Delete
+                if (hasPermission('payment.delete')) {
+                    $buttons .= '
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn"
+                            data-id="' . $row->id . '"
+                            data-url="' . $deleteUrl . '"
+                            title="Delete">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    ';
+                }
+
+                return !empty($buttons) ? $buttons : 'N/A';
+            })
+
+
+            ->rawColumns([
+                'trip_info',
+                'seat_confirmation',
+                'mobility_assistance',
+                'transit_visa_application',
+                'halal_meal_request',
+                'transit_hotel',
+                'action',
+            ])
+            ->make(true);
+
+    }
+
+
+    public function flightList()
+    {
+        return view('common.payment-record.flightList', get_defined_vars());
+    }
+
+    public function flightListDatatable()
+    {
+        $user = Auth::user();
+
+        $query = Payment::with([
+            'ticket', 'paymentDocuments', 'introductionSource', 'country',
+            'issuedBy', 'airline', 'transferTo', 'paymentMethod',
+            'issuedCardType', 'cardOwner'
+        ]);
+
+        // ✅ Detect if any filter applied
+        $hasFilter =
+            (request()->filled('trip_type') && request()->trip_type != 0) ||
+            (request()->filled('airline_id') && request()->airline_id != 0) ||
+            (request()->filled('flight_date_range') && request()->flight_date_range != 0) ||
+            (request()->filled('invoice_date_range') && request()->invoice_date_range != 0) ||
+            (request()->filled('introduction_source_id') && request()->introduction_source_id != 0) ||
+            (request()->filled('customer_country_id') && request()->customer_country_id != 0) ||
+            (request()->filled('issued_supplier_ids') && request()->issued_supplier_ids != 0) ||
+            (request()->filled('issued_by_id') && request()->issued_by_id != 0) ||
+            (request()->filled('departure') && request()->departure != 0) ||
+            (request()->filled('destination') && request()->destination != 0) ||
+            (request()->filled('transfer_to') && request()->transfer_to != 0) ||
+            (request()->filled('payment_method') && request()->payment_method != 0) ||
+            (request()->filled('issued_card_type') && request()->issued_card_type != 0) ||
+            (request()->filled('card_owner') && request()->card_owner != 0) ||
+            (request()->filled('payment_status') && request()->payment_status != 0) ||
+            request()->filled('payment_date_range') ||
+            request()->filled('next_payment_date_range') ||
+            (request()->filled('refund_type') && request()->refund_type != 0) ||
+            (request()->filled('refund_payment_status') && request()->refund_payment_status != 0) ||
+            (request()->has('search') && !empty(request('search')['value']));
+
+        // ✅ Conditional order (from payments table itself)
+        if ($hasFilter) {
+            $query->orderByRaw("
+                CASE
+                    WHEN departure_date_time IS NOT NULL THEN departure_date_time
+                    ELSE return_date_time
+                END ASC
+            ");
+        } else {
+            $query->latest();
+        }
+
+        $getCurrentTranslation = getCurrentTranslation();
+
+        return DataTables::of($query)
+            ->filter(function ($query) {
+                if (!empty(request('search')['value'])) {
+                    $search = request('search')['value'];
+
+                    $query->where(function ($q) use ($search) {
+                        // Search in main table columns
+                        $q->where('payment_invoice_id', 'like', "%{$search}%")
+                            ->orWhere('client_name', 'like', "%{$search}%")
+                            ->orWhere('client_phone', 'like', "%{$search}%")
+                            ->orWhere('client_email', 'like', "%{$search}%")
+                            ->orWhere('trip_type', 'like', "%{$search}%")
+                            ->orWhere('departure', 'like', "%{$search}%")
+                            ->orWhere('destination', 'like', "%{$search}%")
+                            ->orWhere('flight_route', 'like', "%{$search}%")
+                            ->orWhere('seat_confirmation', 'like', "%{$search}%")
+                            ->orWhere('mobility_assistance', 'like', "%{$search}%")
+                            ->orWhere('transit_visa_application', 'like', "%{$search}%")
+                            ->orWhere('halal_meal_request', 'like', "%{$search}%")
+                            ->orWhere('transit_hotel', 'like', "%{$search}%")
+                            ->orWhere('card_digit', 'like', "%{$search}%")
+                            ->orWhere('payment_status', 'like', "%{$search}%");
+
+                        // Search in related ticket invoice_id
+                        $q->orWhereHas('ticket', function ($q2) use ($search) {
+                            $q2->where('invoice_id', 'like', "%{$search}%");
+                        });
+
+                        // Search in related airline name
+                        $q->orWhereHas('airline', function ($q3) use ($search) {
+                            $q3->where('name', 'like', "%{$search}%");
+                        });
+                    });
+                }
+
+                if (!empty(request()->introduction_source_id) && request()->introduction_source_id != 0) {
+                    $query->where('introduction_source_id', request()->introduction_source_id);
+                }
+
+                if (!empty(request()->customer_country_id) && request()->customer_country_id != 0) {
+                    $query->where('customer_country_id', request()->customer_country_id);
+                }
+
+                if (!empty(request()->issued_supplier_ids) && request()->issued_supplier_ids != 0) {
+                    $ids = (array) request()->issued_supplier_ids;
+
+                    $query->where(function ($q) use ($ids) {
+                        foreach ($ids as $id) {
+                            $q->orWhereJsonContains('issued_supplier_ids', $id);
+                        }
+                    });
+                }
+
+                if (!empty(request()->issued_by_id) && request()->issued_by_id != 0) {
+                    $query->where('issued_by_id', request()->issued_by_id);
+                }
+
+                if (!empty(request()->trip_type) && request()->trip_type != 0) {
+                    $query->where('trip_type', request()->trip_type);
+                }
+
+                if (!empty(request()->departure) && request()->departure != 0) {
+                    $query->where('departure', request()->departure);
+                }
+
+                if (!empty(request()->destination) && request()->destination != 0) {
+                    $query->where('destination', request()->destination);
+                }
+
+                if (!empty(request()->airline_id) && request()->airline_id != 0) {
+                    $query->where('airline_id', request()->airline_id);
+                }
+
+                if (!empty(request()->flight_date_range) && request()->flight_date_range != 0) {
+                    $flightDateRange = request()->flight_date_range;
+                    // Split the string into start and end dates
+                    [$start, $end] = explode('-', $flightDateRange);
+
+                    // Convert to Carbon instances (optional but safer)
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+                    $query->where(function ($q) use ($startDate, $endDate) {
+                        $q->whereBetween('departure_date_time', [$startDate, $endDate])
+                            ->orWhereBetween('return_date_time', [$startDate, $endDate]);
+                    });
+                }
+
+                if (!empty(request()->invoice_date_range) && request()->invoice_date_range != 0) {
+                    $invoiceDateRange = request()->invoice_date_range;
+                    // Split the string into start and end dates
+                    [$start, $end] = explode('-', $invoiceDateRange);
+
+                    // Convert to Carbon instances (optional but safer)
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+                    $query->where(function ($q) use ($startDate, $endDate) {
+                        $q->whereBetween('invoice_date', [$startDate, $endDate]);
+                    });
+                }
+
+                if (!empty(request()->transfer_to) && request()->transfer_to != 0) {
+                    $query->where('transfer_to_id', request()->transfer_to);
+                }
+
+                if (!empty(request()->payment_method) && request()->payment_method != 0) {
+                    $query->where('payment_method_id', request()->payment_method);
+                }
+
+                if (!empty(request()->issued_card_type) && request()->issued_card_type != 0) {
+                    $query->where('issued_card_type_id', request()->issued_card_type);
+                }
+
+                if (!empty(request()->card_owner) && request()->card_owner != 0) {
+                    $query->where('card_owner_id', request()->card_owner);
+                }
+
+                if (!empty(request()->payment_status) && request()->payment_status != 0) {
+                    $query->where('payment_status', request()->payment_status);
+                }
+
+                if (!empty(request()->payment_date_range) && request()->payment_date_range != 0) {
+                    $paymentDateRange = request()->payment_date_range;
+
+                    // Split the string into start and end dates
+                    [$start, $end] = explode('-', $paymentDateRange);
+
+                    // Convert to Carbon instances
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+                    $query->whereNotNull('paymentData')
+                        ->whereRaw("
+                            EXISTS (
+                                SELECT 1
+                                FROM JSON_TABLE(
+                                    paymentData,
+                                    '$[*]' COLUMNS (
+                                        pay_date DATE PATH '$.date'
+                                    )
+                                ) AS pd
+                                WHERE pd.pay_date BETWEEN ? AND ?
+                            )
+                        ", [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+                }
+
+                if (!empty(request()->next_payment_date_range) && request()->next_payment_date_range != 0) {
+                    $invoiceDateRange = request()->next_payment_date_range;
+                    // Split the string into start and end dates
+                    [$start, $end] = explode('-', $invoiceDateRange);
+
+                    // Convert to Carbon instances (optional but safer)
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+                    $query->where(function ($q) use ($startDate, $endDate) {
+                        $q->whereBetween('next_payment_deadline', [$startDate, $endDate]);
+                    });
+                }
+            })
+            ->addIndexColumn()
+
+            ->addColumn('trip_info', function ($row) use ($getCurrentTranslation) {
+                $passengerNameLabel = $getCurrentTranslation['passenger_name_label'] ?? 'passenger_name_label';
+                $passengerPhoneLabel = $getCurrentTranslation['passenger_phone_label'] ?? 'passenger_phone_label';
+                $passengerEmailLabel = $getCurrentTranslation['passenger_email_label'] ?? 'passenger_email_label';
+                $tripTypeLabel       = $getCurrentTranslation['trip_type_label'] ?? 'trip_type_label';
+                $flightRouteLabel    = $getCurrentTranslation['flight_route_label'] ?? 'flight_route_label';
+                $departureLabel      = $getCurrentTranslation['departure_label'] ?? 'departure_label';
+                $returnLabel         = $getCurrentTranslation['return_label'] ?? 'return_label';
+                $airlineLabel        = $getCurrentTranslation['airline_label'] ?? 'airline_label';
+
+                $departure = $row->departure_date_time ? date('Y-m-d, H:i', strtotime($row->departure_date_time)) : 'N/A';
+                $return    = $row->return_date_time ? date('Y-m-d, H:i', strtotime($row->return_date_time)) : 'N/A';
+                $airline   = $row->airline->name ?? 'N/A';
+
+                return '<div style="max-width: 280px; line-height: 1.6; text-align: left;">
+                    <strong>' . $passengerNameLabel . ':</strong> ' . $row->client_name . '<br>
+                    <strong>' . $passengerPhoneLabel . ':</strong> ' . ($row->client_phone ?? 'N/A') . '<br>
+                    <strong>' . $passengerEmailLabel . ':</strong> ' . ($row->client_email ?? 'N/A') . '<br>
+                    <strong>' . $tripTypeLabel . ':</strong> ' . $row->trip_type . '<br>
+                    <strong>' . $airlineLabel . ':</strong> ' . $airline . '<br>
+                    <strong>' . $flightRouteLabel . ':</strong> ' . $row->flight_route . '<br>
+                    <strong>' . $departureLabel . ':</strong> ' . $departure . '<br>
+                    <strong>' . $returnLabel . ':</strong> ' . $return . '<br>
+                </div>';
+            })
+
 
             // ✅ Seat Confirmation
             ->addColumn('seat_confirmation', function ($row) {

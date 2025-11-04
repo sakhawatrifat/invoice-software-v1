@@ -16,7 +16,7 @@
 						<a href="{{ route((Auth::user()->user_type == 'admin') ? 'admin.dashboard' : 'user.dashboard') }}" class="text-muted text-hover-primary">{{ $getCurrentTranslation['dashboard'] ?? 'dashboard' }}</a> &nbsp; - 
 					</li>
 					
-					<li class="breadcrumb-item">{{ $getCurrentTranslation['full_to_do_list'] ?? 'full_to_do_list' }}</li>
+					<li class="breadcrumb-item">{{ $getCurrentTranslation['full_flight_list'] ?? 'full_flight_list' }}</li>
 				</ul>
 			</div>
 			<div class="d-flex align-items-center gap-2 gap-lg-3">
@@ -162,7 +162,7 @@
 			<div class="card rounded border mt-5 p-10 bg-white">
 				<div class="card-header p-0" style="min-height: unset">
 					<h3 class="card-title mb-3 mt-0">
-						{{ $getCurrentTranslation['full_to_do_list'] ?? 'full_to_do_list' }}
+						{{ $getCurrentTranslation['full_flight_list'] ?? 'full_flight_list' }}
 					</h3>
 				</div>
 				<table id="datatable" class="table table-rounded table-striped border gy-7 gs-7">
@@ -197,7 +197,7 @@
 
 		// Get base URL and current query string
 		var queryString = window.location.search; // existing URL params
-		var baseUrl = '{{ route('payment.toDoDatatable') }}';
+		var baseUrl = '{{ route('flight.list.datatable') }}';
 
 		// Combine base URL + existing query string + serialized form data
 		var finalUrl = baseUrl;
