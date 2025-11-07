@@ -39,7 +39,7 @@
 					<thead>
 						<tr>
 							<th>#</th>
-							<th>{{ $getCurrentTranslation['staff_type'] ?? 'staff_type' }}</th>
+							{{-- <th>{{ $getCurrentTranslation['staff_type'] ?? 'staff_type' }}</th> --}}
 							<th>{{ $getCurrentTranslation['staff_full_name_label'] ?? 'staff_full_name_label' }}</th>
 							<th>{{ $getCurrentTranslation['email'] ?? 'email' }}</th>
 							<th>{{ $getCurrentTranslation['parent_name'] ?? 'parent_name' }}</th>
@@ -70,7 +70,7 @@ var dataTable = $('#datatable').DataTable({
 	dom: 'lfrtip',
 	columns: [
 		{ data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
-		{ data: 'user_type', name: 'user_type' },
+		{{-- { data: 'user_type', name: 'user_type' }, --}}
 		{ data: 'name', name: 'name' },
 		{ data: 'email', name: 'email' },
 		{ data: 'parent_id', name: 'parent_id', orderable: false, searchable: true },

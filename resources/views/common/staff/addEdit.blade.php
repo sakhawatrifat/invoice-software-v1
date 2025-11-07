@@ -79,13 +79,13 @@
 									</div>
 								</div> --}}
 
-								@if(Auth::user()->user_type == 'admin' && !isset($editData))
-									<div class="col-md-4">
+								@if(Auth::user()->user_type == 'admin')
+									<div class="col-md-4 d-none">
 										@php
 											$options = [['name' => 'admin'], ['name' => 'user']];
 											$options = json_decode(json_encode($options));
 
-											$selected = $editData->user_type ?? '';
+											$selected = $editData->user_type ?? 'admin';
 										@endphp
 										<label class="form-label">{{ $getCurrentTranslation['user_type'] ?? 'user_type' }}:</label>
 										<select class="form-select select2-with-images" data-placeholder="{{ $getCurrentTranslation['select_user_type'] ?? 'select_user_type' }}" name="user_type" ip-required>
@@ -100,7 +100,7 @@
 								@endif
 
 								@if(Auth::user()->user_type == 'admin')
-									<div class="col-md-4 user-dropdown">
+									<div class="col-md-4 user-dropdown d-none">
 										@php
 											$options = $users->where('user_type', 'user');
 											$selected = $editData->parent_id ?? '';
@@ -385,98 +385,106 @@
 @include('common._partials.appendJs')
 @include('common._partials.formScripts')
 <script>
+	$(document).ready(function(){
 
-	checkUserType();
-	$(document).on('change', '[name="user_type"]', function() {
 		checkUserType();
-	});
+		$(document).on('change', '[name="user_type"]', function() {
+			checkUserType();
+		});
 
-	function checkUserType(){
-		var selectedType = $('[name="user_type"]').val();
+		function checkUserType(){
+			var selectedType = $('[name="user_type"]').find('option:selected').val();
 
-		if(selectedType == 'user'){
-			$('.user-dropdown').slideDown();
+		    // Get server-side value (safe for JS)
+		    var editUserType = {!! json_encode($editData->user_type ?? '') !!};
 
-			$('.permission-table tr.admin input[type="checkbox"]').prop('checked', false);
-			$('.permission-table').find('tr.admin').slideUp();
-		}else if(selectedType == 'admin'){
-			$('.user-dropdown').slideUp();
-			
-			$('.permission-table').find('tr.all_user').slideDown();
-			$('.permission-table').find('tr.admin').slideDown();
-		}else{
-			$('.permission-table tr.admin input[type="checkbox"]').prop('checked', false);
-			$('.permission-table').find('tbody tr').slideUp();
-		}
+		    if (!selectedType && editUserType) {
+		        selectedType = editUserType;
+		    }
 
-		if(selectedType == undefined){
-			$('.permission-table').find('tr.all_user').slideDown();
-		}
-	}
+			if(selectedType == 'user'){
+				$('.user-dropdown').slideDown();
 
-
-
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('.group-checkbox').forEach(function (groupCheckbox) {
-            groupCheckbox.addEventListener('change', function () {
-                const group = this.getAttribute('data-group');
-                const checkboxes = document.querySelectorAll('.group-' + group);
-                checkboxes.forEach(function (cb) {
-                    cb.checked = groupCheckbox.checked;
-                });
-            });
-        });
-    });
-
-
-
-	$(document).on('change', '[name="user_id"]', function () {
-		let parentId = $(this).val();
-		let userId = "{{ $editData->id ?? '' }}"; 
-		let url = "{{ route('staff.loadPermissions') }}" + "?parentId=" + parentId + "&userId=" + userId;
-
-		$.ajax({
-			url: url,
-			type: 'GET', // Or 'POST' if you need CSRF
-			data: {
-				_token: '{{ csrf_token() }}'
-			},
-			beforeSend: function () {
-				$('.r-preloader').show();
-			},
-			success: function (response) {
-				$('.r-preloader').hide();
-
-				if (response.is_success) {
-					toastr.success(response.message);
-					if(response.view_page){
-						$('#permissionList').empty();
-						$('#permissionList').append(response.view_page);
-					}else{
-						toastr.error('View render failled');
-					}
-				} else {
-					toastr.error(response.message);
-				}
-			},
-			error: function (xhr) {
-				$('.r-preloader').hide();
-
-				if (xhr.status === 419) {
-					Swal.fire({
-						icon: 'error',
-						title: getCurrentTranslation.csrf_token_mismatch ?? 'csrf_token_mismatch',
-						text: getCurrentTranslation.csrf_token_mismatch_msg ?? 'csrf_token_mismatch_msg',
-						confirmButtonText: getCurrentTranslation.yes_reload_page || 'yes_reload_page'
-					}).then(() => location.reload());
-					return;
-				}
-
-				toastr.error(getCurrentTranslation.something_went_wrong ?? 'something_went_wrong');
+				$('.permission-table tr.admin input[type="checkbox"]').prop('checked', false);
+				$('.permission-table').find('tr.admin').slideUp();
+			}else if(selectedType == 'admin'){
+				$('.user-dropdown').slideUp();
+				
+				$('.permission-table').find('tr.all_user').slideDown();
+				$('.permission-table').find('tr.admin').slideDown();
+			}else{
+				$('.permission-table tr.admin input[type="checkbox"]').prop('checked', false);
+				$('.permission-table').find('tbody tr').slideUp();
 			}
+
+			if(selectedType == undefined){
+				$('.permission-table').find('tr.all_user').slideDown();
+			}
+		}
+
+
+
+	    document.addEventListener('DOMContentLoaded', function () {
+	        document.querySelectorAll('.group-checkbox').forEach(function (groupCheckbox) {
+	            groupCheckbox.addEventListener('change', function () {
+	                const group = this.getAttribute('data-group');
+	                const checkboxes = document.querySelectorAll('.group-' + group);
+	                checkboxes.forEach(function (cb) {
+	                    cb.checked = groupCheckbox.checked;
+	                });
+	            });
+	        });
+	    });
+
+
+
+		$(document).on('change', '[name="user_id"]', function () {
+			let parentId = $(this).val();
+			let userId = "{{ $editData->id ?? '' }}"; 
+			let url = "{{ route('staff.loadPermissions') }}" + "?parentId=" + parentId + "&userId=" + userId;
+
+			$.ajax({
+				url: url,
+				type: 'GET', // Or 'POST' if you need CSRF
+				data: {
+					_token: '{{ csrf_token() }}'
+				},
+				beforeSend: function () {
+					$('.r-preloader').show();
+				},
+				success: function (response) {
+					$('.r-preloader').hide();
+
+					if (response.is_success) {
+						toastr.success(response.message);
+						if(response.view_page){
+							$('#permissionList').empty();
+							$('#permissionList').append(response.view_page);
+						}else{
+							toastr.error('View render failled');
+						}
+					} else {
+						toastr.error(response.message);
+					}
+				},
+				error: function (xhr) {
+					$('.r-preloader').hide();
+
+					if (xhr.status === 419) {
+						Swal.fire({
+							icon: 'error',
+							title: getCurrentTranslation.csrf_token_mismatch ?? 'csrf_token_mismatch',
+							text: getCurrentTranslation.csrf_token_mismatch_msg ?? 'csrf_token_mismatch_msg',
+							confirmButtonText: getCurrentTranslation.yes_reload_page || 'yes_reload_page'
+						}).then(() => location.reload());
+						return;
+					}
+
+					toastr.error(getCurrentTranslation.something_went_wrong ?? 'something_went_wrong');
+				}
+			});
 		});
 	});
-
 	
 </script>
 @endpush

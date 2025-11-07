@@ -248,8 +248,19 @@
 							$summaryPermissions = [
 								'toDoList', 'saleGraph', 'airlineBasedGraph', 'transitCityBasedGraph', 'departureCityBasedGraph', 'returnCityBasedGraph', 'introductionSourceBasedGraph', 'issuedSupplierBasedGraph', 'issuedByBasedGraph', 'countryBasedGraph', 'transferToBasedGraph', 'paymentMethodBasedGraph', 'cardTypeBasedGraph', 'cardOwnerBasedGraph' 
 							];
+
+							// Get authenticated user's permissions (ensure array)
+						    $authPermissions = is_string(Auth::user()->permissions)
+						        ? json_decode(Auth::user()->permissions, true)
+						        : (Auth::user()->permissions ?? []);
+
+						    $authPermissions = array_values(array_filter((array) $authPermissions));
+
+						    // Check if the user has ANY of the summary permissions
+						    $hasAnySummaryPermission = (bool) array_intersect($summaryPermissions, $authPermissions);
 						@endphp
 						<div class="col-md-12 mb-6 p-sticky-wrapper">
+							@if($hasAnySummaryPermission)
 							<div class="p-sticky-part d-flex align-items-center justify-content-end bg-white py-5 px-5">
 								<div class="col-md-3">
 									<div class="input-item-wrap">
@@ -292,6 +303,7 @@
 									{{ $getCurrentTranslation['reset'] ?? 'reset' }}
 								</a>
 							</div>
+							@endif
 
 							@if(hasPermission('saleGraph'))
 								<div class="card rounded border mt-0 bg-white sale-graph-section">

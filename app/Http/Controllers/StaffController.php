@@ -567,7 +567,7 @@ class StaffController extends Controller
             ]);
         }else{
             if(Auth::user()->user_type === 'admin' && Auth::user()->is_staff == 0){
-                $user->parent_id = $request->user_id;
+                $user->parent_id = $request->user_id ?? Auth::user()->id;
             }else if(Auth::user()->user_type === 'admin' && Auth::user()->is_staff == 1){
                 $user->parent_id = Auth::user()->business_id;
             }else{
