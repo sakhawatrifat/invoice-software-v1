@@ -103,16 +103,26 @@
 		$("#ticketLayoutModal").modal("show");
 	});
 
-	$(document).on("click", ".ticket-layout-btn", function () {
-		$('.r-preloader').show();
+	$(document).on("click", ".ticket-layout-btn", function (e) {
+		// Detect if the link opens in a new tab
+		const isNewTab = e.ctrlKey || e.metaKey || e.which === 2 || $(this).attr("target") === "_blank";
+
+		if (!isNewTab) {
+			// Only show preloader for same-tab navigation
+			$(".r-preloader").show();
+		} else {
+			// Hide modal and preloader if opened in new tab
+			$("#ticketLayoutModal").modal("hide");
+			$(".r-preloader").hide();
+		}
 	});
 
 	// Hide preloader when page is loaded (new tab, reload, or back)
-	$(window).on('load pageshow', function (event) {
-		// Hide modal and preloader
+	$(window).on("load pageshow", function () {
 		$("#ticketLayoutModal").modal("hide");
-		$('.r-preloader').hide();
+		$(".r-preloader").hide();
 	});
+
 
 </script>
 

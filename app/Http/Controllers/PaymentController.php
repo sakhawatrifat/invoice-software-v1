@@ -79,12 +79,28 @@ class PaymentController extends Controller
 
         // ✅ Conditional order (from payments table itself)
         if ($hasFilter) {
-            $query->orderByRaw("
-                CASE
-                    WHEN departure_date_time IS NOT NULL THEN departure_date_time
-                    ELSE return_date_time
-                END ASC
-            ");
+            // Conditional order logic
+            $invoiceRange = request()->invoice_date_range;
+            $flightRange  = request()->flight_date_range;
+
+            if (!empty($invoiceRange) && $invoiceRange != 0 && !empty($flightRange) && $flightRange != 0) {
+                // Both invoice and flight filters exist → order by invoice_date
+                $query->orderBy('invoice_date', 'ASC');
+
+            } elseif (!empty($flightRange) && $flightRange != 0) {
+                // Only flight filter exists → order by flight date case
+                $query->orderByRaw("
+                    CASE
+                        WHEN departure_date_time IS NOT NULL THEN departure_date_time
+                        ELSE return_date_time
+                    END ASC
+                ");
+
+            } else {
+                // Only invoice filter exists → order by invoice_date
+                $query->orderBy('invoice_date', 'ASC');
+
+            }
         } else {
             $query->latest();
         }
@@ -117,6 +133,11 @@ class PaymentController extends Controller
                         // Search in related ticket invoice_id
                         $q->orWhereHas('ticket', function ($q2) use ($search) {
                             $q2->where('invoice_id', 'like', "%{$search}%");
+                        });
+
+                        // Search in related ticket reservation_number
+                        $q->orWhereHas('ticket', function ($q2) use ($search) {
+                            $q2->where('reservation_number', 'like', "%{$search}%");
                         });
 
                         // Search in related airline name

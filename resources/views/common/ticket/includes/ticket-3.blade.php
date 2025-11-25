@@ -146,7 +146,7 @@
    </div> --}}
 
 
-   <div class="inv-section flight-itineraries-table" style="margin-top: 20px;">
+   <div class="inv-section flight-itineraries-table" style="margin-top: 10px;">
       <table style="width: 100%; border-collapse: collapse; vertical-align: middle; background-color: transparent">
          <tr>
             <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['flight_itineraries'] ?? 'flight_itineraries')) }}; text-align: left; font-size: 18px; color: #32323b; font-weight: bold;padding: 10px 0px; background-color: #ffffff;">
@@ -177,7 +177,7 @@
             </tr>
 
             <tr>
-               <td colspan="3" style="padding: 30px 20px 30px 20px; background-color: #ffffff; border: 1px solid #e4e4e4">
+               <td colspan="3" style="padding: 20px 20px 20px 20px; background-color: #ffffff; border: 1px solid #e4e4e4">
                   <table style="width:100%; border-collapse: collapse; vertical-align: top; background-color: #ffffff" >
                      {{-- <tr>
                         <td colspan="3" style="background-color: #ffffff; padding-bottom: 10px; font-family: {{ language_font(strip_tags($getCurrentTranslation['fly_time'] ?? 'fly_time')) }};">{{ $getCurrentTranslation['fly_time'] ?? 'fly_time' }}: {{ $flight->total_fly_time }}</td>
@@ -285,7 +285,7 @@
                </tr>
 
                <tr>
-                  <td colspan="3" style="padding: 30px 20px 30px 20px; background-color: #ffffff; border: 1px solid #e4e4e4">
+                  <td colspan="3" style="padding: 20px 20px 20px 20px; background-color: #ffffff; border: 1px solid #e4e4e4">
                      <table style="width:100%; border-collapse: collapse; vertical-align: top; background-color: #ffffff" >
                         {{-- <tr>
                            <td colspan="3" style="background-color: #ffffff; padding-bottom: 10px; font-family: {{ language_font(strip_tags($getCurrentTranslation['fly_time'] ?? 'fly_time')) }};">{{ $getCurrentTranslation['fly_time'] ?? 'fly_time' }}: {{ $transit->total_fly_time }}</td>
