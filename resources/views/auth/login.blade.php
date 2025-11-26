@@ -40,10 +40,13 @@
                             Login
                         </button>
                     </div>
-                    <div class="text-gray-500 text-center fw-semibold fs-6">
-                        Not a member yet?
-                        <a href="{{ route('register') }}" class="link-primary">Create Account</a>
-                    </div>
+                    
+                    @if(homepageData()->is_registration_enabled == 1)
+                        <div class="text-gray-500 text-center fw-semibold fs-6">
+                            Not a member yet?
+                            <a href="{{ route('register') }}" class="link-primary">Create Account</a>
+                        </div>
+                    @endif
                 </form>
             </div>
         </div>

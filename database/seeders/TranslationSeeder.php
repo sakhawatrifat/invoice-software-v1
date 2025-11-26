@@ -811,6 +811,12 @@ class TranslationSeeder extends Seeder
 
 
 
+
+
+
+
+
+
             // Ja
             'ja' => [
                 'dark' => 'ダーク',
