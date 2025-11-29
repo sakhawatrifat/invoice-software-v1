@@ -803,6 +803,10 @@ class TranslationSeeder extends Seeder
                 'view_details' => 'View Details',
                 'introduction_source_summary' => 'Introduction Source Summary',
                 'issued_supplier_summary' => 'Issued Supplier Summary',
+
+                'departure_route_label' => 'Departure Route',
+                'return_route_label' => 'Return Route',
+                'clear_cache' => 'Clear Cache',
             ],
 
 
@@ -1607,7 +1611,9 @@ class TranslationSeeder extends Seeder
                 'introduction_source_summary' => '紹介元の概要',
                 'issued_supplier_summary' => '発行元サプライヤーの概要',
 
-
+                'departure_route_label' => '出発ルート',
+                'return_route_label' => '帰りのルート',
+                'clear_cache' => 'キャッシュをクリア',
             ],
         ];
 

@@ -102,6 +102,12 @@ class TicketController extends Controller
                     $query->whereIn('document_type', $documentTypes);
                 }
 
+                // Filter by booking status
+                if (request()->has('booking_status') && request()->booking_status != 'all') {
+                    $documentTypes = array_map('strtolower', explode('-', request()->booking_status));
+                    $query->whereIn('booking_status', $documentTypes);
+                }
+
                 // ✅ Trip Type
                 if (!empty(request()->trip_type) && request()->trip_type != 0) {
                     $query->where('trip_type', request()->trip_type);
@@ -224,7 +230,6 @@ class TicketController extends Controller
                 return $invoiceId . '<br>' . $invoiceDate;
             })
 
-
             ->addColumn('reservation_number', function ($row) use ($currentTranslation) {
                 $reservationNumber = '<strong>' . ($currentTranslation['reservation_number_label'] ?? 'reservation_number_label') . ':</strong> ' . $row->reservation_number;
 
@@ -254,13 +259,26 @@ class TicketController extends Controller
 
                 $departureDate = ''; 
                 $departureAirline = ''; 
+                $departureRouteInfo = '';
+                
                 if ($row->document_type == 'ticket' && !empty($row->flights) && is_iterable($row->flights)) {
                     $departureDate = '<br><strong>' . ($currentTranslation['departure_date_time_label'] ?? 'departure_date_time_label') . ':</strong> ' . ($row->flights[0]->departure_date_time ?? 'N/A');
                     $departureAirline = '<br><strong>' . ($currentTranslation['departure_airline'] ?? 'departure_airline') . ':</strong> ' . ($row->flights[0]->airline->name ?? 'N/A');
+                    
+                    // Show departure_route for Round Trip
+                    if ($row->trip_type == 'Round Trip') {
+                        $departureRoute = $row->departure_route ?? 'N/A';
+                        $departureRouteInfo = '<br><strong>' . ($currentTranslation['departure_route_label'] ?? 'departure_route_label') . ':</strong> ' . $departureRoute;
+                    } else {
+                        // Show flight_route for One Way and Multi City
+                        $flightRouteText = $row->flight_route ?? 'N/A';
+                        $departureRouteInfo = '<br><strong>' . ($currentTranslation['flight_route_label'] ?? 'flight_route_label') . ':</strong> ' . $flightRouteText;
+                    }
                 }
 
                 $returnDate = ''; 
-                $returnAirline = ''; 
+                $returnAirline = '';
+                $returnRouteInfo = '';
                 if (
                     $row->document_type == 'ticket' &&
                     !empty($row->flights) &&
@@ -273,10 +291,14 @@ class TicketController extends Controller
                     if ($lastFlight) {
                         $returnDate = '<br><strong>' . ($currentTranslation['return_date_time_label'] ?? 'return_date_time_label') . ':</strong> ' . ($lastFlight->departure_date_time ?? 'N/A');
                         $returnAirline = '<br><strong>' . ($currentTranslation['return_airline'] ?? 'return_airline') . ':</strong> ' . ($lastFlight->airline->name ?? 'N/A');
+                        
+                        // Add return route after return airline
+                        $returnRouteText = $row->return_route ?? 'N/A';
+                        $returnRouteInfo = '<br><strong>' . ($currentTranslation['return_route_label'] ?? 'return_route_label') . ':</strong> ' . $returnRouteText;
                     }
                 }
 
-                return $reservationNumber . $tripType . $ticketType . $passengerNames . $departureDate . $departureAirline . $returnDate . $returnAirline;
+                return $reservationNumber . $tripType . $ticketType . $passengerNames . $departureDate . $departureAirline . $departureRouteInfo . $returnDate . $returnAirline . $returnRouteInfo;
             })
 
             ->addColumn('booking_status', function ($row) use ($currentTranslation) {

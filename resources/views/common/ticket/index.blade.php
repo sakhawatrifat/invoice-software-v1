@@ -125,6 +125,23 @@
 										</div>
 
 										<div class="col-md-4">
+											<div class="form-item mb-5">
+												@php
+													$options = ['On Hold', 'Processing', 'Confirmed', 'Cancelled'];
+
+													$selected = request()->booking_status ?? '';
+												@endphp
+												<label class="form-label">{{ $getCurrentTranslation['booking_status_label'] ?? 'booking_status_label' }}:</label>
+												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['booking_status_placeholder'] ?? 'booking_status_placeholder' }}" name="booking_status">
+													<option value="">----</option>
+													@foreach($options as $option)
+														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
+													@endforeach
+												</select>
+											</div>
+										</div>
+
+										<div class="col-md-4">
 											<div class="input-item-wrap">
 												<label class="form-label">{{ $getCurrentTranslation['flight_date_range_label'] ?? 'flight_date_range_label' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">

@@ -42,6 +42,13 @@
 				</a>
 			</div>
 			<div class="app-navbar flex-shrink-0">
+				<div class="app-navbar-item ms-1 ms-md-4">
+					<a href="{{ route('clear-cache') }}" class="menu-link px-3 py-2">
+						<i class="fas fa-eraser fa-2x"></i>
+						{{-- {{ $getCurrentTranslation['clear_cache'] ?? 'clear_cache' }} --}}
+					</a>
+				</div>
+
 				<div class="app-navbar-item ms-1 ms-lg-3 d-none">
 					<a href="#" class="btn btn-icon btn-custom btn-icon-muted btn-active-light btn-active-color-primary w-35px h-35px w-md-40px h-md-40px" data-kt-menu-trigger="{default:'click', lg: 'hover'}" data-kt-menu-attach="parent" data-kt-menu-placement="bottom-end">
 						<span class="svg-icon theme-light-show svg-icon-2">
@@ -117,7 +124,7 @@
 					</div>
 				</div>
 
-				<div class="app-navbar-item ms-1 ms-md-4">
+				<div class="app-navbar-item ms-0">
 			        <!--begin::Drawer toggle-->
 			        <div class="menu-link px-3 py-2 cursor-pointer" id="kt_flight_list_toggle">
 			            <i class="fa-solid fa-plane fa-2x"></i>

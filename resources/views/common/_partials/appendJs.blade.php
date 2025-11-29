@@ -546,6 +546,21 @@
 		// 	dateFormat: "Y-m-d",
 		// });
 
+		// container.find('.append-datepicker').each(function () {
+		// 	const $this = $(this);
+		// 	const isDateTime = $this.hasClass('datetime');
+		// 	const is24Hour = $this.hasClass('24-hour');
+
+		// 	$this.flatpickr({
+		// 		enableTime: isDateTime,
+		// 		time_24hr: is24Hour,
+		// 		altInput: true,
+		// 		altFormat: isDateTime ? "Y-m-d H:i" : "Y-m-d",
+		// 		dateFormat: isDateTime ? "Y-m-d H:i" : "Y-m-d",
+		// 	});
+		// });
+
+		// Initialize flatpickr with conditional logic for datetime
 		container.find('.append-datepicker').each(function () {
 			const $this = $(this);
 			const isDateTime = $this.hasClass('datetime');
@@ -557,6 +572,16 @@
 				altInput: true,
 				altFormat: isDateTime ? "Y-m-d H:i" : "Y-m-d",
 				dateFormat: isDateTime ? "Y-m-d H:i" : "Y-m-d",
+				onReady: function (selectedDates, dateStr, instance) {
+					const clearButton = document.createElement('button');
+					clearButton.type = 'button';
+					clearButton.textContent = 'Clear';
+					clearButton.className = 'flatpickr-clear-btn btn btn-sm btn-outline-secondary ms-2';
+					clearButton.addEventListener('click', () => {
+						instance.clear();
+					});
+					instance.calendarContainer.appendChild(clearButton);
+				}
 			});
 		});
 
@@ -583,6 +608,8 @@
 		container.find('.preview-image img').attr('old-selected', '');
 		container.find('.preview-image img').attr('src', '');
 		container.find('.preview-image img').attr('alt', '');
+
+		updateMinDateForDatetimeInputs();
 	}
 
 	function updateAppendItemCountText() {

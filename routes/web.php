@@ -62,15 +62,24 @@ Route::get('/seed', function () {
     return 'Seeding done!';
 });
 
-Route::get('/clear-cache', function () {
+Route::get('/clear-cache', function() {
+    Artisan::call('route:clear');
     Artisan::call('cache:clear');
     Artisan::call('config:cache');
     Artisan::call('config:clear');
-    Artisan::call('route:clear');
     Artisan::call('view:clear');
 
-    return 'Cache cleared successfully.';
-});
+    $route = url('/login');    
+    return '
+        <div style="font-family: Arial; padding:20px; text-align:center">
+            <h3>Cache cleared successfully!</h3>
+            <a href="' . $route . '" 
+               style="display:inline-block; margin-top:10px; padding:8px 15px; background:#3490dc; color:white; text-decoration:none; border-radius:4px;">
+                ← Back
+            </a>
+        </div>
+    ';
+})->name('clear-cache');
 
 Route::get('/storage-link', function () {
     Artisan::call('storage:link');

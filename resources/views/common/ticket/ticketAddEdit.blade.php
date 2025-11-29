@@ -304,7 +304,7 @@
 										<div class="col-md-4">
 											<div class="form-item mb-5">
 												<label class="form-label">{{ $getCurrentTranslation['departure_date_time_label'] ?? 'departure_date_time_label' }}:</label>
-												<input type="text" placeholder="{{ $getCurrentTranslation['departure_date_time_placeholder'] ?? 'departure_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour parent-ip" data-name="departure_date_time" name="ticket_flight_info[0][departure_date_time]" value="{{ $item->departure_date_time ?? '' }}"/>
+												<input type="text" placeholder="{{ $getCurrentTranslation['departure_date_time_placeholder'] ?? 'departure_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour parent-ip main-datetime" data-name="departure_date_time" name="ticket_flight_info[0][departure_date_time]" value="{{ $item->departure_date_time ?? '' }}"/>
 											</div>
 										</div>
 
@@ -567,7 +567,7 @@
 									<div class="col-md-4">
 										<div class="form-item mb-5">
 											<label class="form-label">{{ $getCurrentTranslation['departure_date_time_label'] ?? 'departure_date_time_label' }}:</label>
-											<input type="text" placeholder="{{ $getCurrentTranslation['departure_date_time_placeholder'] ?? 'departure_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour parent-ip" name="ticket_flight_info[0][departure_date_time]" data-name="departure_date_time"/>
+											<input type="text" placeholder="{{ $getCurrentTranslation['departure_date_time_placeholder'] ?? 'departure_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour parent-ip main-datetime" name="ticket_flight_info[0][departure_date_time]" data-name="departure_date_time"/>
 										</div>
 									</div>
 

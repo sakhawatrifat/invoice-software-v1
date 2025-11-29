@@ -120,6 +120,73 @@ $('.flatpickr-input').each(function () {
     });
 });
 
+
+function updateMinDateForDatetimeInputs() {
+    try {
+        // Select the main datetime element safely
+        const $mainDatetime = $('.append-datepicker.main-datetime');
+        if ($mainDatetime.length === 0) {
+            //console.warn('Main datetime element not found.');
+            return;
+        }
+
+        const mainDateVal = $mainDatetime.val()?.trim();
+        if (!mainDateVal) {
+            //console.warn('Main datetime value is empty.');
+            return;
+        }
+
+        // Parse date safely
+        const mainDate = new Date(mainDateVal);
+        if (isNaN(mainDate.getTime())) {
+            //console.warn('Invalid main datetime value:', mainDateVal);
+            return;
+        }
+
+        // Get the parent row safely
+        const $row = $mainDatetime.closest('.row');
+        if ($row.length === 0) {
+            //console.warn('Parent .row not found for main datetime.');
+            return;
+        }
+
+        // Find datetime inputs in the same row
+        const $datetimeInputs = $row.find('.append-datepicker.datetime');
+        if ($datetimeInputs.length === 0) {
+            //console.warn('No datetime inputs found inside this row.');
+            return;
+        }
+
+        // Update minDate for each datetime input
+        $datetimeInputs.each(function () {
+            try {
+                const instance = this._flatpickr;
+                if (instance) {
+                    instance.set('minDate', mainDate);
+                } else {
+                    //console.warn('Flatpickr instance not found for element:', this);
+                }
+            } catch (innerErr) {
+                //console.error('Error updating flatpickr instance:', innerErr);
+            }
+        });
+
+    } catch (error) {
+        //console.error('Error in updateMinDateForDatetimeInputs():', error);
+    }
+}
+
+/**
+ * Event handler for main datetime change
+ */
+$(document).on('change', '.append-datepicker.main-datetime', function () {
+    updateMinDateForDatetimeInputs();
+});
+
+// Initialize safely on page load
+updateMinDateForDatetimeInputs();
+
+
 // Time-only picker
 $('.flatpickr-input-time').flatpickr({
     enableTime: true,
