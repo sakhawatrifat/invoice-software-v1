@@ -100,7 +100,6 @@ $('.flatpickr-input').each(function () {
     const $this = $(this);
     const isDateTime = $this.hasClass('datetime');
     const is24Hour = $this.hasClass('24-hour');
-
     $this.flatpickr({
         enableTime: isDateTime,
         time_24hr: is24Hour,
@@ -120,59 +119,49 @@ $('.flatpickr-input').each(function () {
     });
 });
 
-
 function updateMinDateForDatetimeInputs() {
     try {
         // Select the main datetime element safely
         const $mainDatetime = $('.append-datepicker.main-datetime');
         if ($mainDatetime.length === 0) {
-            //console.warn('Main datetime element not found.');
             return;
         }
-
         const mainDateVal = $mainDatetime.val()?.trim();
         if (!mainDateVal) {
-            //console.warn('Main datetime value is empty.');
             return;
         }
-
         // Parse date safely
         const mainDate = new Date(mainDateVal);
         if (isNaN(mainDate.getTime())) {
-            //console.warn('Invalid main datetime value:', mainDateVal);
             return;
         }
-
         // Get the parent row safely
         const $row = $mainDatetime.closest('.row');
         if ($row.length === 0) {
-            //console.warn('Parent .row not found for main datetime.');
             return;
         }
-
-        // Find datetime inputs in the same row
-        const $datetimeInputs = $row.find('.append-datepicker.datetime');
+        // Find datetime inputs in the same row (excluding .main-datetime)
+        const $datetimeInputs = $row.find('.append-datepicker.datetime:not(.main-datetime)');
         if ($datetimeInputs.length === 0) {
-            //console.warn('No datetime inputs found inside this row.');
             return;
         }
-
         // Update minDate for each datetime input
         $datetimeInputs.each(function () {
             try {
                 const instance = this._flatpickr;
                 if (instance) {
                     instance.set('minDate', mainDate);
-                } else {
-                    //console.warn('Flatpickr instance not found for element:', this);
+                    // Redraw calendar if open to reflect the change
+                    if (instance.isOpen) {
+                        instance.redraw();
+                    }
                 }
             } catch (innerErr) {
-                //console.error('Error updating flatpickr instance:', innerErr);
+                // Handle error silently or log if needed
             }
         });
-
     } catch (error) {
-        //console.error('Error in updateMinDateForDatetimeInputs():', error);
+        // Handle error silently or log if needed
     }
 }
 

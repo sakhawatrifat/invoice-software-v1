@@ -103,7 +103,7 @@ class TicketController extends Controller
                 }
 
                 // Filter by booking status
-                if (request()->has('booking_status') && request()->booking_status != 'all') {
+                if (request()->has('booking_status') && request()->booking_status != 0) {
                     $documentTypes = array_map('strtolower', explode('-', request()->booking_status));
                     $query->whereIn('booking_status', $documentTypes);
                 }

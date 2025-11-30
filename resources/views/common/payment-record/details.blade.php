@@ -381,7 +381,7 @@
                                                         @foreach($editData->paymentData as $index => $payment)
                                                             <tr>
                                                                 <td class="ps-5">{{ $index + 1 }}</td>
-                                                                <td>{{ $payment['paid_amount'] ? number_format($payment['paid_amount']) : '0.00' }} {{ Auth::user()->company_data->currency->short_name ?? '' }}</td>
+                                                                <td>{{ isset($payment['paid_amount']) && $payment['paid_amount'] ? number_format($payment['paid_amount']) : '0.00' }} {{ Auth::user()->company_data->currency->short_name ?? '' }}</td>
                                                                 <td class="pe-5">{{ $payment['date'] ?? 'N/A' }}</td>
                                                             </tr>
                                                         @endforeach

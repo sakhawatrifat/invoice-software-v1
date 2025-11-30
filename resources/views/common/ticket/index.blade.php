@@ -133,7 +133,7 @@
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['booking_status_label'] ?? 'booking_status_label' }}:</label>
 												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['booking_status_placeholder'] ?? 'booking_status_placeholder' }}" name="booking_status">
-													<option value="">----</option>
+													<option value="0">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
 													@endforeach
