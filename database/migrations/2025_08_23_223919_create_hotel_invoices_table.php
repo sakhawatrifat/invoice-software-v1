@@ -42,6 +42,7 @@ return new class extends Migration
             $table->json('cancellationPolicy')->nullable()->comment('date_time, fee');
             $table->longText('policy_note')->nullable();
             $table->longText('contact_info')->nullable();
+            $table->bigInteger('mail_sent_count')->nullable();
             
             $table->bigInteger('created_by')->nullable();
             $table->bigInteger('updated_by')->nullable();

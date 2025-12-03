@@ -50,7 +50,7 @@ class PaymentController extends Controller
     {
         $user = Auth::user();
 
-        $query = Payment::with('ticket', 'paymentDocuments', 'introductionSource', 'country', 'issuedBy', 'airline', 'transferTo', 'paymentMethod', 'issuedCardType', 'cardOwner');
+        $query = Payment::with('ticket', 'paymentDocuments', 'introductionSource', 'country', 'issuedBy', 'airline', 'transferTo', 'paymentMethod', 'issuedCardType', 'cardOwner', 'creator', 'updater', 'deleter');
 
         // ✅ Detect if any filter applied
         $hasFilter =
@@ -349,11 +349,6 @@ class PaymentController extends Controller
                 ";
             })
 
-
-            ->addColumn('issued_by_id', function ($row) {
-                return $row->issuedBy->name ?? 'N/A';
-            })
-
             // ✅ Trip Info
             ->addColumn('trip_type', function ($row) use ($getCurrentTranslation) {
                 $tripTypeLabel = $getCurrentTranslation['trip_type_label'] ?? 'trip_type_label';
@@ -433,8 +428,6 @@ class PaymentController extends Controller
                     </div>
                 ";
             })
-
-
 
             // ✅ Total & Payment Summary
             ->addColumn('total_selling_price', function ($row) use ($getCurrentTranslation) {
@@ -527,18 +520,75 @@ class PaymentController extends Controller
                         ' . $refundHtml . '
                     </div>';
             })
+            
+            // ->addColumn('issued_by_id', function ($row) {
+            //     return $row->issuedBy->name ?? 'N/A';
+            // })
 
+            // ✅ All Activity
+            ->addColumn('created_at', function ($row) {
+                $activity = '<div class="activity-info">';
+                
+                // Issued By
+                $activity .= '<div class="activity-item">';
+                $activity .= '<b>' . (getCurrentTranslation()['issued_by'] ?? 'issued_by') . ':</b> ';
+                $activity .= ($row->issuedBy->name ?? 'N/A');
+                $activity .= '</div>';
 
-
-            // ✅ Created At
-            ->editColumn('created_at', function ($row) {
-                return $row->created_at ? Carbon::parse($row->created_at)->format('Y-m-d, H:i') : 'N/A';
+                // Created information (always shown)
+                $activity .= '<div class="activity-item">';
+                $activity .= '<b>' . (getCurrentTranslation()['created_at'] ?? 'created_at') . ':</b> ';
+                $activity .= \Carbon\Carbon::parse($row->created_at)->format('Y-m-d, H:i');
+                $activity .= '</div>';
+                
+                $activity .= '<div class="activity-item">';
+                $activity .= '<b>' . (getCurrentTranslation()['created_by'] ?? 'created_by') . ':</b> ';
+                $activity .= ($row->creator ? $row->creator->name : 'N/A');
+                $activity .= '</div>';
+                
+                // Updated information (conditional)
+                if (!is_null($row->updated_by)) {
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['updated_at'] ?? 'updated_at') . ':</b> ';
+                    $activity .= \Carbon\Carbon::parse($row->updated_at)->format('Y-m-d, H:i');
+                    $activity .= '</div>';
+                    
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['updated_by'] ?? 'updated_by') . ':</b> ';
+                    $activity .= ($row->updater ? $row->updater->name : 'N/A');
+                    $activity .= '</div>';
+                }
+                
+                // Deleted information (conditional)
+                if (!is_null($row->deleted_by)) {
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['deleted_at'] ?? 'deleted_at') . ':</b> ';
+                    $activity .= \Carbon\Carbon::parse($row->deleted_at)->format('Y-m-d, H:i');
+                    $activity .= '</div>';
+                    
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['deleted_by'] ?? 'deleted_by') . ':</b> ';
+                    $activity .= ($row->deleter ? $row->deleter->name : 'N/A');
+                    $activity .= '</div>';
+                }
+                
+                // Mail sent count (conditional)
+                if (!is_null($row->mail_sent_count) && $row->mail_sent_count != 0) {
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['total_mail_sent'] ?? 'total_mail_sent') . ':</b> ';
+                    $activity .= '<span class="badge badge-info">' . $row->mail_sent_count . '</span>';
+                    $activity .= '</div>';
+                }
+                
+                $activity .= '</div>';
+                
+                return $activity;
             })
 
             // ✅ Created By (relationship with users table)
-            ->addColumn('created_by', function ($row) {
-                return $row->creator ? $row->creator->name : 'N/A';
-            })
+            // ->addColumn('created_by', function ($row) {
+            //     return $row->creator ? $row->creator->name : 'N/A';
+            // })
 
             // ✅ Actions
             ->addColumn('action', function ($row) {
@@ -582,7 +632,7 @@ class PaymentController extends Controller
             })
 
 
-            ->rawColumns(['payment_invoice_id', 'client_name', 'trip_type', 'total_selling_price', 'action'])
+            ->rawColumns(['payment_invoice_id', 'client_name', 'trip_type', 'total_selling_price', 'created_at', 'action'])
             ->make(true);
 
     }
@@ -614,8 +664,12 @@ class PaymentController extends Controller
             ]);
         }
 
-        $ticketData = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'user.company', 'creator')->where('invoice_id', 'like', '%' . $request->search . '%')
-            ->orWhere('reservation_number', 'like', '%' . $request->search . '%')
+        $ticketData = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'user.company', 'creator')
+            ->where('booking_status', 'Confirmed')
+            ->where(function($query) use ($request) {
+                $query->where('invoice_id', 'like', '%' . $request->search . '%')
+                    ->orWhere('reservation_number', 'like', '%' . $request->search . '%');
+            })
             ->get();
 
         return response()->json([

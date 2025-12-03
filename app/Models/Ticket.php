@@ -50,6 +50,14 @@ class Ticket extends Model
     {
         return $this->belongsTo(User::class, 'created_by', 'id');
     }
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by', 'id');
+    }
+    public function deleter()
+    {
+        return $this->belongsTo(User::class, 'deleted_by', 'id');
+    }
 
     /*
     |--------------------------------------------------------------------------

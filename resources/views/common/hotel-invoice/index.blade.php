@@ -41,15 +41,16 @@
 						<tr>
 							<th>#</th>
 							<th>{{ $getCurrentTranslation['user'] ?? 'user' }}</th>
-							<th>{{ $getCurrentTranslation['pin_number'] ?? 'pin_number' }}</th>
+							<th>{{ $getCurrentTranslation['pin'] ?? 'pin' }}</th>
 							<th>{{ $getCurrentTranslation['booking_number'] ?? 'booking_number' }}</th>
-							<th>{{ $getCurrentTranslation['hotel'] ?? 'hotel' }}</th>
+							<th style="width: 170px">{{ $getCurrentTranslation['hotel'] ?? 'hotel' }}</th>
 							<th>{{ $getCurrentTranslation['check_in_and_checkout'] ?? 'check_in_and_checkout' }}</th>
 							<th>{{ $getCurrentTranslation['guest_info'] ?? 'guest_info' }}</th>
 							<th>{{ $getCurrentTranslation['total_price'] ?? 'total_price' }}</th>
 							{{-- <th>{{ $getCurrentTranslation['payment_status'] ?? 'payment_status' }}</th> --}}
-							<th>{{ $getCurrentTranslation['created_at'] ?? 'created_at' }}</th>
-							<th>{{ $getCurrentTranslation['created_by'] ?? 'created_by' }}</th>
+							<th>{{ $getCurrentTranslation['activity'] ?? 'activity' }}</th>
+						{{-- <th>{{ $getCurrentTranslation['created_at'] ?? 'created_at' }}</th>
+						<th>{{ $getCurrentTranslation['created_by'] ?? 'created_by' }}</th> --}}
 							<th>{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
 						</tr>
 					</thead>
@@ -105,7 +106,7 @@ var dataTable = $('#datatable').DataTable({
 		{ data: 'created_at', name: 'created_at' },
 
 		// Created by (FK user)
-		{ data: 'created_by', name: 'created_by', orderable: false, searchable: true },
+		{{-- { data: 'created_by', name: 'created_by', orderable: false, searchable: true }, --}}
 
 		// Actions (edit/delete buttons)
 		{ data: 'action', name: 'action', orderable: false, searchable: false }

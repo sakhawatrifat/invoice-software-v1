@@ -53,6 +53,16 @@
     width: calc( 100% - 50px )!important;
     border: 2px solid #b9b6b6 !important;
     height: 40px;
+    margin-left: 4px!important;
+}
+#datatable_wrapper .dataTables_processing {
+    height: 100%!important;
+    width: 100%!important;
+    background: #0000004a !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 5% !important;
 }
 .radio-item .inputs {
     position: relative;

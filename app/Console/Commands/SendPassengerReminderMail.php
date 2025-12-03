@@ -26,8 +26,8 @@ class SendPassengerReminderMail extends Command
     public function handle()
     {
         $today = Carbon::today();
-        // before 2 days
-        $targetDate = $today->copy()->addDays(2)->toDateString();
+        // before 3 days
+        $targetDate = $today->copy()->addDays(3)->toDateString();
 
         $subscribedUserIds = User::where('is_staff', 0)->whereJsonContains('permissions', 'ticket.reminder')->pluck('id')->toArray();
 
@@ -61,38 +61,56 @@ class SendPassengerReminderMail extends Command
         // dd($upcommingFlightIds);
         // dd($passengers);
 
+        $passengerTicketIds = [];
         foreach ($passengers as $passenger) {
             $company = $passenger->user->company_data ?? null;
             $message = getTravelReminderEmailContent();
-
-            // Replace variables
-            $message = str_replace('{passenger_name_here}', $passenger->name, $message);
-            $message = str_replace('{company_name_here}', $company->company_name, $message);
-            $message = str_replace('{company_website_url_here}', $company->website_url, $message);
-            $message = str_replace('{company_mail_here}', $company->email_1, $message);
-
+            
+            // Replace variables (safely handle null company)
+            $message = str_replace('{passenger_name_here}', $passenger->name ?? '', $message);
+            $message = str_replace('{company_name_here}', $company?->company_name ?? '', $message);
+            $message = str_replace('{company_website_url_here}', $company?->website_url ?? '', $message);
+            $message = str_replace('{company_mail_here}', $company?->email_1 ?? '', $message);
+            
             DB::beginTransaction();
             try {
-                if (!empty($passenger->email) && $company != null) {
+                if (!empty($passenger->email)) {
                     Mail::to($passenger->email)->send(
                         new FlightReminderMail($company, $passenger, $message)
                     );
-
                     $passenger->mail_sent_status = 1;
                     $passenger->save();
+                    
+                    if ($passenger->ticket_id) {
+                        $passengerTicketIds[] = $passenger->ticket_id;
+                    }
                 }
-
                 DB::commit();
             } catch (\Exception $e) {
                 DB::rollBack();
-
                 \Log::error('Reminder mail sending failed', [
                     'passenger_id' => $passenger->id,
                     'email' => $passenger->email,
                     'error' => $e->getMessage(),
                 ]);
             }
-
         }
+        
+        // Increment mail count for tickets
+        // if (!empty($passengerTicketIds)) {
+        //     $passengerTicketIds = array_values(array_unique($passengerTicketIds));
+            
+        //     DB::beginTransaction();
+        //     try {
+        //         Ticket::whereIn('id', $passengerTicketIds)->increment('mail_sent_count');
+        //         DB::commit();
+        //     } catch (\Exception $e) {
+        //         DB::rollBack();
+        //         \Log::error('Ticket mail count increment failed', [
+        //             'ticket_ids' => $passengerTicketIds,
+        //             'error' => $e->getMessage(),
+        //         ]);
+        //     }
+        // }
     }
 }

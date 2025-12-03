@@ -232,8 +232,9 @@
 						{{-- <th>Trip Type</th>
 						<th>Ticket Type</th> --}}
 						<th>{{ $getCurrentTranslation['status'] ?? 'status' }}</th>
-						<th>{{ $getCurrentTranslation['created_at'] ?? 'created_at' }}</th>
-						<th>{{ $getCurrentTranslation['created_by'] ?? 'created_by' }}</th>
+						<th>{{ $getCurrentTranslation['activity'] ?? 'activity' }}</th>
+						{{-- <th>{{ $getCurrentTranslation['created_at'] ?? 'created_at' }}</th>
+						<th>{{ $getCurrentTranslation['created_by'] ?? 'created_by' }}</th> --}}
 						<th>{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
 					</tr>
 				</thead>
@@ -286,7 +287,7 @@
 				{ data: 'booking_status', name: 'booking_status' },
 				//{ data: 'booking_status', name: 'booking_status', orderable: false, searchable: false },
 				{ data: 'created_at', name: 'created_at' },
-				{ data: 'created_by', name: 'created_by', orderable: false, searchable: true },
+				//{ data: 'created_by', name: 'created_by', orderable: false, searchable: true },
 				{ data: 'action', name: 'action', orderable: false, searchable: false }
 			]
 		});
@@ -338,6 +339,26 @@
 		});
 
 
+
+	});
+
+	$(document).ready(function() {
+		var holdButton = `<button class="ms-10 btn btn-warning btn-sm booking-status-btn" data-val="On Hold">${getCurrentTranslation.on_hold ?? 'on_hold'}</button>`;
+		var confirmedButton = `<button class="ms-3 btn btn-success btn-sm booking-status-btn" data-val="Confirmed">${getCurrentTranslation.confirmed ?? 'confirmed'}</button>`;
+		setTimeout(function(){
+			$('#datatable_length').append(holdButton + confirmedButton);
+		}, 1000);
+
+		// Handle booking-status-btn click
+	    $(document).on('click', '.booking-status-btn', function() {
+	        var selectedValue = $(this).data('val');
+	        
+	        // Update the select field
+	        $('select[name="booking_status"]').val(selectedValue).trigger('change');
+	        
+	        // Trigger the filter button
+	        $('.filter-data-btn').click();
+	    });
 	});
 
 </script>

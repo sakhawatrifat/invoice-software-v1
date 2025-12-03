@@ -62,7 +62,7 @@ class TicketController extends Controller
             request()->filled('invoice_date_range') ||
             (request()->has('search') && !empty(request('search')['value']));
 
-        $query = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'creator');
+        $query = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'creator', 'updater', 'deleter');
 
         
         if ($hasFilter) {
@@ -321,9 +321,9 @@ class TicketController extends Controller
 
                 return '<span class="' . $badgeClass . '">' . $row->booking_status . '</span>';
             })
-            ->addColumn('created_by', function ($row) {
-                return $row->creator ? $row->creator->name : 'N/A';
-            })
+            // ->addColumn('created_by', function ($row) {
+            //     return $row->creator ? $row->creator->name : 'N/A';
+            // })
             ->addColumn('action', function ($row) use ($currentTranslation) {
                 $duplicateUrl = route('ticket.duplicate', $row->id);
                 $editUrl = route('ticket.edit', $row->id);
@@ -407,11 +407,60 @@ class TicketController extends Controller
                     </div>' : 'N/A';
             })
 
-
-            ->editColumn('created_at', function ($row) {
-                return Carbon::parse($row->created_at)->format('Y-m-d, H:i');
+            // ✅ All Activity
+            ->addColumn('created_at', function ($row) {
+                $activity = '<div class="activity-info">';
+                
+                // Created information (always shown)
+                $activity .= '<div class="activity-item">';
+                $activity .= '<b>' . (getCurrentTranslation()['created_at'] ?? 'created_at') . ':</b> ';
+                $activity .= \Carbon\Carbon::parse($row->created_at)->format('Y-m-d, H:i');
+                $activity .= '</div>';
+                
+                $activity .= '<div class="activity-item">';
+                $activity .= '<b>' . (getCurrentTranslation()['created_by'] ?? 'created_by') . ':</b> ';
+                $activity .= ($row->creator ? $row->creator->name : 'N/A');
+                $activity .= '</div>';
+                
+                // Updated information (conditional)
+                if (!is_null($row->updated_by)) {
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['updated_at'] ?? 'updated_at') . ':</b> ';
+                    $activity .= \Carbon\Carbon::parse($row->updated_at)->format('Y-m-d, H:i');
+                    $activity .= '</div>';
+                    
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['updated_by'] ?? 'updated_by') . ':</b> ';
+                    $activity .= ($row->updater ? $row->updater->name : 'N/A');
+                    $activity .= '</div>';
+                }
+                
+                // Deleted information (conditional)
+                if (!is_null($row->deleted_by)) {
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['deleted_at'] ?? 'deleted_at') . ':</b> ';
+                    $activity .= \Carbon\Carbon::parse($row->deleted_at)->format('Y-m-d, H:i');
+                    $activity .= '</div>';
+                    
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['deleted_by'] ?? 'deleted_by') . ':</b> ';
+                    $activity .= ($row->deleter ? $row->deleter->name : 'N/A');
+                    $activity .= '</div>';
+                }
+                
+                // Mail sent count (conditional)
+                //if (!is_null($row->mail_sent_count) && $row->mail_sent_count != 0) {
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['total_mail_sent'] ?? 'total_mail_sent') . ':</b> ';
+                    $activity .= '<span class="badge badge-info">' . ($row->mail_sent_count > 0 ? $row->mail_sent_count : 0) . '</span>';
+                    $activity .= '</div>';
+                // }
+                
+                $activity .= '</div>';
+                
+                return $activity;
             })
-            ->rawColumns(['document_type', 'invoice_date', 'reservation_number', 'booking_status', 'action']) // Allow HTML rendering
+            ->rawColumns(['document_type', 'invoice_date', 'reservation_number', 'booking_status', 'created_at', 'action']) // Allow HTML rendering
             ->make(true);
     }
 
@@ -1792,6 +1841,7 @@ class TicketController extends Controller
             ];
         }
 
+        $totalMail = 0;
         foreach($passengers as $item){
             $passengerModel = TicketPassenger::where('ticket_id', $id)->where('id', $item['id'])->first();
             $passengerModel->email = $item['email'];
@@ -1923,6 +1973,8 @@ class TicketController extends Controller
                     $companyData->cc_emails = $request->cc_emails ?? [];
                     $companyData->bcc_emails = $request->bcc_emails ?? [];
                     $companyData->save();
+
+                    $totalMail++;
                 }
             } catch (\Throwable $e) {
                 \Log::error('Failed to send ticket invoice confirmation email', [
@@ -1950,7 +2002,12 @@ class TicketController extends Controller
 
         }
 
-
+        if($totalMail > 0){
+            $ticketData = Ticket::where('id', $id)->first();
+            $ticketData->mail_sent_count += 1;
+            $ticketData->save();
+        }
+        
         return [
             'is_success' => 1,
             'icon' => 'success',

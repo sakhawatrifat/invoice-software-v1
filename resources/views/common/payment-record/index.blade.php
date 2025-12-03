@@ -479,10 +479,11 @@
 							<th>{{ $getCurrentTranslation['client_info'] ?? 'client_info' }}</th>
 							<th>{{ $getCurrentTranslation['trip_info'] ?? 'trip_info' }}</th>
 							<th>{{ $getCurrentTranslation['total_price'] ?? 'total_price' }}</th>
-							<th>{{ $getCurrentTranslation['issued_by'] ?? 'issued_by' }}</th>
+							{{-- <th>{{ $getCurrentTranslation['issued_by'] ?? 'issued_by' }}</th> --}}
 							{{-- <th>{{ $getCurrentTranslation['payment_status'] ?? 'payment_status' }}</th> --}}
-							<th>{{ $getCurrentTranslation['created_at'] ?? 'created_at' }}</th>
-							<th>{{ $getCurrentTranslation['created_by'] ?? 'created_by' }}</th>
+							<th>{{ $getCurrentTranslation['activity'] ?? 'activity' }}</th>
+						{{-- <th>{{ $getCurrentTranslation['created_at'] ?? 'created_at' }}</th>
+						<th>{{ $getCurrentTranslation['created_by'] ?? 'created_by' }}</th> --}}
 							<th>{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
 						</tr>
 					</thead>
@@ -528,9 +529,9 @@
 				{ data: 'client_name', name: 'client_name' },
 				{ data: 'trip_type', name: 'trip_type' },
 				{ data: 'total_selling_price', name: 'total_selling_price' },
-				{ data: 'issued_by_id', name: 'issued_by_id' },
+				//{ data: 'issued_by_id', name: 'issued_by_id' },
 				{ data: 'created_at', name: 'created_at' },
-				{ data: 'created_by', name: 'created_by', orderable: false, searchable: true },
+				//{ data: 'created_by', name: 'created_by', orderable: false, searchable: true },
 				{ data: 'action', name: 'action', orderable: false, searchable: false }
 			]
 		});

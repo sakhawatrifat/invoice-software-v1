@@ -807,6 +807,13 @@ class TranslationSeeder extends Seeder
                 'departure_route_label' => 'Departure Route',
                 'return_route_label' => 'Return Route',
                 'clear_cache' => 'Clear Cache',
+
+                'updated_by' => 'Updated By',
+                'deleted_at' => 'Deleted At',
+                'deleted_by' => 'Deleted By',
+                'total_mail_sent' => 'Total Mail Sent',
+                'activity' => 'Activity',
+                'pin' => 'PIN',
             ],
 
 
@@ -1614,6 +1621,13 @@ class TranslationSeeder extends Seeder
                 'departure_route_label' => '出発ルート',
                 'return_route_label' => '帰りのルート',
                 'clear_cache' => 'キャッシュをクリア',
+
+                'updated_by' => '更新者',
+                'deleted_at' => '削除日時',
+                'deleted_by' => '削除者',
+                'total_mail_sent' => '送信済みメール数',
+                'activity' => '活動履歴',
+                'pin' => 'ピンコード',
             ],
         ];
 

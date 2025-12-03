@@ -50,7 +50,7 @@ class HotelInvoiceController extends Controller
         
         $user = Auth::user();
 
-        $query = HotelInvoice::with('user', 'creator')->latest();
+        $query = HotelInvoice::with('user', 'creator', 'updater', 'deleter')->latest();
 
         if($user->user_type != 'admin'){
             $query->where('user_id', $user->business_id);
@@ -121,9 +121,12 @@ class HotelInvoiceController extends Controller
                         . '" height="40" style="margin-right: 8px;">'
                     : '';
                     
+                $br = $row->hotel_image_url ? '<br>' : '';
+                
                 return '<div class="text-center">'
                     . $image
-                    . '<br><span>' . e($row->hotel_name) . '</span><br>'
+                    . $br
+                    . '<span>' . e($row->hotel_name) . '</span><br>'
                     // . '<small>' . nl2br(e($row->hotel_address)) . '</small>'
                     . '</div>';
             })
@@ -199,15 +202,64 @@ class HotelInvoiceController extends Controller
 
 
 
-            // ✅ Created At
-            ->editColumn('created_at', function ($row) {
-                return $row->created_at ? Carbon::parse($row->created_at)->format('Y-m-d, H:i') : 'N/A';
+            // ✅ All Activity
+            ->addColumn('created_at', function ($row) {
+                $activity = '<div class="activity-info">';
+                
+                // Created information (always shown)
+                $activity .= '<div class="activity-item">';
+                $activity .= '<b>' . (getCurrentTranslation()['created_at'] ?? 'created_at') . ':</b> ';
+                $activity .= \Carbon\Carbon::parse($row->created_at)->format('Y-m-d, H:i');
+                $activity .= '</div>';
+                
+                $activity .= '<div class="activity-item">';
+                $activity .= '<b>' . (getCurrentTranslation()['created_by'] ?? 'created_by') . ':</b> ';
+                $activity .= ($row->creator ? $row->creator->name : 'N/A');
+                $activity .= '</div>';
+                
+                // Updated information (conditional)
+                if (!is_null($row->updated_by)) {
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['updated_at'] ?? 'updated_at') . ':</b> ';
+                    $activity .= \Carbon\Carbon::parse($row->updated_at)->format('Y-m-d, H:i');
+                    $activity .= '</div>';
+                    
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['updated_by'] ?? 'updated_by') . ':</b> ';
+                    $activity .= ($row->updater ? $row->updater->name : 'N/A');
+                    $activity .= '</div>';
+                }
+                
+                // Deleted information (conditional)
+                if (!is_null($row->deleted_by)) {
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['deleted_at'] ?? 'deleted_at') . ':</b> ';
+                    $activity .= \Carbon\Carbon::parse($row->deleted_at)->format('Y-m-d, H:i');
+                    $activity .= '</div>';
+                    
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['deleted_by'] ?? 'deleted_by') . ':</b> ';
+                    $activity .= ($row->deleter ? $row->deleter->name : 'N/A');
+                    $activity .= '</div>';
+                }
+                
+                // Mail sent count (conditional)
+                if (!is_null($row->mail_sent_count) && $row->mail_sent_count != 0) {
+                    $activity .= '<div class="activity-item">';
+                    $activity .= '<b>' . (getCurrentTranslation()['total_mail_sent'] ?? 'total_mail_sent') . ':</b> ';
+                    $activity .= '<span class="badge badge-info">' . $row->mail_sent_count . '</span>';
+                    $activity .= '</div>';
+                }
+                
+                $activity .= '</div>';
+                
+                return $activity;
             })
 
             // ✅ Created By (relationship with users table)
-            ->addColumn('created_by', function ($row) {
-                return $row->creator ? $row->creator->name : 'N/A';
-            })
+            // ->addColumn('created_by', function ($row) {
+            //     return $row->creator ? $row->creator->name : 'N/A';
+            // })
 
             // ✅ Actions
             ->addColumn('action', function ($row) {
@@ -273,7 +325,7 @@ class HotelInvoiceController extends Controller
             })
 
 
-            ->rawColumns(['hotel_name', 'check_in_and_checkout', 'guest_info', 'total_price', 'payment_status', 'action'])
+            ->rawColumns(['hotel_name', 'check_in_and_checkout', 'guest_info', 'total_price', 'payment_status', 'created_at', 'action'])
             ->make(true);
 
     }
@@ -927,6 +979,7 @@ class HotelInvoiceController extends Controller
 
         $existingGuestInfo = is_array($mailData->guestInfo ?? null) ? $mailData->guestInfo : [];
 
+        $totalMail = 0;
         $guestInfo = [];
         foreach ($guests as $key => $item) {
             $guestInfo[$key]['name'] = $item['name'] ?? ($existingGuestInfo['name'] ?? null);
@@ -1026,6 +1079,8 @@ class HotelInvoiceController extends Controller
                     $companyData->cc_emails = $request->cc_emails ?? [];
                     $companyData->bcc_emails = $request->bcc_emails ?? [];
                     $companyData->save();
+
+                    $totalMail++;
                 }
             } catch (\Throwable $e) {
                 \Log::error('Failed to send hotel invoice confirmation email', [
@@ -1053,6 +1108,11 @@ class HotelInvoiceController extends Controller
 
         }
 
+        if($totalMail > 0){
+            $invoiceData = HotelInvoice::where('id', $id)->first();
+            $invoiceData->mail_sent_count += 1;
+            $invoiceData->save();
+        }
 
         return [
             'is_success' => 1,
