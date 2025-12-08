@@ -50,7 +50,7 @@ class PdfService
 
         $mpdf->WriteHTML($html);
         if($pdfType == 'invoice'){
-            $mpdf->SetHTMLFooter('<div style="text-align: center;">' . $globalData->company->company_invoice_id . '</div>', 'O'); // O = only last page
+            $mpdf->SetHTMLFooter('<div style="text-align: center;">' . ($globalData->company->company_invoice_id ?? '') . '</div>', 'O'); // O = only last page
         }
 
         // 'I' for inline view, 'D' for download
