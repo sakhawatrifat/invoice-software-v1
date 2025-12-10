@@ -1274,10 +1274,32 @@
 
 		// Update the UI
 		$('.refundable-amount .number').text(refundableAmount.toFixed(2));
-		
 	}
 
 
+	$(document).on('focusout', '[name="total_selling_price"]', function(){
+	    checkPriceValidation();
+	});
 
+	function checkPriceValidation(){
+	    var $purchasePrice = parseFloat($('[name="total_purchase_price"]').val());
+	    var $sellingPrice = parseFloat($('[name="total_selling_price"]').val());
+	    
+	    // Validate that both values are valid numbers
+	    if(isNaN($purchasePrice) || isNaN($sellingPrice)){
+	        console.error('Invalid price values');
+	        return;
+	    }
+	    
+	    if($purchasePrice > $sellingPrice){
+	        Swal.fire({
+	            title: '{{ $getCurrentTranslation['careful'] ?? 'careful' }}',
+	            text: '{{ $getCurrentTranslation['selling_price_must_be_greater_than_or_equal_of_purchase_price'] ?? 'selling_price_must_be_greater_than_or_equal_of_purchase_price' }}',
+	            icon: 'warning',
+	            //timer: 1500,
+	            showConfirmButton: true
+	        });
+	    }
+	}
 </script>
 @endpush

@@ -928,19 +928,19 @@ class PaymentController extends Controller
             }
         }
 
-        if ($request->total_purchase_price > $request->total_selling_price) {
-            return response()->json([
-                'is_success' => 0,
-                'icon' => 'error',
-                'errors' => [
-                    'total_selling_price' => [
-                        getCurrentTranslation()['selling_price_must_be_greater_than_or_equal_of_purchase_price']
-                            ?? 'selling_price_must_be_greater_than_or_equal_of_purchase_price',
-                    ],
-                ],
-                //'message' => getCurrentTranslation()['selling_price_must_be_greater_than_or_equal_of_purchase_price'] ?? 'selling_price_must_be_greater_than_or_equal_of_purchase_price',
-            ]);
-        }
+        // if ($request->total_purchase_price > $request->total_selling_price) {
+        //     return response()->json([
+        //         'is_success' => 0,
+        //         'icon' => 'error',
+        //         'errors' => [
+        //             'total_selling_price' => [
+        //                 getCurrentTranslation()['selling_price_must_be_greater_than_or_equal_of_purchase_price']
+        //                     ?? 'selling_price_must_be_greater_than_or_equal_of_purchase_price',
+        //             ],
+        //         ],
+        //         //'message' => getCurrentTranslation()['selling_price_must_be_greater_than_or_equal_of_purchase_price'] ?? 'selling_price_must_be_greater_than_or_equal_of_purchase_price',
+        //     ]);
+        // }
 
 
         if (empty($paymentData)) {

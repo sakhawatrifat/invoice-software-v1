@@ -814,6 +814,7 @@ class TranslationSeeder extends Seeder
                 'total_mail_sent' => 'Total Mail Sent',
                 'activity' => 'Activity',
                 'pin' => 'PIN',
+                'careful' => 'Careful',
             ],
 
 
@@ -1628,6 +1629,7 @@ class TranslationSeeder extends Seeder
                 'total_mail_sent' => '送信済みメール数',
                 'activity' => '活動履歴',
                 'pin' => 'ピンコード',
+                'careful' => '注意',
             ],
         ];
 
