@@ -116,14 +116,17 @@ $nextTransit = $mailData->flights[$flightIndex + 1];
 <h2>✈️ Flight Itinerary – Outbound Journey</h2>
 @php
 $firstFlight = $mailData->flights[0] ?? null;
-$firstTransit = ($firstFlight && !empty($firstFlight->transits)) ? $firstFlight->transits[0] : null;
+// Fix: Handle transits as Collection, not array
+$firstTransit = ($firstFlight && $firstFlight->transits && $firstFlight->transits->isNotEmpty()) 
+    ? $firstFlight->transits->first() 
+    : null;
 @endphp
 
 <p>
 <b>📅 Date:</b> {{ $firstFlight && !empty($firstFlight->departure_date_time) ? date('d F Y', strtotime($firstFlight->departure_date_time)) : 'N/A' }}{{ $firstTransit && !empty($firstTransit->departure_date_time) ? ' – ' . date('d F Y', strtotime($firstTransit->departure_date_time)) : '' }}
 </p>
 
-<p><b>1️⃣ {{ $firstFlight ? extractPrimaryCity($firstFlight->leaving_from) : 'N/A' }} ➝ {{ extractPrimaryCity($firstFlight->going_to) }}</b><br>
+<p><b>1️⃣ {{ $firstFlight ? extractPrimaryCity($firstFlight->leaving_from) : 'N/A' }} ➝ {{ extractPrimaryCity($firstFlight->going_to ?? 'N/A') }}</b><br>
 • <b>Flight:</b> {{ $firstFlight->airline->name ?? 'N/A' }} • {{ $firstFlight->flight_number ?? 'N/A' }}<br>
 • <b>Departure:</b> {{ $firstFlight && !empty($firstFlight->departure_date_time) ? date('H:i, d F Y', strtotime($firstFlight->departure_date_time)) : 'N/A' }} ({{ $firstFlight->leaving_from ?? 'N/A' }})<br>
 • <b>Arrival:</b> {{ $firstFlight && !empty($firstFlight->arrival_date_time) ? date('H:i, d F Y', strtotime($firstFlight->arrival_date_time)) : 'N/A' }} ({{ $firstFlight->going_to ?? 'N/A' }})<br>
@@ -134,10 +137,11 @@ $firstTransit = ($firstFlight && !empty($firstFlight->transits)) ? $firstFlight-
 </p>
 
 {{-- Display all transits under first flight --}}
-@if($firstFlight && !empty($firstFlight->transits))
+@if($firstFlight && $firstFlight->transits && $firstFlight->transits->isNotEmpty())
 @foreach($firstFlight->transits as $key => $transit)
 @php
-$nextTransit = isset($firstFlight->transits[$key + 1]) ? $firstFlight->transits[$key + 1] : null;
+// Fix: Use Collection methods instead of array access
+$nextTransit = $firstFlight->transits->get($key + 1);
 @endphp
 <p><b>{{ $loop->iteration + 1 }}️⃣ {{ extractPrimaryCity($transit->leaving_from) }} ➝ {{ extractPrimaryCity($transit->going_to) }}</b><br>
 • <b>Flight:</b> {{ $transit->airline->name ?? 'N/A' }} • {{ $transit->flight_number ?? 'N/A' }}<br>
@@ -152,20 +156,21 @@ $nextTransit = isset($firstFlight->transits[$key + 1]) ? $firstFlight->transits[
 @endif
 
 {{-- ================= RETURN JOURNEY ================= --}}
+@if(isset($mailData->flights[1]) && !empty($mailData->flights[1]))
+@php
+$returnFlight = $mailData->flights[1];
+// Fix: Check if transits exists and is not empty before accessing
+$returnFirstTransit = ($returnFlight->transits && $returnFlight->transits->isNotEmpty()) 
+    ? $returnFlight->transits->first() 
+    : null;
+@endphp
+
 @if(
-isset($mailData->flights[1]) && 
-!empty($mailData->flights[1]) && 
-(
-!empty($mailData->flights[1]->transits) || 
-(!empty($mailData->flights[1]->departure_date_time) && !empty($mailData->flights[0]->arrival_date_time))
-)
+    $returnFirstTransit || 
+    (!empty($returnFlight->departure_date_time) && !empty($mailData->flights[0]->arrival_date_time))
 )
 <hr>
 <h2>✈️ Flight Itinerary – Return Journey</h2>
-@php
-$returnFlight = $mailData->flights[1];
-$returnFirstTransit = (!empty($returnFlight->transits)) ? $returnFlight->transits[0] : null;
-@endphp
 
 <p>
 <b>📅 Date:</b>
@@ -173,7 +178,7 @@ $returnFirstTransit = (!empty($returnFlight->transits)) ? $returnFlight->transit
 {{ $returnFirstTransit && !empty($returnFirstTransit->departure_date_time) ? ' – ' . date('d F Y', strtotime($returnFirstTransit->departure_date_time)) : '' }}
 </p>
 
-<p><b>1️⃣ {{ extractPrimaryCity($returnFlight->leaving_from ?? 'N/A') }} ➝ {{ extractPrimaryCity($returnFlight->going_to) }}</b><br>
+<p><b>1️⃣ {{ extractPrimaryCity($returnFlight->leaving_from ?? 'N/A') }} ➝ {{ extractPrimaryCity($returnFlight->going_to ?? 'N/A') }}</b><br>
 • <b>Flight:</b> {{ $returnFlight->airline->name ?? 'N/A' }} • {{ $returnFlight->flight_number ?? 'N/A' }}<br>
 • <b>Departure:</b> {{ !empty($returnFlight->departure_date_time) ? date('H:i, d F Y', strtotime($returnFlight->departure_date_time)) : 'N/A' }} ({{ $returnFlight->leaving_from ?? 'N/A' }})<br>
 • <b>Arrival:</b> {{ !empty($returnFlight->arrival_date_time) ? date('H:i, d F Y', strtotime($returnFlight->arrival_date_time)) : 'N/A' }} ({{ $returnFlight->going_to ?? 'N/A' }})<br>
@@ -184,10 +189,11 @@ $returnFirstTransit = (!empty($returnFlight->transits)) ? $returnFlight->transit
 </p>
 
 {{-- Display all transits under return flight --}}
-@if(!empty($returnFlight->transits))
+@if($returnFlight->transits && $returnFlight->transits->isNotEmpty())
 @foreach($returnFlight->transits as $key => $transit)
 @php
-$nextTransit = isset($returnFlight->transits[$key + 1]) ? $returnFlight->transits[$key + 1] : null;
+// Fix: Use Collection get() method
+$nextTransit = $returnFlight->transits->get($key + 1);
 @endphp
 
 <p><b>{{ $loop->iteration + 1 }}️⃣ {{ extractPrimaryCity($transit->leaving_from) }} ➝ {{ extractPrimaryCity($transit->going_to) }}</b><br>
@@ -202,9 +208,11 @@ $nextTransit = isset($returnFlight->transits[$key + 1]) ? $returnFlight->transit
 @endforeach
 @endif
 @endif
+@endif
 
 @endif
 {{-- Round Trip End --}}
+
 {{-- Multi City Start --}}
 @if ($mailData->trip_type == 'Multi City')
 @foreach ($mailData->flights as $flightIndex => $flight)
@@ -213,10 +221,10 @@ $nextTransit = isset($returnFlight->transits[$key + 1]) ? $returnFlight->transit
 @php
 $nextTransit = null;
 
-if ($flight && !empty($flight->transits) && count($flight->transits) > 0) {
-$nextTransit = $flight->transits[count($flight->transits) - 1];
+if ($flight && $flight->transits && $flight->transits->isNotEmpty()) {
+    $nextTransit = $flight->transits->last();
 } elseif (isset($mailData->flights[$flightIndex + 1])) {
-$nextTransit = $mailData->flights[$flightIndex + 1];
+    $nextTransit = $mailData->flights[$flightIndex + 1];
 }
 @endphp
 
@@ -230,7 +238,7 @@ $nextTransit = $mailData->flights[$flightIndex + 1];
 : '' }}
 </p>
 
-<p><b>1️⃣ {{ $flight ? extractPrimaryCity($flight->leaving_from) : 'N/A' }} ➝ {{ extractPrimaryCity($flight->going_to) }}
+<p><b>1️⃣ {{ $flight ? extractPrimaryCity($flight->leaving_from) : 'N/A' }} ➝ {{ extractPrimaryCity($flight->going_to ?? 'N/A') }}
 </b><br>
 • <b>Flight:</b> {{ $flight->airline->name ?? 'N/A' }} • {{ $flight->flight_number ?? 'N/A' }}<br>
 • <b>Departure:</b> 
@@ -251,14 +259,15 @@ $nextTransit = $mailData->flights[$flightIndex + 1];
 </p>
 
 {{-- Transit Flights for this segment --}}
+@if($flight->transits && $flight->transits->isNotEmpty())
 @foreach ($flight->transits as $key => $transit)
 @php
-$nextTransit = null;
+// Fix: Use Collection get() method
+$nextTransit = $flight->transits->get($key + 1);
 
-if ($flight && isset($flight->transits[$key + 1])) {
-$nextTransit = $flight->transits[$key + 1];
-} elseif (isset($mailData->flights[$flightIndex + 1])) {
-$nextTransit = $mailData->flights[$flightIndex + 1];
+// fallback if no "next transit" found
+if (!$nextTransit && isset($mailData->flights[$flightIndex + 1])) {
+    $nextTransit = $mailData->flights[$flightIndex + 1];
 }
 @endphp
 
@@ -278,10 +287,11 @@ $nextTransit = $mailData->flights[$flightIndex + 1];
 • <b>Duration:</b> {{ $transit->total_fly_time ?? 'N/A' }}
 @if ($nextTransit && !empty($nextTransit->leaving_from) && !empty($nextTransit->total_transit_time))
 <br>🕓 <b>Transit in {{ extractPrimaryCity($nextTransit->leaving_from) }}:</b> 
-{{ $transit->total_transit_time }}
+{{ $nextTransit->total_transit_time }}
 @endif
 </p>
 @endforeach
+@endif
 {{-- Add <hr> only if a real next flight exists --}}
 @if (isset($mailData->flights[$flightIndex + 1]) && !empty($mailData->flights[$flightIndex + 1]))
 <hr>

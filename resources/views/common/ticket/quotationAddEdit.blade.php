@@ -1260,70 +1260,71 @@
 		resetTripType();
 	});
 
+	@if(!isset($editData))
+		$(document).on('input change', '.parent-ip', function () {
+			var thisName = $(this).attr('data-name');
+			var thisValue = $(this).val();
 
-	$(document).on('input change', '.parent-ip', function () {
-		var thisName = $(this).attr('data-name');
-		var thisValue = $(this).val();
+			// Update all same data-name inputs, excluding going_to and leaving_from
+			if (thisName !== 'leaving_from' && thisName !== 'going_to') {
+				$(`[data-name="${thisName}"]`).not(this).val(thisValue);
 
-		// Update all same data-name inputs, excluding going_to and leaving_from
-		if (thisName !== 'leaving_from' && thisName !== 'going_to') {
-			$(`[data-name="${thisName}"]`).not(this).val(thisValue);
+				if($(this).hasClass('select2') || $(this).hasClass('select2-with-images')){
+					$(`[data-name="${thisName}"]`).not(this).val(thisValue).trigger('change');
 
-			if($(this).hasClass('select2') || $(this).hasClass('select2-with-images')){
-				$(`[data-name="${thisName}"]`).not(this).val(thisValue).trigger('change');
+				}
 
+				if($(this).hasClass('append-datepicker')){
+					$(`[data-name="${thisName}`).closest('div').find('.append-datepicker').val(thisValue);
+				}
+				
 			}
 
-			if($(this).hasClass('append-datepicker')){
-				$(`[data-name="${thisName}`).closest('div').find('.append-datepicker').val(thisValue);
-			}
-			
-		}
+			// If this is a going_to input, copy its value to the next leaving_from
+			if (thisName === 'going_to') {
+				let goingToInputs = $('[data-name="going_to"]');
+				let leavingFromInputs = $('[data-name="leaving_from"]');
 
-		// If this is a going_to input, copy its value to the next leaving_from
-		if (thisName === 'going_to') {
+				goingToInputs.each(function(index) {
+					let value = $(this).val();
+					let nextLeavingFrom = leavingFromInputs.eq(index + 1); // next in sequence
+					let previousLeavingFrom = leavingFromInputs.eq(index); // current one (previous for next)
+
+					if (nextLeavingFrom.length) {
+						if (value) {
+							nextLeavingFrom.val(value);
+						} else {
+							// If value is empty, retain the previous value
+							nextLeavingFrom.val(previousLeavingFrom.val());
+						}
+					}
+				});
+			}
+
+		});
+
+		$(document).on('input change', '[data-name="going_to"]', function () {
+			let currentInput = $(this);
 			let goingToInputs = $('[data-name="going_to"]');
 			let leavingFromInputs = $('[data-name="leaving_from"]');
 
-			goingToInputs.each(function(index) {
-				let value = $(this).val();
-				let nextLeavingFrom = leavingFromInputs.eq(index + 1); // next in sequence
-				let previousLeavingFrom = leavingFromInputs.eq(index); // current one (previous for next)
+			let startIndex = goingToInputs.index(currentInput); // Start from this going_to
+
+			for (let i = startIndex; i < goingToInputs.length; i++) {
+				let value = goingToInputs.eq(i).val();
+				let nextLeavingFrom = leavingFromInputs.eq(i + 1);
+				let currentLeavingFrom = leavingFromInputs.eq(i);
 
 				if (nextLeavingFrom.length) {
 					if (value) {
 						nextLeavingFrom.val(value);
 					} else {
-						// If value is empty, retain the previous value
-						nextLeavingFrom.val(previousLeavingFrom.val());
+						nextLeavingFrom.val(currentLeavingFrom.val());
 					}
 				}
-			});
-		}
-
-	});
-
-	$(document).on('input change', '[data-name="going_to"]', function () {
-		let currentInput = $(this);
-		let goingToInputs = $('[data-name="going_to"]');
-		let leavingFromInputs = $('[data-name="leaving_from"]');
-
-		let startIndex = goingToInputs.index(currentInput); // Start from this going_to
-
-		for (let i = startIndex; i < goingToInputs.length; i++) {
-			let value = goingToInputs.eq(i).val();
-			let nextLeavingFrom = leavingFromInputs.eq(i + 1);
-			let currentLeavingFrom = leavingFromInputs.eq(i);
-
-			if (nextLeavingFrom.length) {
-				if (value) {
-					nextLeavingFrom.val(value);
-				} else {
-					nextLeavingFrom.val(currentLeavingFrom.val());
-				}
 			}
-		}
-	});
+		});
+	@endif
 
 
 </script>

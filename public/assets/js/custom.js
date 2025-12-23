@@ -136,7 +136,7 @@ function updateMinDateForDatetimeInputs() {
             return;
         }
         // Get the parent row safely
-        const $row = $mainDatetime.closest('.row');
+        const $row = $mainDatetime.closest('.append-item-container');
         if ($row.length === 0) {
             return;
         }

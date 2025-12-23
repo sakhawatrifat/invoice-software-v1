@@ -485,6 +485,7 @@
 	}
 
 	function resetAppendToolbar() {
+		$('.append-item').not(':first-child').find('.form-control').removeClass('main-datetime');
 		$('.append-item').not(':first-child').find('.form-control').removeClass('parent-ip');
 		$('.append-item').not(':first-child').find('select').removeClass('parent-ip');
 		resetFlightTransit();
