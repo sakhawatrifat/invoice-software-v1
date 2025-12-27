@@ -2020,16 +2020,16 @@ if (!function_exists('flightListData')) {
     {
         $startDate = Carbon::now()->toDateString();
         $endDate = Carbon::today()->addDays(30)->toDateString();
-
+        
         if (isset($date_range)) {
             $dateRange = $date_range;
             list($startDateString, $endDateString) = explode("-", $dateRange);
             $startDate = date("Y-m-d", strtotime($startDateString));
             $endDate = date("Y-m-d 23:59:59", strtotime($endDateString));
         }
-
-        $rangeType = determineRangeType($startDate, $endDate); //keep the commented line
-
+        
+        $rangeType = determineRangeType($startDate, $endDate);
+        
         $toDoData = Payment::with('ticket', 'country', 'issuedBy', 'airline')
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('departure_date_time', [$startDate, $endDate])
@@ -2037,12 +2037,13 @@ if (!function_exists('flightListData')) {
             })
             ->orderByRaw("
                 CASE
-                    WHEN departure_date_time IS NOT NULL THEN departure_date_time
-                    ELSE return_date_time
+                    WHEN departure_date_time >= ? THEN departure_date_time
+                    WHEN return_date_time >= ? THEN return_date_time
+                    ELSE departure_date_time
                 END ASC
-            ")
+            ", [$startDate, $startDate])
             ->get();
-
+            
         return $toDoData;
     }
 }

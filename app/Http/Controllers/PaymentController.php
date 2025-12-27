@@ -664,13 +664,36 @@ class PaymentController extends Controller
             ]);
         }
 
+        // $ticketData = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'user.company', 'creator')
+        //     ->where('booking_status', 'Confirmed')
+        //     ->where(function($query) use ($request) {
+        //         $query->where('invoice_id', 'like', '%' . $request->search . '%')
+        //             ->orWhere('reservation_number', 'like', '%' . $request->search . '%');
+        //     })
+        //     ->get();
+
         $ticketData = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'user.company', 'creator')
             ->where('booking_status', 'Confirmed')
             ->where(function($query) use ($request) {
-                $query->where('invoice_id', 'like', '%' . $request->search . '%')
-                    ->orWhere('reservation_number', 'like', '%' . $request->search . '%');
+                $query->where('invoice_id', $request->search)
+                    ->orWhere('reservation_number', $request->search);
             })
-            ->get();
+            ->first();
+
+        if($ticketData){
+            $paymentData = Payment::where('ticket_id', $ticketData->id)->first();
+
+            if($paymentData){
+                return response()->json([
+                    'is_success' => 0,
+                    'is_alert' => 1,
+                    'icon' => 'error',
+                    'message' => (getCurrentTranslation()['ticket_already_added_to_payment'] ?? 'ticket_already_added_to_payment') . "\n" . 
+                                 (getCurrentTranslation()['ticket_invoice_id'] ?? 'ticket_invoice_id') . ': ' . $ticketData->invoice_id . "\n" . 
+                                 (getCurrentTranslation()['payment_invoice_id'] ?? 'payment_invoice_id') . ': ' . $paymentData->payment_invoice_id,
+                ]);
+            }
+        }
 
         return response()->json([
             'is_success' => 1,

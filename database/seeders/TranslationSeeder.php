@@ -815,6 +815,9 @@ class TranslationSeeder extends Seeder
                 'activity' => 'Activity',
                 'pin' => 'PIN',
                 'careful' => 'Careful',
+                'ticket_invoice_id' => 'Ticket Invoice ID',
+                'payment_invoice_id' => 'Payment Invoice ID',
+                'ticket_already_added_to_payment' => 'Ticket Already Added to payment',
             ],
 
 
@@ -1630,6 +1633,9 @@ class TranslationSeeder extends Seeder
                 'activity' => '活動履歴',
                 'pin' => 'ピンコード',
                 'careful' => '注意',
+                'ticket_invoice_id' => 'チケット請求書ID',
+                'payment_invoice_id' => '支払請求書ID',
+                'ticket_already_added_to_payment' => 'チケットは既に支払いに追加されています',
             ],
         ];
 

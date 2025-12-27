@@ -971,7 +971,37 @@
 
 						resultsList.innerHTML = ''; // clear previous results
 
-						if (response.is_success && Array.isArray(response.ticketData) && response.ticketData.length) {
+						if (response.is_success && response.ticketData) {
+						    const ticket = response.ticketData;
+						    const text = `${ticket.invoice_id} (${ticket.reservation_number})`;
+						    
+						    // Build dropdown list items manually
+						    const li = document.createElement('li');
+						    li.className = 'select2-results__option';
+						    li.setAttribute('role', 'option');
+						    li.textContent = text;
+						    li.dataset.value = ticket.id;
+						    
+						    // When user clicks the option, set it as selected
+						    li.addEventListener('mousedown', () => {
+						        const optionExists = $select.find(`option[value="${ticket.id}"]`).length > 0;
+						        const jsonDetails = JSON.stringify(ticket).replace(/"/g, '&quot;');
+						        
+						        if (!optionExists) {
+						            const newOption = new Option(text, ticket.id, true, true);
+						            $(newOption).attr('data-details', jsonDetails);
+						            $select.append(newOption);
+						        } else {
+						            $select.find(`option[value="${ticket.id}"]`).attr('data-details', jsonDetails);
+						        }
+						        
+						        $select.val(ticket.id).trigger('change');
+						        $select.select2('close');
+						    });
+						    
+						    resultsList.appendChild(li);
+						}
+						{{-- if (response.is_success && Array.isArray(response.ticketData) && response.ticketData.length) {
 							response.ticketData.forEach(ticket => {
 								const text = `${ticket.invoice_id} (${ticket.reservation_number})`;
 
@@ -1004,7 +1034,14 @@
 								resultsList.appendChild(li);
 							});
 
-						} else {
+						} --}} 
+						else {
+							if(response.is_alert != undefined){
+							    Swal.fire({
+							        icon: response.icon,
+							        html: response.message.replace(/\n/g, '<br>')
+							    });
+							}
 							resultsList.innerHTML = `<li class="select2-results__option" role="option">No results found.</li>`;
 						}
 					},
