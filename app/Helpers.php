@@ -1141,6 +1141,7 @@ if (!function_exists('getPermissionList')) {
                 'permissions' => [
                     ['title' => 'list', 'key' => 'ticket.index'],
                     ['title' => 'create', 'key' => 'ticket.create'],
+                    ['title' => 'search_import', 'key' => 'ticket.search.form'],
                     ['title' => 'show', 'key' => 'ticket.show'],
                     ['title' => 'multi_layout', 'key' => 'ticket.multiLayout'],
                     ['title' => 'duplicate', 'key' => 'ticket.duplicate'],

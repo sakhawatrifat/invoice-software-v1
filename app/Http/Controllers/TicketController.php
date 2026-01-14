@@ -20,6 +20,9 @@ use Illuminate\Support\Facades\View;
 
 use App\Models\User;
 use App\Models\UserCompany;
+use App\Models\Language;
+use App\Models\Currency;
+
 use App\Models\Airline;
 
 use App\Models\Ticket;
@@ -34,8 +37,20 @@ use App\Models\PaymentDocument;
 use PDF;
 use App\Services\PdfService;
 
+use App\Services\TravelpayoutsService;
+use Illuminate\Http\JsonResponse;
+
 class TicketController extends Controller
 {
+
+    protected TravelpayoutsService $travelpayouts;
+
+    public function __construct(TravelpayoutsService $travelpayouts)
+    {
+        $this->travelpayouts = $travelpayouts;
+    }
+
+
     public function index()
     {   
         if (!hasPermission('ticket.index')) {

@@ -15,11 +15,27 @@
 					<li class="breadcrumb-item text-muted">
 						<a href="{{ route((Auth::user()->user_type == 'admin') ? 'admin.dashboard' : 'user.dashboard') }}" class="text-muted text-hover-primary">{{ $getCurrentTranslation['dashboard'] ?? 'dashboard' }}</a> &nbsp; - 
 					</li>
-					@if(isset($listRoute) && !empty($listRoute))
-						<li class="breadcrumb-item text-muted">
-							<a href="{{ $listRoute }}" class="text-muted text-hover-primary">{{ $getCurrentTranslation['invoice_list'] ?? 'invoice_list' }}</a> &nbsp; - 
-						</li>
-					@endif
+					
+					@php
+						$breadcrumbLabel =
+							request()->document_type === 'ticket' ? ($getCurrentTranslation['ticket_list'] ?? 'ticket_list') :
+							(request()->document_type === 'invoice' ? ($getCurrentTranslation['invoice_list'] ?? 'invoice_list') :
+							(request()->document_type === 'ticket-invoice' ? ($getCurrentTranslation['ticket_and_invoice_list'] ?? 'ticket_and_invoice_list') :
+							(request()->document_type === 'quotation' ? ($getCurrentTranslation['quotation_list'] ?? 'quotation_list') :
+							(request()->has('data_for') && request()->data_for === 'agent' ? ($getCurrentTranslation['agent_document_list'] ?? 'agent_document_list') :
+							($getCurrentTranslation['all_document_list'] ?? 'all_document_list')))));
+					@endphp
+
+					<li class="breadcrumb-item {{ isset($listRoute) ? 'text-muted' : '' }}">
+						@if(isset($listRoute) && !empty($listRoute))
+							<a href="{{ $listRoute }}{{ request()->document_type ? '?document_type='.request()->document_type : '' }}" class="text-muted text-hover-primary">
+								{{ $breadcrumbLabel }}
+							</a> &nbsp; -
+						@else
+							{{ $breadcrumbLabel }}
+						@endif
+					</li>
+					
 					@if(isset($editData))
 						<li class="breadcrumb-item">{{ $getCurrentTranslation['edit_invoice'] ?? 'edit_invoice' }}</li>
 					@else
@@ -47,7 +63,7 @@
                 @endif
 
 				@if(isset($listRoute) && !empty($listRoute))
-					<a href="{{ $listRoute }}" class="btn btn-sm fw-bold btn-primary">
+					<a href="{{ $listRoute }}{{ request()->document_type ? '?document_type='.request()->document_type : '' }}" class="btn btn-sm fw-bold btn-primary">
 						<i class="fa-solid fa-arrow-left"></i>
 						{{ $getCurrentTranslation['back_to_list'] ?? 'back_to_list' }}
 					</a>

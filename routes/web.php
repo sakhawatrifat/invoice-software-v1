@@ -10,6 +10,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Auth\UserAuthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\TicketController as CommonTicketController;
+use App\Http\Controllers\TravelSearchController as CommonTravelSearchController;
 use App\Http\Controllers\TicketReminderController as CommonTicketReminderController;
 use App\Http\Controllers\HotelInvoiceController as CommonHotelInvoiceController;
 use App\Http\Controllers\PaymentController as CommonPaymentController;
@@ -206,7 +207,9 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
     Route::controller(CommonTicketController::class)->group(function () {
         Route::get('/ticket-list', 'index')->name('ticket.index');
         Route::get('/ticket-datatble', 'datatable')->name('ticket.datatable');
+
         Route::get('/ticket/create', 'create')->name('ticket.create');
+
         Route::post('/ticket/store', 'store')->name('ticket.store');
         Route::get('/ticket/status/{id}/{status}', 'status')->name('ticket.status');
 
@@ -220,6 +223,22 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::get('/ticket/edit/{id}', 'edit')->name('ticket.edit');
         Route::put('/ticket/update/{id}', 'update')->name('ticket.update');
         Route::delete('/ticket/delete/{id}', 'destroy')->name('ticket.destroy');
+    });
+
+    //Common Travel Search Routes
+    Route::controller(CommonTravelSearchController::class)->group(function () {
+        Route::get('/ticket/search', 'ticketSearchForm')->name('ticket.search.form');
+        Route::get('/airports/search', 'getAirportSuggestions')->name('airports.search');
+        Route::get('/airports/common', 'getCommonAirports')->name('airports.common');
+        Route::post('/ticket/search/import', 'ticketSearchImport')->name('ticket.search.import');
+        Route::post('/ticket/search/process-flight', 'processFlightData')->name('ticket.search.process.flight');
+
+        Route::get('travel/flights/calendar', 'getFlightCalendar')->name('travel.getFlightCalendar');
+        Route::get('travel/destinations/popular', 'getPopularDestinations')->name('travel.getPopularDestinations');
+        Route::get('travel/hotels/search', 'searchHotels')->name('travel.searchHotels');
+        Route::get('travel/hotels/{hotelId}/prices', 'getHotelPrices')->name('travel.getHotelPrices');
+        Route::post('travel/booking-url', 'getBookingUrl')->name('travel.getBookingUrl');
+        Route::post('travel/booking-link', 'getBookingLink')->name('travel.getBookingLink');
     });
 
     //Common Hotel Invoice Routes

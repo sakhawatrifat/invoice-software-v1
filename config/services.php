@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'travelpayouts' => [
+        'token' => env('TRAVELPAYOUTS_TOKEN'),
+        'marker' => env('TRAVELPAYOUTS_MARKER'),
+        'website_url' => env('TRAVELPAYOUTS_WEBSITE_URL', env('APP_URL')),
+        'use_new_api' => env('TRAVELPAYOUTS_USE_NEW_API', false), // Set to true when new API is approved
+    ],
+
 ];
