@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
 use Auth;
 use File;
@@ -16,13 +16,13 @@ use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 
 use App\Models\User;
-use App\Models\IssuedCardType;
+use App\Models\ExpenseCategory;
 
-class IssuedCardTypeController extends Controller
+class ExpenseCategoryController extends Controller
 {
     public function index()
     {
-        if (!hasPermission('issuedCardType')) {
+        if (!hasPermission('expense_category.index')) {
             return [
                 'is_success' => 0,
                 'icon' => 'error',
@@ -30,35 +30,43 @@ class IssuedCardTypeController extends Controller
             ];
         }
 
-        $createRoute = hasPermission('issuedCardType') ? route('issuedCardType.create') : '';
-        $dataTableRoute = hasPermission('issuedCardType') ? route('issuedCardType.datatable') : '';
+        $createRoute = hasPermission('expense_category.create') ? route('admin.expense_category.create') : '';
+        $dataTableRoute = hasPermission('expense_category.index') ? route('admin.expense_category.datatable') : '';
 
-        return view('common.setup.issuedCardType.index', get_defined_vars());
+        return view('admin.expense_category.index', get_defined_vars());
     }
 
     public function datatable()
     {
         $user = Auth::user();
-        $query = IssuedCardType::latest();
+        $query = ExpenseCategory::with(['creator'])->latest();
 
+        // Properly grouped global search
         if (request()->has('search') && $search = request('search')['value']) {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%");
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
             });
+
+            // Similarly for creator, if needed
+            $creatorIds = User::where('name', 'like', "%{$search}%")->pluck('id')->toArray();
+            if (!empty($creatorIds)) {
+                $query->orWhereIn('created_by', $creatorIds);
+            }
         }
 
         return DataTables::of($query)
             ->addIndexColumn()
             ->addColumn('status', function ($row) {
-                if (!hasPermission('issuedCardType')) {
+                if (!hasPermission('expense_category.status')) {
                     return '
-                        <span class="' . ($row->status == 1 ? 'text-success' : 'text-danger') . '">'
-                            . ($row->status == 1 ? 'Active' : 'Inactive') .
-                        '</span>';
+                        <span class="' . ($row->status == 1 ? 'text-success' : 'text-danger') . '">
+                            ' . ($row->status == 1 ? 'Active' : 'Inactive') . '
+                        </span>';
                 }
 
                 $newStatus = $row->status == 1 ? 0 : 1;
-                $statusUrl = route('issuedCardType.status', ['id' => $row->id, 'status' => $newStatus]);
+                $statusUrl = route('admin.expense_category.status', ['id' => $row->id, 'status' => $newStatus]);
 
                 return '
                     <div class="form-check form-switch">
@@ -68,13 +76,16 @@ class IssuedCardTypeController extends Controller
                             ' . ($row->status == 1 ? 'checked' : '') . '>
                     </div>';
             })
+            ->addColumn('created_by', function ($row) {
+                return $row->creator ? $row->creator->name : 'N/A';
+            })
             ->addColumn('action', function ($row) {
-                $editUrl   = route('issuedCardType.edit', $row->id);
-                $deleteUrl = route('issuedCardType.destroy', $row->id);
+                $editUrl   = route('admin.expense_category.edit', $row->id);
+                $deleteUrl = route('admin.expense_category.destroy', $row->id);
 
                 $buttons = '';
 
-                if (hasPermission('issuedCardType')) {
+                if (hasPermission('expense_category.edit')) {
                     $buttons .= '
                         <a href="' . $editUrl . '" class="btn btn-sm btn-primary">
                             <i class="fa-solid fa-pen-to-square"></i>
@@ -82,7 +93,7 @@ class IssuedCardTypeController extends Controller
                     ';
                 }
 
-                if (hasPermission('issuedCardType')) {
+                if (hasPermission('expense_category.delete')) {
                     $buttons .= '
                         <button class="btn btn-sm btn-danger delete-table-data-btn"
                             data-id="' . $row->id . '"
@@ -103,7 +114,7 @@ class IssuedCardTypeController extends Controller
 
     public function create()
     {
-        if (!hasPermission('issuedCardType')) {
+        if (!hasPermission('expense_category.create')) {
             return [
                 'is_success' => 0,
                 'icon' => 'error',
@@ -111,15 +122,15 @@ class IssuedCardTypeController extends Controller
             ];
         }
 
-        $listRoute = hasPermission('issuedCardType') ? route('issuedCardType.index') : '';
-        $saveRoute = hasPermission('issuedCardType') ? route('issuedCardType.store') : '';
+        $listRoute = hasPermission('expense_category.index') ? route('admin.expense_category.index') : '';
+        $saveRoute = hasPermission('expense_category.create') ? route('admin.expense_category.store') : '';
 
-        return view('common.setup.issuedCardType.addEdit', get_defined_vars());
+        return view('admin.expense_category.addEdit', get_defined_vars());
     }
 
     public function createAjax(Request $request)
     {
-        if (!hasPermission('issuedCardType')) {
+        if (!hasPermission('expense_category.create')) {
             return [
                 'is_success' => 0,
                 'icon' => 'error',
@@ -127,13 +138,13 @@ class IssuedCardTypeController extends Controller
             ];
         }
 
-        $listRoute = hasPermission('issuedCardType') ? route('issuedCardType.index') : '';
-        $saveRoute = hasPermission('issuedCardType') ? route('issuedCardType.store') : '';
+        $listRoute = hasPermission('expense_category.index') ? route('admin.expense_category.index') : '';
+        $saveRoute = hasPermission('expense_category.create') ? route('admin.expense_category.store') : '';
 
         $response = [
             'is_success' => 1,
             'icon' => 'success',
-            'view' => view('common.setup.issuedCardType.ajaxForm', get_defined_vars())->render()
+            'view' => view('admin.expense_category.ajaxForm', get_defined_vars())->render()
         ];
 
         return $response;
@@ -141,15 +152,7 @@ class IssuedCardTypeController extends Controller
 
     public function store(Request $request)
     {
-        if (!hasPermission('issuedCardType')) {
-            return [
-                'is_success' => 0,
-                'icon' => 'error',
-                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
-            ];
-        }
-        
-        if (!hasPermission('issuedCardType')) {
+        if (!hasPermission('expense_category.create')) {
             return [
                 'is_success' => 0,
                 'icon' => 'error',
@@ -162,7 +165,7 @@ class IssuedCardTypeController extends Controller
 
     public function status($id, $status)
     {
-        if (!hasPermission('issuedCardType')) {
+        if (!hasPermission('expense_category.status')) {
             return [
                 'is_success' => 0,
                 'icon' => 'error',
@@ -179,8 +182,8 @@ class IssuedCardTypeController extends Controller
         }
         
         $user = Auth::user();
-        $instructionSource = IssuedCardType::where('id', $id)->first();
-        if(empty($instructionSource)){
+        $category = ExpenseCategory::where('id', $id)->first();
+        if(empty($category)){
             return [
                 'is_success' => 0,
                 'icon' => 'error',
@@ -188,8 +191,9 @@ class IssuedCardTypeController extends Controller
             ];
         }
 
-        $instructionSource->status = $status;
-        $instructionSource->save();
+        $category->status = $status;
+        $category->updated_by = $user->id;
+        $category->save();
         
         $statusName = $status == 1 ? 'Active' : 'Inactive';
         return [
@@ -201,7 +205,7 @@ class IssuedCardTypeController extends Controller
 
     public function edit($id)
     {
-        if (!hasPermission('issuedCardType')) {
+        if (!hasPermission('expense_category.edit')) {
             return [
                 'is_success' => 0,
                 'icon' => 'error',
@@ -210,20 +214,20 @@ class IssuedCardTypeController extends Controller
         }
 
         $user = Auth::user();
-        $listRoute = hasPermission('issuedCardType') ? route('issuedCardType.index') : '';
-        $saveRoute = hasPermission('issuedCardType') ? route('issuedCardType.update', $id) : '';
+        $listRoute = hasPermission('expense_category.index') ? route('admin.expense_category.index') : '';
+        $saveRoute = hasPermission('expense_category.edit') ? route('admin.expense_category.update', $id) : '';
 
-        $editData = IssuedCardType::where('id', $id)->first();
+        $editData = ExpenseCategory::where('id', $id)->first();
         if(empty($editData)){
             abort(404);
         }
-
-        return view('common.setup.issuedCardType.addEdit', get_defined_vars());
+            
+        return view('admin.expense_category.addEdit', get_defined_vars());
     }
 
     public function update(Request $request, $id)
     {
-        if (!hasPermission('issuedCardType')) {
+        if (!hasPermission('expense_category.edit')) {
             return [
                 'is_success' => 0,
                 'icon' => 'error',
@@ -236,7 +240,7 @@ class IssuedCardTypeController extends Controller
 
     public function destroy($id)
     {
-        if (!hasPermission('issuedCardType')) {
+        if (!hasPermission('expense_category.delete')) {
             return [
                 'is_success' => 0,
                 'icon' => 'error',
@@ -245,7 +249,7 @@ class IssuedCardTypeController extends Controller
         }
 
         $user = Auth::user();
-        $data = IssuedCardType::where('id', $id)->first();
+        $data = ExpenseCategory::where('id', $id)->first();
         if(empty($data)){
             return [
                 'is_success' => 0,
@@ -253,6 +257,9 @@ class IssuedCardTypeController extends Controller
                 'message' => getCurrentTranslation()['data_not_found'] ?? 'data_not_found'
             ];
         }
+
+        $data->deleted_by = $user->id;
+        $data->save();
 
         $data->delete();
 
@@ -267,10 +274,8 @@ class IssuedCardTypeController extends Controller
     {
         $messages = getCurrentTranslation();
 
-        $logoMimes = 'heic,jpg,jpeg,png';
-        $maxImageSize = 3072;
         $rules = [
-            'name' => 'required|string|max:255|unique:airlines,name,' . ($id ?? 'NULL'),
+            'name' => 'required|string|max:255|unique:expense_categories,name,' . ($id ?? 'NULL'),
             'status' => 'required|in:0,1',
         ];
 
@@ -278,10 +283,7 @@ class IssuedCardTypeController extends Controller
             'required' => $messages['required_message'] ?? 'This field is required.',
             'unique' => $messages['unique_message'] ?? 'This value has already been taken.',
             'name.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . '255',
-            'image' => $messages['image_message'] ?? 'This must be an image.',
-            'mimes' => ($messages['mimes_message'] ?? 'The file must be of type') . ' ('.$logoMimes.').',
             'in' => $messages['in_message'] ?? 'The selected value is invalid.',
-            'logo.max' => ($messages['max_file_size_message'] ?? 'The maximum allowed file size for this field is: ') . ($maxImageSize / 1024) . ' MB',
         ]);
 
         if ($validator->fails()) {
@@ -293,10 +295,10 @@ class IssuedCardTypeController extends Controller
         }
 
         $user = Auth::user();
-        $instructionSource = null;
+        $category = null;
         if (isset($id)) {
-            $instructionSource = IssuedCardType::where('id', $id)->first();
-            if(empty($instructionSource)){
+            $category = ExpenseCategory::where('id', $id)->first();
+            if(empty($category)){
                 return [
                     'is_success' => 0,
                     'icon' => 'error',
@@ -305,16 +307,22 @@ class IssuedCardTypeController extends Controller
             }
         }
 
-        if (empty($instructionSource)) {
-            $instructionSource = new IssuedCardType();
+        if (empty($category)) {
+            $category = new ExpenseCategory();
+            $category->created_by = Auth::id();
+        } else {
+            $category->updated_by = Auth::id();
         }
+        
 
         DB::beginTransaction();
         try {
-            $instructionSource->name = $request->name ?? null;
-            $instructionSource->status = $request->status ?? 0;
+            $category->name = $request->name ?? null;
+            $category->description = $request->description ?? null;
+            $category->status = $request->status ?? 0;
 
-            $instructionSource->save();
+            $category->save();
+
 
             DB::commit();
             $response = [
@@ -322,19 +330,19 @@ class IssuedCardTypeController extends Controller
                 'icon' => 'success',
                 'is_ajax_modal' => $request->is_ajax_modal,
                 'for_input' => $request->for_input,
-                'created_data' => $instructionSource,
+                'created_data' => $category,
                 'message' => getCurrentTranslation()['data_saved'] ?? 'data_saved'
             ];
             
             // Add redirect_url only when creating new data (not updating) and not in ajax modal
             if ((!isset($id) || empty($id)) && !$request->is_ajax_modal) {
-                $response['redirect_url'] = route('issuedCardType.index');
+                $response['redirect_url'] = route('admin.expense_category.index');
             }
             
             return $response;
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('IssuedCardType store error', ['error' => $e->getMessage()]);
+            \Log::error('ExpenseCategory store error', ['error' => $e->getMessage()]);
 
             return [
                 'is_success' => 0,

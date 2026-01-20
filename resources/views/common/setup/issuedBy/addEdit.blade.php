@@ -47,7 +47,7 @@
 					@method('put')
 				@endif
 
-				<div class="col-md-12 m-auto">
+				<div class="col-md-8 col-lg-6 m-auto">
 					<div class="card rounded border mt-5 bg-white append-item-container">
 						<div class="card-header">
 							@if(isset($editData))
@@ -62,7 +62,7 @@
 								<div class="col-md-6">
 									<div class="form-item mb-5">
 										<label class="form-label">{{ $getCurrentTranslation['name'] ?? 'name' }}:</label>
-										<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['enter_name'] ?? 'enter_name' }}" name="name" ip-required value="{{ old('name') ?? $editData->name ?? '' }}"/>
+										<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['enter_name'] ?? 'enter_name' }}" name="name" ip-required value="{{ old('name') ?? (isset($editData) ? $editData->name : '') }}"/>
 										@error('name')
 											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 										@enderror
@@ -76,7 +76,7 @@
 												0 => 'Inactive',
 												1 => 'Active',
 											];
-											$selected = $editData->status ?? '';
+											$selected = old('status') ?? (isset($editData) ? $editData->status : '');
 										@endphp
 										<label class="form-label">{{ $getCurrentTranslation['status'] ?? 'status' }}:</label>
 										<select name="status" class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" ip-required>

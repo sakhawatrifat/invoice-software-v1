@@ -400,9 +400,9 @@
 				@endif
 
 				@php
-					$reportRoutes = ['admin.grossProfitLossReport'];
+					$reportRoutes = ['admin.grossProfitLossReport', 'admin.netProfitLossReport'];
 				@endphp
-				@if(hasPermission('admin.grossProfitLossReport'))
+				@if(hasPermission('admin.grossProfitLossReport') || hasPermission('admin.netProfitLossReport'))
 				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($reportRoutes, 'hover show') }} ">
 					<span class="menu-link">
 						<span class="menu-icon">
@@ -412,6 +412,7 @@
 						<span class="menu-arrow"></span>
 					</span>
 					<div class="menu-sub menu-sub-accordion {{ getActiveClass($reportRoutes, 'show') }}">
+						@if(hasPermission('admin.grossProfitLossReport'))
 						<div class="menu-item">
 							<a class="menu-link {{ getCurrentRouteName() == 'admin.grossProfitLossReport' ? 'active' : '' }}" href="{{ route('admin.grossProfitLossReport') }}?invoice_date_range={{ getDateRange(6, 'Previous') }}">
 								<span class="menu-bullet">
@@ -420,6 +421,17 @@
 								<span class="menu-title">{{ $getCurrentTranslation['gross_profit_loss_report'] ?? 'gross_profit_loss_report' }}</span>
 							</a>
 						</div>
+						@endif
+						@if(hasPermission('admin.netProfitLossReport'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.netProfitLossReport' ? 'active' : '' }}" href="{{ route('admin.netProfitLossReport') }}?date_range={{ getDateRange(6, 'Previous') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['net_profit_loss_report'] ?? 'net_profit_loss_report' }}</span>
+							</a>
+						</div>
+						@endif
 					</div>
 				</div>
 				@endif
@@ -640,6 +652,91 @@
 								<span class="menu-title">{{ $getCurrentTranslation['salary_list'] ?? 'Salary List' }}</span>
 							</a>
 						</div>
+					</div>
+				</div>
+				@endif
+
+				@php
+					$hasExpensePermissions = hasPermission('expense_category.index') || hasPermission('expense_category.create') || 
+					                          hasPermission('expense.index') || hasPermission('expense.create');
+				@endphp
+				@if($hasExpensePermissions)
+				<!-- Expense Module -->
+				<div class="menu-item">
+					<div class="menu-content pt-8 pb-2">
+						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>{{ $getCurrentTranslation['expense_module'] ?? 'Expense Module' }}</strong></span>
+					</div>
+				</div>
+				@endif
+
+				{{-- Expense Category Management --}}
+				@php $expenseCategoryRoutes = ['admin.expense_category.index','admin.expense_category.datatable','admin.expense_category.create','admin.expense_category.store','admin.expense_category.status','admin.expense_category.edit','admin.expense_category.update','admin.expense_category.destroy']; @endphp
+				@if(hasPermission('expense_category.index') || hasPermission('expense_category.create'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($expenseCategoryRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fa-solid fa-tags h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['manage_expense_category'] ?? 'manage_expense_category' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($expenseCategoryRoutes, 'show') }}">
+						@if(hasPermission('expense_category.index'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.expense_category.index' ? 'active' : '' }}" href="{{ route('admin.expense_category.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['expense_category_list'] ?? 'expense_category_list' }}</span>
+							</a>
+						</div>
+						@endif
+						@if(hasPermission('expense_category.create'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.expense_category.create' ? 'active' : '' }}" href="{{ route('admin.expense_category.create') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['create_expense_category'] ?? 'create_expense_category' }}</span>
+							</a>
+						</div>
+						@endif
+					</div>
+				</div>
+				@endif
+
+				{{-- Expense Management --}}
+				@php $expenseRoutes = ['admin.expense.index','admin.expense.datatable','admin.expense.create','admin.expense.store','admin.expense.edit', 'admin.expense.show', 'admin.expense.update','admin.expense.destroy']; @endphp
+				@if(hasPermission('expense.index') || hasPermission('expense.create'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($expenseRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fas fa-minus-circle h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['manage_expense'] ?? 'manage_expense' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($expenseRoutes, 'show') }}">
+						@if(hasPermission('expense.index'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.expense.index' ? 'active' : '' }}" href="{{ route('admin.expense.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['expense_list'] ?? 'expense_list' }}</span>
+							</a>
+						</div>
+						@endif
+						@if(hasPermission('expense.create'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.expense.create' ? 'active' : '' }}" href="{{ route('admin.expense.create') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['create_expense'] ?? 'create_expense' }}</span>
+							</a>
+						</div>
+						@endif
 					</div>
 				</div>
 				@endif

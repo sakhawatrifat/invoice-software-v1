@@ -993,7 +993,7 @@
 
 <!-- 💬 Modal for showing due data list -->
 <div class="modal fade" id="dueListModal" tabindex="-1" aria-labelledby="dueListModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-warning">
                 <h5 class="modal-title fw-bold" id="dueListModalLabel">

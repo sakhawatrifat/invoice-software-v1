@@ -17,13 +17,13 @@
 					</li>
 					@if(isset($listRoute) && !empty($listRoute))
 						<li class="breadcrumb-item text-muted">
-							<a href="{{ $listRoute }}" class="text-muted text-hover-primary">{{ $getCurrentTranslation['card_owner_list'] ?? 'card_owner_list' }}</a> &nbsp; - 
+							<a href="{{ $listRoute }}" class="text-muted text-hover-primary">{{ $getCurrentTranslation['expense_category_list'] ?? 'expense_category_list' }}</a> &nbsp; - 
 						</li>
 					@endif
 					@if(isset($editData))
-						<li class="breadcrumb-item">{{ $getCurrentTranslation['edit_card_owner'] ?? 'edit_card_owner' }}</li>
+						<li class="breadcrumb-item">{{ $getCurrentTranslation['edit_expense_category'] ?? 'edit_expense_category' }}</li>
 					@else
-						<li class="breadcrumb-item">{{ $getCurrentTranslation['create_card_owner'] ?? 'create_card_owner' }}</li>
+						<li class="breadcrumb-item">{{ $getCurrentTranslation['create_expense_category'] ?? 'create_expense_category' }}</li>
 					@endif
 				</ul>
 			</div>
@@ -51,32 +51,42 @@
 					<div class="card rounded border mt-5 bg-white append-item-container">
 						<div class="card-header">
 							@if(isset($editData))
-								<h3 class="card-title">{{ $getCurrentTranslation['edit_card_owner'] ?? 'edit_card_owner' }}</h3>
+								<h3 class="card-title">{{ $getCurrentTranslation['edit_expense_category'] ?? 'edit_expense_category' }}</h3>
 							@else
-								<h3 class="card-title">{{ $getCurrentTranslation['create_card_owner'] ?? 'create_card_owner' }}</h3>
+								<h3 class="card-title">{{ $getCurrentTranslation['create_expense_category'] ?? 'create_expense_category' }}</h3>
 							@endif
 							<div class="card-toolbar"></div>
 						</div>
 						<div class="card-body">
 							<div class="row">
-								<div class="col-md-6">
+								<div class="col-md-12">
 									<div class="form-item mb-5">
-										<label class="form-label">{{ $getCurrentTranslation['name'] ?? 'name' }}:</label>
-										<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['enter_name'] ?? 'enter_name' }}" name="name" ip-required value="{{ old('name') ?? (isset($editData) ? $editData->name : '') }}"/>
+										<label class="form-label">{{ $getCurrentTranslation['expense_category_name'] ?? 'expense_category_name' }}:</label>
+										<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['enter_expense_category_name'] ?? 'enter_expense_category_name' }}" name="name" ip-required value="{{ old('name') ?? ($editData->name ?? '') }}"/>
 										@error('name')
 											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 										@enderror
 									</div>
 								</div>
 
-								<div class="col-md-6">
+								<div class="col-md-12">
+									<div class="form-item mb-5">
+										<label class="form-label">{{ $getCurrentTranslation['description'] ?? 'description' }}:</label>
+										<textarea class="form-control" placeholder="{{ $getCurrentTranslation['enter_description'] ?? 'enter_description' }}" name="description" rows="3">{{ old('description') ?? ($editData->description ?? '') }}</textarea>
+										@error('description')
+											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+										@enderror
+									</div>
+								</div>
+
+								<div class="col-md-12">
 									<div class="mb-5">
 										@php
 											$options = [
 												0 => 'Inactive',
 												1 => 'Active',
 											];
-											$selected = old('status') ?? (isset($editData) ? $editData->status : '');
+											$selected = old('status') ?? ($editData->status ?? '');
 										@endphp
 										<label class="form-label">{{ $getCurrentTranslation['status'] ?? 'status' }}:</label>
 										<select name="status" class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" ip-required>
@@ -89,11 +99,8 @@
 										</select>
 									</div>
 								</div>
-
-
 							</div>
 						</div>
-
 					</div>
 					<div class="d-flex justify-content-end my-10">
 						<button type="submit" class="btn btn-primary form-submit-btn ajax-submit append-submit">
@@ -104,9 +111,7 @@
 							@endif
 						</button>
 					</div>
-
 				</div>
-
 			</form>
 		</div>
 		<!--end::Content container-->

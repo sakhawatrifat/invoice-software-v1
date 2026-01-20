@@ -20,6 +20,8 @@ use App\Models\TicketFareSummary;
 
 use App\Models\Payment;
 use App\Models\PaymentDocument;
+use App\Models\Salary;
+use App\Models\Expense;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -206,7 +208,89 @@ class ReportController extends Controller
 
             $profitLossData = $profitLossQuery->get();
         
-        return view('admin.report.profitLoss', get_defined_vars());
+        return view('admin.report.grossProfitLoss', get_defined_vars());
+    }
+
+    public function netProfitLossReport(Request $request){
+        if (!hasPermission('admin.netProfitLossReport')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $user = Auth::user();
+
+        // --- PAYMENT DATA QUERY (Gross Profit) ---
+        $profitLossQuery = Payment::with('ticket', 'paymentDocuments', 'introductionSource', 'country', 'issuedBy', 'airline', 'transferTo', 'paymentMethod', 'issuedCardType', 'cardOwner');
+        
+        if (!empty($request->date_range) && $request->date_range != 0) {
+            $dateRange = $request->date_range;
+            [$start, $end] = explode('-', $dateRange);
+            $startDate = Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+            $endDate = Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+            $profitLossQuery->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('invoice_date', [$startDate, $endDate]);
+            });
+        }
+
+        $profitLossData = $profitLossQuery->get();
+
+        // --- SALARY DATA QUERY (Separate query, not joining) ---
+        $salaryQuery = Salary::with('employee');
+        
+        if (!empty($request->date_range) && $request->date_range != 0) {
+            $dateRange = $request->date_range;
+            [$start, $end] = explode('-', $dateRange);
+            $startDate = Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+            $endDate = Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+            $salaryQuery->where(function ($q) use ($startDate, $endDate) {
+                // Filter by payment_date if available
+                $q->where(function($q1) use ($startDate, $endDate) {
+                    $q1->whereNotNull('payment_date')
+                       ->whereBetween('payment_date', [$startDate, $endDate]);
+                })
+                // Or filter by year and month for salaries without payment_date
+                ->orWhere(function($q2) use ($startDate, $endDate) {
+                    $q2->whereNull('payment_date')
+                       ->where(function($q3) use ($startDate, $endDate) {
+                           // Get all year-month combinations within the date range
+                           $current = $startDate->copy();
+                           $yearMonths = [];
+                           while ($current <= $endDate) {
+                               $yearMonths[] = ['year' => $current->year, 'month' => $current->month];
+                               $current->addMonth();
+                           }
+                           
+                           $q3->where(function($q4) use ($yearMonths) {
+                               foreach ($yearMonths as $ym) {
+                                   $q4->orWhere(function($q5) use ($ym) {
+                                       $q5->where('year', $ym['year'])->where('month', $ym['month']);
+                                   });
+                               }
+                           });
+                       });
+                });
+            });
+        }
+
+        $salaryData = $salaryQuery->get();
+
+        // --- EXPENSE DATA QUERY (Separate query, not joining) ---
+        $expenseQuery = Expense::with('category', 'forUser');
+        
+        if (!empty($request->date_range) && $request->date_range != 0) {
+            $dateRange = $request->date_range;
+            [$start, $end] = explode('-', $dateRange);
+            $startDate = Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+            $endDate = Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+
+            $expenseQuery->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('expense_date', [$startDate, $endDate]);
+            });
+        }
+
+        $expenseData = $expenseQuery->get();
+        
+        return view('admin.report.netProfitLoss', get_defined_vars());
     }
 
 }

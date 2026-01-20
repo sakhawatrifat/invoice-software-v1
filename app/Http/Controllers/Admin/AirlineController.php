@@ -417,7 +417,7 @@ class AirlineController extends Controller
 
 
             DB::commit();
-            return [
+            $response = [
                 'is_success' => 1,
                 'icon' => 'success',
                 'is_ajax_modal' => $request->is_ajax_modal,
@@ -425,6 +425,13 @@ class AirlineController extends Controller
                 'created_data' => $airline,
                 'message' => getCurrentTranslation()['data_saved'] ?? 'data_saved'
             ];
+            
+            // Add redirect_url only when creating new data (not updating) and not in ajax modal
+            if ((!isset($id) || empty($id)) && !$request->is_ajax_modal) {
+                $response['redirect_url'] = route('admin.airline.index');
+            }
+            
+            return $response;
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Airline store error', ['error' => $e->getMessage()]);

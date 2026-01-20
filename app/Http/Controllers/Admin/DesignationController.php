@@ -345,7 +345,7 @@ class DesignationController extends Controller
 
 
             DB::commit();
-            return [
+            $response = [
                 'is_success' => 1,
                 'icon' => 'success',
                 'is_ajax_modal' => $request->is_ajax_modal,
@@ -353,6 +353,13 @@ class DesignationController extends Controller
                 'created_data' => $designation,
                 'message' => getCurrentTranslation()['data_saved'] ?? 'data_saved'
             ];
+            
+            // Add redirect_url only when creating new data (not updating) and not in ajax modal
+            if ((!isset($id) || empty($id)) && !$request->is_ajax_modal) {
+                $response['redirect_url'] = route('admin.designation.index');
+            }
+            
+            return $response;
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Designation store error', ['error' => $e->getMessage()]);

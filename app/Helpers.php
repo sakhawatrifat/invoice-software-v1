@@ -1289,10 +1289,26 @@ if (!function_exists('getPermissionList')) {
                 ],
             ],
             [
+                'title' => 'manage_expense',
+                'for' => 'admin',
+                'permissions' => [
+                    ['title' => 'expense_category_list', 'key' => 'expense_category.index'],
+                    ['title' => 'expense_category_create', 'key' => 'expense_category.create'],
+                    ['title' => 'expense_category_edit', 'key' => 'expense_category.edit'],
+                    ['title' => 'expense_category_status', 'key' => 'expense_category.status'],
+                    ['title' => 'expense_category_delete', 'key' => 'expense_category.delete'],
+                    ['title' => 'expense_list', 'key' => 'expense.index'],
+                    ['title' => 'expense_create', 'key' => 'expense.create'],
+                    ['title' => 'expense_edit', 'key' => 'expense.edit'],
+                    ['title' => 'expense_delete', 'key' => 'expense.delete'],
+                ],
+            ],
+            [
                 'title' => 'manage_reports',
                 'for' => 'admin',
                 'permissions' => [
                     ['title' => 'gross_profit_loss_report', 'key' => 'admin.grossProfitLossReport'],
+                    ['title' => 'net_profit_loss_report', 'key' => 'admin.netProfitLossReport'],
                     ['title' => 'attendance_report', 'key' => 'admin.attendance.report'],
                 ],
             ],

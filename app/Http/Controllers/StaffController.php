@@ -768,11 +768,18 @@ class StaffController extends Controller
             }            
 
             DB::commit();
-            return [
+            $response = [
                 'is_success' => 1,
                 'icon' => 'success',
                 'message' => getCurrentTranslation()['data_saved'] ?? 'data_saved'
             ];
+            
+            // Add redirect_url only when creating new data (not updating)
+            if (!isset($id) || empty($id)) {
+                $response['redirect_url'] = route('admin.staff.index');
+            }
+            
+            return $response;
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Staff store error', ['error' => $e->getMessage()]);

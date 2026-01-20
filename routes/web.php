@@ -33,6 +33,8 @@ use App\Http\Controllers\Admin\LanguageController as AdminLanguageController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
 use App\Http\Controllers\Admin\DesignationController as AdminDesignationController;
+use App\Http\Controllers\Admin\ExpenseCategoryController as AdminExpenseCategoryController;
+use App\Http\Controllers\Admin\ExpenseController as AdminExpenseController;
 use App\Http\Controllers\AttendanceController;
 
 // Admin Controllers
@@ -184,6 +186,31 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
                 Route::delete('/designation/delete/{id}', 'destroy')->name('designation.destroy');
             });
 
+            //Expense Category Routes
+            Route::controller(AdminExpenseCategoryController::class)->group(function () {
+                Route::get('/expense-category-list', 'index')->name('expense_category.index');
+                Route::get('/expense-category-datatble', 'datatable')->name('expense_category.datatable');
+                Route::get('/expense-category/create', 'create')->name('expense_category.create');
+                Route::get('/expense-category/create/ajax', 'createAjax')->name('expense_category.create.ajax');
+                Route::post('/expense-category/store', 'store')->name('expense_category.store');
+                Route::get('/expense-category/status/{id}/{status}', 'status')->name('expense_category.status');
+                Route::get('/expense-category/edit/{id}', 'edit')->name('expense_category.edit');
+                Route::put('/expense-category/update/{id}', 'update')->name('expense_category.update');
+                Route::delete('/expense-category/delete/{id}', 'destroy')->name('expense_category.destroy');
+            });
+
+            //Expense Routes
+            Route::controller(AdminExpenseController::class)->group(function () {
+                Route::get('/expense-list', 'index')->name('expense.index');
+                Route::get('/expense-datatble', 'datatable')->name('expense.datatable');
+                Route::get('/expense/create', 'create')->name('expense.create');
+                Route::post('/expense/store', 'store')->name('expense.store');
+                Route::get('/expense/show/{id}', 'show')->name('expense.show');
+                Route::get('/expense/edit/{id}', 'edit')->name('expense.edit');
+                Route::put('/expense/update/{id}', 'update')->name('expense.update');
+                Route::delete('/expense/delete/{id}', 'destroy')->name('expense.destroy');
+            });
+
             //Homepage CRUD Routes
             Route::controller(AdminHomepageController::class)->group(function () {
                 Route::get('/homepage-list', 'index')->name('homepage.index');
@@ -216,6 +243,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
             //Admin Report Routes
             Route::controller(AdminReportController::class)->group(function () {
                 Route::get('/gross-profit-loss-report', 'grossProfitLossReport')->name('grossProfitLossReport');
+                Route::get('/net-profit-loss-report', 'netProfitLossReport')->name('netProfitLossReport');
             });
 
             //Attendance Report Routes

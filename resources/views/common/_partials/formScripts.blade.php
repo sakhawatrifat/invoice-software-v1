@@ -293,19 +293,42 @@
                             toastr.success(response.message);
                         }else{
                             var $icon = response.icon
-                            Swal.fire({
-                                icon: $icon,
-                                title: (getCurrentTranslation[$icon] || $icon).toUpperCase(),
-                                text: response.message,
-                                confirmButtonText: getCurrentTranslation.ok || 'ok',
-                                allowOutsideClick: true,
-                            }).then((result) => {
-                                // Set scroll flag before reload
-                                if (result.isConfirmed || result.isDismissed) {
-                                    localStorage.setItem('scrollToTopAfterReload', 'true');
-                                    location.reload();
-                                }
-                            });
+                            if (response.redirect_url && response.redirect_url !== null) {
+                                // Show alert modal and redirect without user click
+                                Swal.fire({
+                                    icon: $icon,
+                                    title: (getCurrentTranslation[$icon] || $icon).toUpperCase(),
+                                    text: response.message,
+                                    html: `
+                                        <p>${response.message}</p>
+                                        <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                                            ${response.redirection_title || 'Redirecting...'}
+                                        </p>
+                                    `,
+                                    allowOutsideClick: false,
+                                    allowEscapeKey: false,
+                                    didOpen: (modal) => {
+                                        // Auto-redirect after 2 seconds
+                                        setTimeout(() => {
+                                            window.location.href = response.redirect_url;
+                                        }, 2000);
+                                    }
+                                });
+                            } else {
+                                // Show full modal and reload
+                                Swal.fire({
+                                    icon: $icon,
+                                    title: (getCurrentTranslation[$icon] || $icon).toUpperCase(),
+                                    text: response.message,
+                                    confirmButtonText: getCurrentTranslation.ok || 'ok',
+                                    allowOutsideClick: true,
+                                }).then((result) => {
+                                    if (result.isConfirmed || result.isDismissed) {
+                                        localStorage.setItem('scrollToTopAfterReload', 'true');
+                                        location.reload();
+                                    }
+                                });
+                            }
                             // Optional: reset the form
                             //$form[0].reset();
                         }
