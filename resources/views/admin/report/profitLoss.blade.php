@@ -16,7 +16,7 @@
 						<a href="{{ route((Auth::user()->user_type == 'admin') ? 'admin.dashboard' : 'user.dashboard') }}" class="text-muted text-hover-primary">{{ $getCurrentTranslation['dashboard'] ?? 'dashboard' }}</a> &nbsp; - 
 					</li>
 					
-					<li class="breadcrumb-item">{{ $getCurrentTranslation['profit_loss_report'] ?? 'profit_loss_report' }}</li>
+					<li class="breadcrumb-item">{{ $getCurrentTranslation['gross_profit_loss_report'] ?? 'gross_profit_loss_report' }}</li>
 				</ul>
 			</div>
 			<div class="d-flex align-items-center gap-2 gap-lg-3">
@@ -391,7 +391,7 @@
 
 										<div class="col-md-12">
 											<div class="d-flex justify-content-end mt-0">
-												<a class="btn btn-secondary btn-sm me-3" href="{{ route('admin.profitLossReport') }}?invoice_date_range={{ getDateRange(6, 'Previous') }}">
+												<a class="btn btn-secondary btn-sm me-3" href="{{ route('admin.grossProfitLossReport') }}?invoice_date_range={{ getDateRange(6, 'Previous') }}">
 													{{ $getCurrentTranslation['reset'] ?? 'reset' }}
 												</a>
 												<button type="type" class="btn btn-primary btn-sm filter-data-btn">
@@ -415,10 +415,10 @@
 			<div class="card rounded border mt-5 p-10 bg-white">
 				<div class="card-header p-0" style="min-height: unset">
 					<h3 class="card-title mb-3 mt-0">
-						{{ $getCurrentTranslation['profit_loss_report'] ?? 'profit_loss_report' }}
+						{{ $getCurrentTranslation['gross_profit_loss_report'] ?? 'gross_profit_loss_report' }}
 					</h3>
 				</div>
-				<div class="card-body">
+				<div class="card-body px-0">
 					@php
 						// --- PREPROCESS: CALCULATE PAID & DUE AMOUNTS ---
 						$profitLossData = $profitLossData->map(function ($item) {

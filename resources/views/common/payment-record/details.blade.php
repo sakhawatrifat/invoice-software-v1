@@ -141,15 +141,19 @@
                                                             <img src="{{ $doc->file_full_url }}" alt="Document" style="max-height:100px; max-width:100px; object-fit:contain;">
                                                         </div>
                                                     @else
-                                                        <a class="append-prev file-prev-thumb mt-2 mx-5" href="{{ $doc->file_full_url }}" target="_blank" 
-                                                            onclick="return confirm('Are you sure you want to download this file?');" download>
-                                                                @if($extension == 'pdf') 
+                                                        @if($extension == 'pdf')
+                                                            <div class="append-prev mf-prev hover-effect m-0 mx-5" data-src="{{ $doc->file_full_url }}">
+                                                                <a href="javascript:void(0);" class="append-prev file-prev-thumb mt-2">
                                                                     <i class="fas fa-file-pdf"></i>
-                                                                @else
+                                                                </a>
+                                                            </div>
+                                                        @else
+                                                            <a class="append-prev file-prev-thumb mt-2 mx-5" href="{{ $doc->file_full_url }}" target="_blank" 
+                                                                onclick="return confirm('Are you sure you want to download this file?');" download>
                                                                     <i class="fas fa-file-alt"></i>
-                                                                @endif
-                                                                {{-- {{ basename($doc->file_url) }} --}}
-                                                            </a>
+                                                                    {{-- {{ basename($doc->file_url) }} --}}
+                                                                </a>
+                                                        @endif
                                                     @endif
                                                 @endforeach
                                             </div>

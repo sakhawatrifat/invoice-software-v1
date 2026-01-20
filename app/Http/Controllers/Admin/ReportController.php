@@ -28,7 +28,10 @@ use Illuminate\Support\Facades\Mail;
 
 class ReportController extends Controller
 {
-    public function profitLossReport(Request $request){
+    public function grossProfitLossReport(Request $request){
+        if (!hasPermission('admin.grossProfitLossReport')) {
+            abort(403, 'Unauthorized action.');
+        }
         $user = Auth::user();
 
         $profitLossQuery = Payment::with('ticket', 'paymentDocuments', 'introductionSource', 'country', 'issuedBy', 'airline', 'transferTo', 'paymentMethod', 'issuedCardType', 'cardOwner');

@@ -62,9 +62,9 @@
 
 										@endphp
 										<div class="file-input-box">
-											<input name="image" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? '' : '' }}>
+											<input name="image" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? '' : '' }} data-old="{{ $selected ? $selected : '' }}">
 										</div>
-										<div class="preview-image">
+										<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
 											<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="100px" style="{{ $selected ? '' : 'display: none;' }}">
 										</div>
 										@error('image')
@@ -83,15 +83,6 @@
 									</div>
 								</div>
 
-								<div class="col-md-6">
-									<div class="form-item mb-5">
-										<label class="form-label">{{ $getCurrentTranslation['designation_label'] ?? 'designation_label' }}:</label>
-										<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['designation_placeholder'] ?? 'designation_placeholder' }}" name="designation" ip-required value="{{ old('designation') ?? $editData->designation ?? '' }}"/>
-										@error('designation')
-											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
-										@enderror
-									</div>
-								</div>
 
 								{{-- <div class="col-md-6">
 									<div class="form-item mb-5">
@@ -265,9 +256,9 @@
 
 											@endphp
 											<div class="file-input-box">
-												<input name="dark_logo" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }}>
+												<input name="dark_logo" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ? $selected : '' }}">
 											</div>
-											<div class="preview-image">
+											<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
 												<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="30%" style="{{ $selected ? '' : 'display: none;' }}">
 											</div>
 											@error('dark_logo')
@@ -315,9 +306,9 @@
 
 											@endphp
 											<div class="file-input-box">
-												<input name="dark_icon" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }}>
+												<input name="dark_icon" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ? $selected : '' }}">
 											</div>
-											<div class="preview-image">
+											<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
 												<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="30%" style="{{ $selected ? '' : 'display: none;' }}">
 											</div>
 											@error('dark_icon')
@@ -365,9 +356,9 @@
 
 											@endphp
 											<div class="file-input-box">
-												<input name="dark_seal" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }}>
+												<input name="dark_seal" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ? $selected : '' }}">
 											</div>
-											<div class="preview-image">
+											<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
 												<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="30%" style="{{ $selected ? '' : 'display: none;' }}">
 											</div>
 											@error('dark_seal')

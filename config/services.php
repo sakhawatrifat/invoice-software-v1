@@ -42,4 +42,10 @@ return [
         'use_new_api' => env('TRAVELPAYOUTS_USE_NEW_API', false), // Set to true when new API is approved
     ],
 
+    'innotraveltech' => [
+        'api_key' => env('INNOTRAVELTECH_API_KEY', 'S5668328683392945113'),
+        'secret_code' => env('INNOTRAVELTECH_SECRET_CODE', '2uzKdwNMna7m434jHQd2K2wPmCPJHQ4akuB'),
+        'base_url' => env('INNOTRAVELTECH_BASE_URL', 'https://serviceapi.nakamura-tour.com'),
+    ],
+
 ];

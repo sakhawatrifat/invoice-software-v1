@@ -171,8 +171,10 @@ class TravelSearchController extends Controller
             }
 
             // Add common parameters with defaults
+            $searchParams['flight_type'] = $flightType; // Add flight type
             $searchParams['currency'] = 'USD'; // Default currency
             $searchParams['limit'] = 30; // Default limit
+            $searchParams['result_type'] = 'general'; // Default result type
             
             if (isset($validated['airline_name']) && !empty($validated['airline_name'])) {
                 $searchParams['airline'] = $validated['airline_name'];
@@ -182,9 +184,10 @@ class TravelSearchController extends Controller
             }
             if (isset($validated['passenger'])) {
                 $searchParams['adults'] = $validated['passenger'];
+                $searchParams['passenger'] = $validated['passenger'];
             }
 
-            // Call Travelpayouts API
+            // Call InnoTravelTech API via TravelpayoutsService
             $flights = $this->travelpayouts->searchCheapestFlights($searchParams);
             
             // Check if we have results

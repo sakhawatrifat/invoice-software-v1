@@ -28,6 +28,12 @@
 				</ul>
 			</div>
 			<div class="d-flex align-items-center gap-2 gap-lg-3">
+				@if(isset($editData) && !empty($editData))
+					<a href="{{ route('admin.user.show', $editData->id) }}" class="btn btn-sm fw-bold btn-primary">
+						<i class="fa-solid fa-pager"></i>
+						{{ $getCurrentTranslation['details'] ?? 'details' }}
+					</a>
+				@endif
 				@if(isset($listRoute) && !empty($listRoute))
 					<a href="{{ $listRoute }}" class="btn btn-sm fw-bold btn-primary">
 						<i class="fa-solid fa-arrow-left"></i>
@@ -58,23 +64,24 @@
 
 								<div class="col-md-6">
 									<div class="input-item-wrap mb-5">
-										<label>{{ $getCurrentTranslation['image'] ?? 'image' }} (100x100):</label>
+										<label class="form-label">{{ $getCurrentTranslation['image'] ?? 'image' }} (100x100):</label>
 										@php
-											$selected = old('image') ?? ($editData->image_url ?? '');
-
-											$isFileExist = false;
-											if (isset($selected) && !empty($selected)) {
-												if (!empty($selected)) {
-													$isFileExist = true;
-												}
-											}
-
+											$selected = isset($editData) && !empty($editData->image_url) ? $editData->image_url : '';
+											$isFileExist = !empty($selected);
 										@endphp
 										<div class="file-input-box">
-											<input name="image" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? '' : '' }}>
+											<input name="image" class="form-control image-input" type="file" max-size="0" accept=".heic,.png,.jpg,.jpeg" data-old="{{ $selected ?? '' }}">
 										</div>
-										<div class="preview-image">
-											<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="30%" style="{{ $selected ? '' : 'display: none;' }}">
+										<div class="preview-image mt-2" style="{{ $isFileExist ? '' : 'display: none;' }}" data-old="{{ $selected ?? '' }}">
+											@if($isFileExist)
+												<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="{{ $selected }}">
+													<img src="{{ $selected }}" alt="Image" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;" old-selected="{{ $selected }}">
+												</div>
+											@else
+												<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+													<img src="" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+												</div>
+											@endif
 										</div>
 										@error('image')
 											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
@@ -92,15 +99,6 @@
 									</div>
 								</div>
 
-								<div class="col-md-6">
-									<div class="form-item mb-5">
-										<label class="form-label">{{ $getCurrentTranslation['designation_label'] ?? 'designation_label' }}:</label>
-										<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['designation_placeholder'] ?? 'designation_placeholder' }}" name="designation" ip-required value="{{ old('designation') ?? $editData->designation ?? '' }}"/>
-										@error('designation')
-											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
-										@enderror
-									</div>
-								</div>
 
 								{{-- <div class="col-md-6">
 									<div class="form-item mb-5">
@@ -289,9 +287,9 @@
 
 										@endphp
 										<div class="file-input-box">
-											<input name="dark_logo" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }}>
+											<input name="dark_logo" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ? $selected : '' }}">
 										</div>
-										<div class="preview-image">
+										<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
 											<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="30%" style="{{ $selected ? '' : 'display: none;' }}">
 										</div>
 										@error('dark_logo')
@@ -339,9 +337,9 @@
 
 										@endphp
 										<div class="file-input-box">
-											<input name="dark_icon" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }}>
+											<input name="dark_icon" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ? $selected : '' }}">
 										</div>
-										<div class="preview-image">
+										<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
 											<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="30%" style="{{ $selected ? '' : 'display: none;' }}">
 										</div>
 										@error('dark_icon')
@@ -389,9 +387,9 @@
 
 										@endphp
 										<div class="file-input-box">
-											<input name="dark_seal" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }}>
+											<input name="dark_seal" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ? $selected : '' }}">
 										</div>
-										<div class="preview-image">
+										<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
 											<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="30%" style="{{ $selected ? '' : 'display: none;' }}">
 										</div>
 										@error('dark_seal')

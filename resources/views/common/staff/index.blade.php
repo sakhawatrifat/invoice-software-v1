@@ -41,6 +41,7 @@
 							<th>#</th>
 							{{-- <th>{{ $getCurrentTranslation['staff_type'] ?? 'staff_type' }}</th> --}}
 							<th>{{ $getCurrentTranslation['staff_full_name_label'] ?? 'staff_full_name_label' }}</th>
+							<th>{{ $getCurrentTranslation['designation'] ?? 'designation' }}</th>
 							<th>{{ $getCurrentTranslation['email'] ?? 'email' }}</th>
 							<th>{{ $getCurrentTranslation['parent_name'] ?? 'parent_name' }}</th>
 							<th>{{ $getCurrentTranslation['company'] ?? 'company' }}</th>
@@ -72,6 +73,7 @@ var dataTable = $('#datatable').DataTable({
 		{ data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
 		{{-- { data: 'user_type', name: 'user_type' }, --}}
 		{ data: 'name', name: 'name' },
+		{ data: 'designation', name: 'designation', orderable: false, searchable: false },
 		{ data: 'email', name: 'email' },
 		{ data: 'parent_id', name: 'parent_id', orderable: false, searchable: true },
 		{ data: 'company_id', name: 'company_id' },

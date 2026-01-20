@@ -36,77 +36,12 @@
 					</a>
 				</div>
 
-				@if(Auth::user()->id == 1)
-					@php
-						$userRoutes = ['admin.user.index','admin.user.datatable','admin.user.create','admin.user.store','admin.user.status','admin.user.show','admin.user.edit','admin.user.update','admin.user.destory'];
-					@endphp
-					<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($userRoutes, 'hover show') }}">
-						<span class="menu-link">
-							<span class="menu-icon">
-								<i class="fa-solid fa-user-gear h4 mb-0"></i>
-								{{-- <i class="fa-solid fa-users h4 mb-0"></i> --}}
-							</span>
-							<span class="menu-title">{{ $getCurrentTranslation['manage_users'] ?? 'manage_users' }}</span>
-							<span class="menu-arrow"></span>
-						</span>
-						<div class="menu-sub menu-sub-accordion {{ getActiveClass($userRoutes, 'show') }}">
-							<div class="menu-item">
-								<a class="menu-link {{ getCurrentRouteName() == 'admin.user.index' ? 'active' : '' }}" href="{{ route('admin.user.index') }}">
-									<span class="menu-bullet">
-										<span class="bullet bullet-dot"></span>
-									</span>
-									<span class="menu-title">{{ $getCurrentTranslation['user_list'] ?? 'user_list' }}</span>
-								</a>
-							</div>
-							<div class="menu-item">
-								<a class="menu-link {{ getCurrentRouteName() == 'admin.user.create' ? 'active' : '' }}" href="{{ route('admin.user.create') }}">
-									<span class="menu-bullet">
-										<span class="bullet bullet-dot"></span>
-									</span>
-									<span class="menu-title">{{ $getCurrentTranslation['create_user'] ?? 'create_user' }}</span>
-								</a>
-							</div>
-						</div>
-					</div>
-				@endif
-
-				@php
-					$staffRoutes = ['staff.index','staff.datatable','staff.create','staff.store','staff.status','staff.show','staff.edit','staff.update','staff.destory'];
-				@endphp
-				@if(hasPermission('staff.index') || hasPermission('staff.create'))
-				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($staffRoutes, 'hover show') }}">
-					<span class="menu-link">
-						<span class="menu-icon">
-							<i class="fa-solid fa-users h4 mb-0"></i>
-						</span>
-						<span class="menu-title">{{ $getCurrentTranslation['manage_staffs'] ?? 'manage_staffs' }}</span>
-						<span class="menu-arrow"></span>
-					</span>
-					<div class="menu-sub menu-sub-accordion {{ getActiveClass($staffRoutes, 'show') }}">
-						@if(hasPermission('staff.index'))
-						<div class="menu-item">
-							<a class="menu-link {{ getCurrentRouteName() == 'staff.index' ? 'active' : '' }}" href="{{ route('staff.index') }}">
-								<span class="menu-bullet">
-									<span class="bullet bullet-dot"></span>
-								</span>
-								<span class="menu-title">{{ $getCurrentTranslation['staff_list'] ?? 'staff_list' }}</span>
-							</a>
-						</div>
-						@endif
-
-						@if(hasPermission('staff.create'))
-						<div class="menu-item">
-							<a class="menu-link {{ getCurrentRouteName() == 'staff.create' ? 'active' : '' }}" href="{{ route('staff.create') }}">
-								<span class="menu-bullet">
-									<span class="bullet bullet-dot"></span>
-								</span>
-								<span class="menu-title">{{ $getCurrentTranslation['create_staff'] ?? 'create_staff' }}</span>
-							</a>
-						</div>
-						@endif
+				<!-- Ticket & Hotel -->
+				<div class="menu-item">
+					<div class="menu-content pt-8 pb-2">
+						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>Ticket & Hotel</strong></span>
 					</div>
 				</div>
-				@endif
 
 				@php
 					$airlineRoutes = ['admin.airline.index','admin.airline.datatable','admin.airline.create','admin.airline.store','admin.airline.status','admin.airline.show','admin.airline.edit','admin.airline.update','admin.airline.destory'];
@@ -465,9 +400,9 @@
 				@endif
 
 				@php
-					$reportRoutes = ['admin.profitLossReport'];
+					$reportRoutes = ['admin.grossProfitLossReport'];
 				@endphp
-				@if(hasPermission('admin.profitLossReport'))
+				@if(hasPermission('admin.grossProfitLossReport'))
 				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($reportRoutes, 'hover show') }} ">
 					<span class="menu-link">
 						<span class="menu-icon">
@@ -478,11 +413,293 @@
 					</span>
 					<div class="menu-sub menu-sub-accordion {{ getActiveClass($reportRoutes, 'show') }}">
 						<div class="menu-item">
-							<a class="menu-link {{ getCurrentRouteName() == 'admin.profitLossReport' ? 'active' : '' }}" href="{{ route('admin.profitLossReport') }}?invoice_date_range={{ getDateRange(6, 'Previous') }}">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.grossProfitLossReport' ? 'active' : '' }}" href="{{ route('admin.grossProfitLossReport') }}?invoice_date_range={{ getDateRange(6, 'Previous') }}">
 								<span class="menu-bullet">
 									<span class="bullet bullet-dot"></span>
 								</span>
-								<span class="menu-title">{{ $getCurrentTranslation['profit_loss_report'] ?? 'profit_loss_report' }}</span>
+								<span class="menu-title">{{ $getCurrentTranslation['gross_profit_loss_report'] ?? 'gross_profit_loss_report' }}</span>
+							</a>
+						</div>
+					</div>
+				</div>
+				@endif
+
+				@php
+					$hasHrPermissions = hasPermission('department.index') || hasPermission('department.create') || 
+					                     hasPermission('designation.index') || hasPermission('designation.create') || 
+					                     hasPermission('staff.index') || hasPermission('staff.create') || 
+					                     hasPermission('admin.attendance.report') || hasPermission('admin.salary.index');
+				@endphp
+				@if($hasHrPermissions)
+				<!-- HR Module -->
+				<div class="menu-item">
+					<div class="menu-content pt-8 pb-2">
+						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>HR Module</strong></span>
+					</div>
+				</div>
+				@endif
+
+				@php
+					$departmentRoutes = ['admin.department.index','admin.department.datatable','admin.department.create','admin.department.store','admin.department.status','admin.department.edit','admin.department.update','admin.department.destory'];
+				@endphp
+				@if(hasPermission('department.index') || hasPermission('department.create'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($departmentRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fa-solid fa-building h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['manage_department'] ?? 'manage_department' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($departmentRoutes, 'show') }}">
+						@if(hasPermission('department.index'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.department.index' ? 'active' : '' }}" href="{{ route('admin.department.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['department_list'] ?? 'department_list' }}</span>
+							</a>
+						</div>
+						@endif
+
+						@if(hasPermission('department.create'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.department.create' ? 'active' : '' }}" href="{{ route('admin.department.create') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['create_department'] ?? 'create_department' }}</span>
+							</a>
+						</div>
+						@endif
+					</div>
+				</div>
+				@endif
+
+				@php
+					$designationRoutes = ['admin.designation.index','admin.designation.datatable','admin.designation.create','admin.designation.store','admin.designation.status','admin.designation.edit','admin.designation.update','admin.designation.destory'];
+				@endphp
+				@if(hasPermission('designation.index') || hasPermission('designation.create'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($designationRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fa-solid fa-briefcase h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['manage_designation'] ?? 'manage_designation' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($designationRoutes, 'show') }}">
+						@if(hasPermission('designation.index'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.designation.index' ? 'active' : '' }}" href="{{ route('admin.designation.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['designation_list'] ?? 'designation_list' }}</span>
+							</a>
+						</div>
+						@endif
+
+						@if(hasPermission('designation.create'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.designation.create' ? 'active' : '' }}" href="{{ route('admin.designation.create') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['create_designation'] ?? 'create_designation' }}</span>
+							</a>
+						</div>
+						@endif
+					</div>
+				</div>
+				@endif
+
+				@if(Auth::user()->id == 1)
+					@php
+						$userRoutes = ['admin.user.index','admin.user.datatable','admin.user.create','admin.user.store','admin.user.status','admin.user.show','admin.user.edit','admin.user.update','admin.user.destory'];
+					@endphp
+					<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($userRoutes, 'hover show') }}">
+						<span class="menu-link">
+							<span class="menu-icon">
+								<i class="fa-solid fa-user-gear h4 mb-0"></i>
+								{{-- <i class="fa-solid fa-users h4 mb-0"></i> --}}
+							</span>
+							<span class="menu-title">{{ $getCurrentTranslation['manage_users'] ?? 'manage_users' }}</span>
+							<span class="menu-arrow"></span>
+						</span>
+						<div class="menu-sub menu-sub-accordion {{ getActiveClass($userRoutes, 'show') }}">
+							<div class="menu-item">
+								<a class="menu-link {{ getCurrentRouteName() == 'admin.user.index' ? 'active' : '' }}" href="{{ route('admin.user.index') }}">
+									<span class="menu-bullet">
+										<span class="bullet bullet-dot"></span>
+									</span>
+									<span class="menu-title">{{ $getCurrentTranslation['user_list'] ?? 'user_list' }}</span>
+								</a>
+							</div>
+							<div class="menu-item">
+								<a class="menu-link {{ getCurrentRouteName() == 'admin.user.create' ? 'active' : '' }}" href="{{ route('admin.user.create') }}">
+									<span class="menu-bullet">
+										<span class="bullet bullet-dot"></span>
+									</span>
+									<span class="menu-title">{{ $getCurrentTranslation['create_user'] ?? 'create_user' }}</span>
+								</a>
+							</div>
+						</div>
+					</div>
+				@endif
+
+				@php
+					$staffRoutes = ['staff.index','staff.datatable','staff.create','staff.store','staff.status','staff.show','staff.edit','staff.update','staff.destory'];
+				@endphp
+				@if(hasPermission('staff.index') || hasPermission('staff.create'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($staffRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fa-solid fa-users h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['manage_staffs'] ?? 'manage_staffs' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($staffRoutes, 'show') }}">
+						@if(hasPermission('staff.index'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'staff.index' ? 'active' : '' }}" href="{{ route('staff.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['staff_list'] ?? 'staff_list' }}</span>
+							</a>
+						</div>
+						@endif
+
+						@if(hasPermission('staff.create'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'staff.create' ? 'active' : '' }}" href="{{ route('staff.create') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['create_staff'] ?? 'create_staff' }}</span>
+							</a>
+						</div>
+						@endif
+					</div>
+				</div>
+				@endif
+
+				@php
+					$hrReportRoutes = ['admin.attendance.report', 'admin.attendance.getDetails', 'admin.attendance.employeeDetails'];
+				@endphp
+				@if(hasPermission('admin.attendance.report'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($hrReportRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fas fa-chart-line h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['hr_reports'] ?? 'HR Reports' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($hrReportRoutes, 'show') }}">
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.attendance.report' ? 'active' : '' }}" href="{{ route('admin.attendance.report') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['attendance_report'] ?? 'attendance_report' }}</span>
+							</a>
+						</div>
+					</div>
+				</div>
+				@endif
+
+				{{-- Salary Management --}}
+				@php $salaryRoutes = ['admin.salary.index', 'admin.salary.list', 'admin.salary.generate', 'admin.salary.update', 'admin.salary.getDetails']; @endphp
+				@if(hasPermission('admin.salary.index'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($salaryRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fas fa-hand-holding-usd h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['salary_management'] ?? 'Salary Management' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($salaryRoutes, 'show') }}">
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.salary.index' ? 'active' : '' }}" href="{{ route('admin.salary.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['generate_salary'] ?? 'Generate Salary' }}</span>
+							</a>
+						</div>
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.salary.list' ? 'active' : '' }}" href="{{ route('admin.salary.list') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['salary_list'] ?? 'Salary List' }}</span>
+							</a>
+						</div>
+					</div>
+				</div>
+				@endif
+
+				@php
+					$hasOtherSettingsPermissions = hasPermission('homepage.edit');
+				@endphp
+				@if($hasOtherSettingsPermissions)
+				<!-- Other Settings -->
+				<div class="menu-item">
+					<div class="menu-content pt-8 pb-2">
+						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>Other Settings</strong></span>
+					</div>
+				</div>
+				@endif
+
+				{{-- Staff Menu Items (for is_staff == 1) --}}
+				@if(Auth::user()->is_staff == 1)
+				@php
+					$staffAttendanceRoutes = ['staff.attendance.report'];
+					$staffSalaryRoutes = ['staff.salary.list'];
+				@endphp
+				
+				{{-- Staff Attendance Report --}}
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($staffAttendanceRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fas fa-chart-line h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['my_attendance'] ?? 'My Attendance' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($staffAttendanceRoutes, 'show') }}">
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'staff.attendance.report' ? 'active' : '' }}" href="{{ route('staff.attendance.report') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['attendance_report'] ?? 'Attendance Report' }}</span>
+							</a>
+						</div>
+					</div>
+				</div>
+
+				{{-- Staff Salary List --}}
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($staffSalaryRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fas fa-hand-holding-usd h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['my_salary'] ?? 'My Salary' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($staffSalaryRoutes, 'show') }}">
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'staff.salary.list' ? 'active' : '' }}" href="{{ route('staff.salary.list') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['salary_list'] ?? 'Salary List' }}</span>
 							</a>
 						</div>
 					</div>

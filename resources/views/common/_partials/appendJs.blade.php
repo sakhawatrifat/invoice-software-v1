@@ -604,11 +604,13 @@
 		}
 
 
-		container.find('.append-prev').remove();
-		container.find('.preview-image').attr('data-src', '').hide();
-		container.find('.preview-image img').attr('old-selected', '');
-		container.find('.preview-image img').attr('src', '');
-		container.find('.preview-image img').attr('alt', '');
+		// Reset preview containers but don't remove them - just clear and hide
+		container.find('.preview-image').each(function() {
+			$(this).find('.image-preview').hide().attr('data-src', '');
+			$(this).find('.pdf-preview').hide().attr('data-src', '');
+			$(this).find('.preview-img').attr('old-selected', '').attr('src', '').attr('alt', '');
+			$(this).hide();
+		});
 
 		updateMinDateForDatetimeInputs();
 	}

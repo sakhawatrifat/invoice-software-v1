@@ -19,7 +19,11 @@ return new class extends Migration
             $table->string('uid')->nullable();
             $table->longText('image')->nullable();
             $table->string('name');
-            $table->string('designation')->nullable();
+            $table->bigInteger('department_id')->nullable();
+            $table->bigInteger('designation_id')->nullable();
+            $table->decimal('salary_amount', 20,2)->nullable()->default(0);
+            $table->date('joining_date')->nullable()->after('designation_id');
+            $table->enum('employment_type', ['Full-time', 'Part-time', 'Contract'])->nullable()->after('joining_date');
             $table->longText('address')->nullable();
             $table->string('phone')->nullable();
             $table->string('email')->unique();

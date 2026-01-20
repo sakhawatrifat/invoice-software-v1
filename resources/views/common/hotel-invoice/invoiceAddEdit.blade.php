@@ -153,11 +153,11 @@
 
 									@endphp
 									<div class="file-input-box">
-										<input name="hotel_image" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? '' : '' }}>
-									</div>
-									<div class="preview-image">
-										<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="100" style="{{ $selected ? '' : 'display: none;' }}">
-									</div>
+									<input name="hotel_image" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? '' : '' }} data-old="{{ $selected ? $selected : '' }}">
+								</div>
+								<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
+									<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="100" style="{{ $selected ? '' : 'display: none;' }}">
+								</div>
 									@error('hotel_image')
 										<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 									@enderror

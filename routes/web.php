@@ -31,6 +31,9 @@ use App\Http\Controllers\Admin\AirlineController as AdminAirlineController;
 use App\Http\Controllers\Admin\HomepageController as AdminHomepageController;
 use App\Http\Controllers\Admin\LanguageController as AdminLanguageController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController;
+use App\Http\Controllers\Admin\DesignationController as AdminDesignationController;
+use App\Http\Controllers\AttendanceController;
 
 // Admin Controllers
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
@@ -136,6 +139,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
                 Route::get('/user/create', 'create')->name('user.create');
                 Route::post('/user/store', 'store')->name('user.store');
                 Route::get('/user/status/{id}/{status}', 'status')->name('user.status');
+                Route::get('/user/show/{id}', 'show')->name('user.show');
                 Route::get('/user/edit/{id}', 'edit')->name('user.edit');
                 Route::put('/user/update/{id}', 'update')->name('user.update');
                 Route::delete('/user/delete/{id}', 'destroy')->name('user.destroy');
@@ -152,6 +156,32 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
                 Route::get('/airline/edit/{id}', 'edit')->name('airline.edit');
                 Route::put('/airline/update/{id}', 'update')->name('airline.update');
                 Route::delete('/airline/delete/{id}', 'destroy')->name('airline.destroy');
+            });
+
+            //Department Routes
+            Route::controller(AdminDepartmentController::class)->group(function () {
+                Route::get('/department-list', 'index')->name('department.index');
+                Route::get('/department-datatble', 'datatable')->name('department.datatable');
+                Route::get('/department/create', 'create')->name('department.create');
+                Route::get('/department/create/ajax', 'createAjax')->name('department.create.ajax');
+                Route::post('/department/store', 'store')->name('department.store');
+                Route::get('/department/status/{id}/{status}', 'status')->name('department.status');
+                Route::get('/department/edit/{id}', 'edit')->name('department.edit');
+                Route::put('/department/update/{id}', 'update')->name('department.update');
+                Route::delete('/department/delete/{id}', 'destroy')->name('department.destroy');
+            });
+
+            //Designation Routes
+            Route::controller(AdminDesignationController::class)->group(function () {
+                Route::get('/designation-list', 'index')->name('designation.index');
+                Route::get('/designation-datatble', 'datatable')->name('designation.datatable');
+                Route::get('/designation/create', 'create')->name('designation.create');
+                Route::get('/designation/create/ajax', 'createAjax')->name('designation.create.ajax');
+                Route::post('/designation/store', 'store')->name('designation.store');
+                Route::get('/designation/status/{id}/{status}', 'status')->name('designation.status');
+                Route::get('/designation/edit/{id}', 'edit')->name('designation.edit');
+                Route::put('/designation/update/{id}', 'update')->name('designation.update');
+                Route::delete('/designation/delete/{id}', 'destroy')->name('designation.destroy');
             });
 
             //Homepage CRUD Routes
@@ -185,7 +215,25 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
 
             //Admin Report Routes
             Route::controller(AdminReportController::class)->group(function () {
-                Route::get('/profit-loss-report', 'profitLossReport')->name('profitLossReport');
+                Route::get('/gross-profit-loss-report', 'grossProfitLossReport')->name('grossProfitLossReport');
+            });
+
+            //Attendance Report Routes
+            Route::controller(AttendanceController::class)->group(function () {
+                Route::get('/attendance/report', 'report')->name('attendance.report');
+                Route::get('/attendance/employee-details/{employeeId}', 'employeeAttendanceDetails')->name('attendance.employeeDetails');
+                Route::get('/attendance/get-details', 'getAttendanceDetails')->name('attendance.getDetails');
+            });
+
+            //Salary Routes
+            Route::controller(\App\Http\Controllers\Admin\SalaryController::class)->group(function () {
+                Route::get('/salary', 'index')->name('salary.index');
+                Route::post('/salary/generate', 'generate')->name('salary.generate');
+                Route::post('/salary/check-duplicates', 'checkDuplicates')->name('salary.checkDuplicates');
+                Route::get('/salary/list', 'list')->name('salary.list');
+                Route::put('/salary/{id}', 'update')->name('salary.update');
+                Route::get('/salary/{id}/details', 'getDetails')->name('salary.getDetails');
+                Route::delete('/salary/{id}', 'destroy')->name('salary.destroy');
             });
         });
     });
@@ -198,9 +246,28 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::get('/staff/load-permissions', 'loadPermissions')->name('staff.loadPermissions');
         Route::post('/staff/store', 'store')->name('staff.store');
         Route::get('/staff/status/{id}/{status}', 'status')->name('staff.status');
+        Route::get('/staff/show/{id}', 'show')->name('staff.show');
         Route::get('/staff/edit/{id}', 'edit')->name('staff.edit');
         Route::put('/staff/update/{id}', 'update')->name('staff.update');
         Route::delete('/staff/delete/{id}', 'destroy')->name('staff.destroy');
+    });
+
+    //Attendance Routes
+    Route::controller(AttendanceController::class)->group(function () {
+        Route::get('/attendance/status', 'getCurrentStatus')->name('attendance.status');
+        Route::post('/attendance/check-in', 'checkIn')->name('attendance.checkIn');
+        Route::post('/attendance/check-out', 'checkOut')->name('attendance.checkOut');
+        Route::post('/attendance/pause', 'pause')->name('attendance.pause');
+        Route::post('/attendance/resume', 'resume')->name('attendance.resume');
+    });
+
+    //Staff Attendance Routes (for is_staff == 1)
+    Route::controller(AttendanceController::class)->group(function () {
+        Route::get('/staff/attendance/report', 'staffAttendanceReport')->name('staff.attendance.report');
+    });
+
+    Route::controller(\App\Http\Controllers\Admin\SalaryController::class)->group(function () {
+        Route::get('/staff/salary/list', 'staffSalaryList')->name('staff.salary.list');
     });
     
     //Common Ticket Routes

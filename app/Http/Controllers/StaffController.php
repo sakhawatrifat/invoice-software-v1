@@ -20,6 +20,9 @@ use App\Models\Language;
 use App\Models\Currency;
 use App\Models\User;
 use App\Models\UserCompany;
+use App\Models\Department;
+use App\Models\Designation;
+use App\Models\UserDocument;
 
 class StaffController extends Controller
 {
@@ -43,7 +46,7 @@ class StaffController extends Controller
     {
         $user = Auth::user();
 
-        $query = User::with(['parent', 'company', 'creator'])->where('is_staff', 1)->latest();
+        $query = User::with(['parent', 'company', 'creator', 'designation'])->where('is_staff', 1)->latest();
 
         if($user->user_type != 'admin'){
             $query->where('parent_id', $user->business_id);
@@ -156,16 +159,29 @@ class StaffController extends Controller
             ->addColumn('created_by', function ($row) {
                 return $row->creator ? $row->creator->name : 'N/A';
             })
+            ->addColumn('designation', function ($row) {
+                return $row->designation ? $row->designation->name : 'N/A';
+            })
             ->addColumn('action', function ($row) {
+                $showUrl   = route('staff.show', $row->id);
                 $editUrl   = route('staff.edit', $row->id);
                 $deleteUrl = route('staff.destroy', $row->id);
 
                 $buttons = '';
 
+                // View button (requires permission)
+                if (hasPermission('staff.index')) {
+                    $buttons .= '
+                        <a href="' . $showUrl . '" class="btn btn-sm btn-info" title="View">
+                            <i class="fa-solid fa-eye"></i>
+                        </a>
+                    ';
+                }
+
                 // Edit button (requires permission)
                 if (hasPermission('staff.edit') && Auth::user()->id != $row->id) {
                     $buttons .= '
-                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary">
+                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary" title="Edit">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
                     ';
@@ -180,7 +196,8 @@ class StaffController extends Controller
                     $buttons .= '
                         <button class="btn btn-sm btn-danger delete-table-data-btn"
                             data-id="' . $row->id . '"
-                            data-url="' . $deleteUrl . '">
+                            data-url="' . $deleteUrl . '"
+                            title="Delete">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     ';
@@ -211,8 +228,10 @@ class StaffController extends Controller
         $saveRoute = hasPermission('staff.create') ? route('staff.store') : '';
 
         $languages = Language::orderBy('name', 'asc')->where('status', 1)->get();
-        $users = User::with('company')->orderBy('name', 'asc')->where('is_staff', 0)->where('status', 1)->get();
+        $users = User::with(['company', 'designation'])->orderBy('name', 'asc')->where('is_staff', 0)->where('status', 1)->get();
         $currencies = Currency::where('status', 'Active')->orderBy('currency_name', 'asc')->get();
+        $departments = Department::where('status', 1)->orderBy('name', 'asc')->get();
+        $designations = Designation::where('status', 1)->orderBy('name', 'asc')->get();
         return view('common.staff.addEdit', get_defined_vars());
     }
 
@@ -289,6 +308,40 @@ class StaffController extends Controller
         ];
     }
 
+    public function show($id)
+    {
+        if (!hasPermission('staff.index')) {
+            return [
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
+            ];
+        }
+
+        $user = Auth::user();
+        $listRoute = hasPermission('staff.index') ? route('staff.index') : '';
+        $editRoute = hasPermission('staff.edit') ? route('staff.edit', $id) : '';
+
+        $query = User::with(['company', 'parent', 'department', 'designation', 'documents', 'creator'])->where('id', $id)->where('is_staff', 1);
+        if(Auth::user()->user_type == 'user'){
+            $query->where('parent_id', $user->business_id);
+        }
+        $editData = $query->first();
+        
+        if(empty($editData)){
+            abort(404);
+        }
+
+        // Get language name if default_language exists
+        $languageName = null;
+        if($editData->default_language){
+            $language = Language::where('code', $editData->default_language)->first();
+            $languageName = $language ? $language->name : null;
+        }
+
+        return view('common.staff.details', get_defined_vars());
+    }
+
     public function edit($id)
     {
         if (!hasPermission('staff.edit')) {
@@ -319,8 +372,11 @@ class StaffController extends Controller
         //dd($editData);
 
         $languages = Language::orderBy('name', 'asc')->where('status', 1)->get();
-        $users = User::with('company')->orderBy('name', 'asc')->where('is_staff', 0)->where('status', 1)->get();
+        $users = User::with(['company', 'designation'])->orderBy('name', 'asc')->where('is_staff', 0)->where('status', 1)->get();
         $currencies = Currency::where('status', 'Active')->orderBy('currency_name', 'asc')->get();
+        $departments = Department::where('status', 1)->orderBy('name', 'asc')->get();
+        $designations = Designation::where('status', 1)->orderBy('name', 'asc')->get();
+        $userDocuments = UserDocument::where('user_id', $id)->get();
         return view('common.staff.addEdit', get_defined_vars());
     }
 
@@ -360,6 +416,15 @@ class StaffController extends Controller
                 'icon' => 'error',
                 'message' => getCurrentTranslation()['data_not_found'] ?? 'data_not_found'
             ];
+        }
+
+        // Delete user documents
+        $userDocuments = UserDocument::where('user_id', $data->id)->get();
+        foreach($userDocuments as $doc){
+            deleteUploadedFile($doc->document_file);
+            $doc->deleted_by = $user->id;
+            $doc->save();
+            $doc->delete();
         }
         // if($user->user_type != 'admin' && $data->user_id != $user->id){
         //     return [
@@ -461,10 +526,17 @@ class StaffController extends Controller
         $logoMimes = 'heic,jpg,jpeg,png';
         $maxImageSize = 3072;
 
+        $documentMimes = 'pdf,png,jpg,jpeg';
+        $maxDocumentSize = 5120; // 5MB
+
         $validator = Validator::make($request->all(), [
             'parent_id' => 'nullable|integer|exists:users,id',
             'name' => 'required|string|max:255',
-            'designation' => 'required|string|max:255',
+            'department_id' => 'nullable|integer|exists:departments,id',
+            'designation_id' => 'nullable|integer|exists:designations,id',
+            'joining_date' => 'nullable|date',
+            'employment_type' => 'nullable|in:Full-time,Part-time,Contract',
+            'salary_amount' => 'nullable|numeric|min:0',
             'image' => 'nullable|mimes:' . $logoMimes . '|max:' . $maxImageSize,
             'address' => 'nullable|string|max:255',
             'phone' => 'nullable|string',
@@ -472,6 +544,9 @@ class StaffController extends Controller
             'email_verified_at' => 'nullable|date',
             'password' => $userId ? 'nullable|string|min:8|confirmed' : 'required|string|min:8|confirmed',
             'status' => 'required|in:Active,Inactive',
+            'documents.*.document_name' => 'nullable|string|max:255',
+            'documents.*.document_file' => 'nullable|mimes:' . $documentMimes . '|max:' . $maxDocumentSize,
+            'documents.*.description' => 'nullable|string',
         ], [
             // Required
             'required' => $messages['required_message'] ?? 'This field is required.',
@@ -479,7 +554,7 @@ class StaffController extends Controller
             'unique' => $messages['unique_message'] ?? 'This value has already been taken.',
             // Specific max length for certain fields (overrides generic)
             'name.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
-            'designation.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
+            'documents.*.document_name.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
             'address.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
             'company_name.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
             'tagline.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
@@ -492,6 +567,7 @@ class StaffController extends Controller
             'email_2.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
             // File size validations
             'image.max' => ($messages['max_file_size_message'] ?? 'The maximum allowed file size for this field is: ') . ($maxImageSize / 1024) . ' MB',
+            'documents.*.document_file.max' => ($messages['max_file_size_message'] ?? 'The maximum allowed file size for this field is: ') . ($maxDocumentSize / 1024) . ' MB',
             // Image validations
             'image' => $messages['image_message'] ?? 'This must be an image.',
             // Mimes validation with mime types injected
@@ -575,8 +651,8 @@ class StaffController extends Controller
             }
         }
 
-        // DB::beginTransaction();
-        // try {
+        DB::beginTransaction();
+        try {
             //$user->user_id = $userId;
             $parentData = User::where('id', $user->parent_id)->first();
             $parentPermissions = $parentData->permissions ?? []; // assume array/json decoded
@@ -602,7 +678,11 @@ class StaffController extends Controller
             }
             $user->is_staff = 1;
             $user->name = $request->name ?? null;
-            $user->designation = $request->designation ?? null;
+            $user->department_id = $request->department_id ?? null;
+            $user->designation_id = $request->designation_id ?? null;
+            $user->joining_date = $request->joining_date ?? null;
+            $user->employment_type = $request->employment_type ?? null;
+            $user->salary_amount = $request->salary_amount ?? 0;
             $user->image = $image;
             $user->address = $request->address;
             $user->phone = $request->phone;
@@ -616,7 +696,76 @@ class StaffController extends Controller
             // System Settings
             $user->default_language = $request->default_language;
             
-            $user->save();            
+            $user->save();
+
+            // Handle User Documents
+            $currentDocumentIds = [];
+            if($request->has('documents') && is_array($request->documents)){
+                foreach($request->documents as $docIndex => $docData){
+                    $documentId = $docData['id'] ?? null;
+                    $documentFile = null;
+                    
+                    // Check if file is being uploaded
+                    if($request->hasFile("documents.$docIndex.document_file")){
+                        $documentFile = $request->file("documents.$docIndex.document_file");
+                    }
+                    
+                    if($documentId){
+                        // Update existing document
+                        $userDocument = UserDocument::where('id', $documentId)->where('user_id', $user->id)->first();
+                        if($userDocument){
+                            if($documentFile){
+                                // New file uploaded - replace existing file
+                                $documentExtension = strtolower($documentFile->getClientOriginalExtension());
+                                $documentName = $docData['document_name'] ?? $userDocument->document_name ?? 'document-' . ($docIndex + 1);
+                                $documentPath = uploadFile($documentFile, $documentName, 'user-documents', $userDocument->document_file);
+                                
+                                if($documentPath){
+                                    $userDocument->document_file = $documentPath;
+                                    $userDocument->document_type = $documentExtension;
+                                }
+                            }
+                            // If no new file, keep existing file (don't update document_file)
+                            
+                            $userDocument->document_name = $docData['document_name'] ?? $userDocument->document_name;
+                            $userDocument->description = $docData['description'] ?? $userDocument->description;
+                            $userDocument->updated_by = Auth::id();
+                            $userDocument->save();
+                            // Always add to currentDocumentIds to prevent deletion
+                            $currentDocumentIds[] = $userDocument->id;
+                        }
+                    } else if($documentFile){
+                        // Create new document
+                        $documentExtension = strtolower($documentFile->getClientOriginalExtension());
+                        $documentName = $docData['document_name'] ?? 'document-' . ($docIndex + 1);
+                        $documentPath = uploadFile($documentFile, $documentName, 'user-documents', null);
+                        
+                        if($documentPath){
+                            $userDocument = new UserDocument();
+                            $userDocument->user_id = $user->id;
+                            $userDocument->document_name = $docData['document_name'] ?? null;
+                            $userDocument->document_file = $documentPath;
+                            $userDocument->document_type = $documentExtension;
+                            $userDocument->description = $docData['description'] ?? null;
+                            $userDocument->created_by = Auth::id();
+                            $userDocument->save();
+                            $currentDocumentIds[] = $userDocument->id;
+                        }
+                    }
+                }
+            }
+            
+            // Delete documents that were removed
+            if(isset($id) && $id){
+                UserDocument::where('user_id', $user->id)
+                    ->whereNotIn('id', $currentDocumentIds)
+                    ->each(function($oldDoc){
+                        deleteUploadedFile($oldDoc->document_file);
+                        $oldDoc->deleted_by = Auth::id();
+                        $oldDoc->save();
+                        $oldDoc->delete();
+                    });
+            }            
 
             DB::commit();
             return [
@@ -624,16 +773,16 @@ class StaffController extends Controller
                 'icon' => 'success',
                 'message' => getCurrentTranslation()['data_saved'] ?? 'data_saved'
             ];
-        // } catch (\Exception $e) {
-        //     DB::rollBack();
-        //     \Log::error('User store error', ['error' => $e->getMessage()]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Staff store error', ['error' => $e->getMessage()]);
 
-        //     return [
-        //         'is_success' => 0,
-        //         'icon' => 'error',
-        //         'message' => getCurrentTranslation()['data_saving_error'] ?? 'data_saving_error'
-        //     ];
-        // }
+            return [
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['data_saving_error'] ?? 'data_saving_error'
+            ];
+        }
     }
 
 

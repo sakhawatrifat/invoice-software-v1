@@ -118,7 +118,6 @@ class HomeController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'designation' => 'required|string|max:255',
             'image' => 'nullable|mimes:' . $logoMimes . '|max:' . $maxImageSize,
             'address' => 'nullable|string|max:255',
             'phone' => 'nullable|string',
@@ -151,7 +150,6 @@ class HomeController extends Controller
             'unique' => $messages['unique_message'] ?? 'This value has already been taken.',
             // Specific max length for certain fields (overrides generic)
             'name.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
-            'designation.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
             'address.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
             'company_name.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
             'tagline.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
@@ -286,7 +284,6 @@ class HomeController extends Controller
         try {
             //$user->user_id = $userId;
             $user->name = $request->name ?? null;
-            $user->designation = $request->designation ?? null;
             $user->image = $image;
             $user->address = $request->address;
             $user->phone = $request->phone;

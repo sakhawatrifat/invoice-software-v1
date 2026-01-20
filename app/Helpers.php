@@ -786,6 +786,32 @@ if (!function_exists('diffInHoursAndMinutes')) {
 
 
 
+if (!function_exists('formatHoursMinutes')) {
+    /**
+     * Format decimal hours to "Xh Ym" format
+     * Example: 2.53 => "2h 32m", 8.0 => "8h", 0.5 => "30m", 0 => "0h 0m"
+     */
+    function formatHoursMinutes($decimalHours) {
+        if (empty($decimalHours) || $decimalHours == 0) {
+            return '0h 0m';
+        }
+        
+        $totalMinutes = round($decimalHours * 60);
+        $hours = floor($totalMinutes / 60);
+        $minutes = $totalMinutes % 60;
+        
+        if ($hours > 0 && $minutes > 0) {
+            return $hours . 'h ' . $minutes . 'm';
+        } else if ($hours > 0) {
+            return $hours . 'h';
+        } else if ($minutes > 0) {
+            return $minutes . 'm';
+        } else {
+            return '0h 0m';
+        }
+    }
+}
+
 function extractPrimaryCity($text=null) {
     if (empty($text)) {
         return 'N/A';
@@ -1218,13 +1244,6 @@ if (!function_exists('getPermissionList')) {
                 ],
             ],
             [
-                'title' => 'manage_reports',
-                'for' => 'admin',
-                'permissions' => [
-                    ['title' => 'profit_loss_report', 'key' => 'admin.profitLossReport'],
-                ],
-            ],
-            [
                 'title' => 'manage_homepage',
                 'for' => 'admin',
                 'permissions' => [
@@ -1241,6 +1260,40 @@ if (!function_exists('getPermissionList')) {
                     ['title' => 'translate', 'key' => 'language.translate'],
                     ['title' => 'status', 'key' => 'language.status'],
                     ['title' => 'delete', 'key' => 'language.delete'],
+                ],
+            ],
+            [
+                'title' => 'manage_hr',
+                'for' => 'admin',
+                'permissions' => [
+                    ['title' => 'department_list', 'key' => 'department.index'],
+                    ['title' => 'department_create', 'key' => 'department.create'],
+                    ['title' => 'department_edit', 'key' => 'department.edit'],
+                    ['title' => 'department_status', 'key' => 'department.status'],
+                    ['title' => 'department_delete', 'key' => 'department.delete'],
+                    ['title' => 'designation_list', 'key' => 'designation.index'],
+                    ['title' => 'designation_create', 'key' => 'designation.create'],
+                    ['title' => 'designation_edit', 'key' => 'designation.edit'],
+                    ['title' => 'designation_status', 'key' => 'designation.status'],
+                    ['title' => 'designation_delete', 'key' => 'designation.delete'],
+                ],
+            ],
+            [
+                'title' => 'manage_salary',
+                'for' => 'admin',
+                'permissions' => [
+                    ['title' => 'salary_sheet', 'key' => 'admin.salary.index'],
+                    ['title' => 'salary_generate', 'key' => 'admin.salary.generate'],
+                    ['title' => 'salary_update', 'key' => 'admin.salary.update'],
+                    ['title' => 'salary_delete', 'key' => 'admin.salary.destroy'],
+                ],
+            ],
+            [
+                'title' => 'manage_reports',
+                'for' => 'admin',
+                'permissions' => [
+                    ['title' => 'gross_profit_loss_report', 'key' => 'admin.grossProfitLossReport'],
+                    ['title' => 'attendance_report', 'key' => 'admin.attendance.report'],
                 ],
             ],
         ];

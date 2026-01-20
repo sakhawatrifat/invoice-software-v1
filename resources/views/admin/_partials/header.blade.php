@@ -42,12 +42,6 @@
 				</a>
 			</div>
 			<div class="app-navbar flex-shrink-0">
-				<div class="app-navbar-item ms-1 ms-md-4">
-					<a href="{{ route('clear-cache') }}" class="menu-link px-3 py-2">
-						<i class="fas fa-eraser fa-2x"></i>
-						{{-- {{ $getCurrentTranslation['clear_cache'] ?? 'clear_cache' }} --}}
-					</a>
-				</div>
 
 				<div class="app-navbar-item ms-1 ms-lg-3 d-none">
 					<a href="#" class="btn btn-icon btn-custom btn-icon-muted btn-active-light btn-active-color-primary w-35px h-35px w-md-40px h-md-40px" data-kt-menu-trigger="{default:'click', lg: 'hover'}" data-kt-menu-attach="parent" data-kt-menu-placement="bottom-end">
@@ -122,6 +116,36 @@
 							</a>
 						</div> --}}
 					</div>
+				</div>
+
+				<!-- Attendance Check-in/Check-out Buttons -->
+				<div class="app-navbar-item ms-0 me-2" id="attendance-controls">
+					<button type="button" class="btn btn-sm btn-success me-1" id="btn-check-in" style="display: none;">
+						<i class="fas fa-sign-in-alt"></i> <span id="check-in-text">{{ $getCurrentTranslation['check_in'] ?? 'Check In' }}</span>
+					</button>
+					<button type="button" class="btn btn-sm btn-danger me-1" id="btn-check-out" style="display: none;">
+						<i class="fas fa-sign-out-alt"></i> <span id="check-out-text">{{ $getCurrentTranslation['check_out'] ?? 'Check Out' }}</span>
+					</button>
+					<button type="button" class="btn btn-sm btn-warning me-1" id="btn-pause" style="display: none;">
+						<i class="fas fa-pause"></i> <span id="pause-text">{{ $getCurrentTranslation['pause'] ?? 'Pause' }}</span>
+					</button>
+					<button type="button" class="btn btn-sm btn-info me-1" id="btn-resume" style="display: none;">
+						<i class="fas fa-play"></i> <span id="resume-text">{{ $getCurrentTranslation['resume'] ?? 'Resume' }}</span>
+					</button>
+					<div class="d-inline-block ms-2" id="attendance-timer" style="display: none;">
+						<small class="text-muted">
+							<span id="timer-display">00:00:00</span>
+							<br>
+							<small id="break-display" class="text-warning">Break: 00:00:00</small>
+						</small>
+					</div>
+				</div>
+
+				<div class="app-navbar-item ms-0">
+					<a href="{{ route('clear-cache') }}" class="menu-link px-3 py-2">
+						<i class="fas fa-eraser fa-2x"></i>
+						{{-- {{ $getCurrentTranslation['clear_cache'] ?? 'clear_cache' }} --}}
+					</a>
 				</div>
 
 				<div class="app-navbar-item ms-0">
@@ -526,3 +550,59 @@
 </div>
 <!--end::notification drawer-->
 <!--end::Drawers-->
+
+<!--begin::Attendance Modal-->
+<div class="modal fade" id="attendanceModal" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="attendanceModalTitle">{{ $getCurrentTranslation['attendance'] ?? 'Attendance' }}</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div id="attendance-info">
+					<div class="mb-3">
+						<strong>{{ $getCurrentTranslation['date'] ?? 'Date' }}:</strong> <span id="modal-date"></span>
+					</div>
+					<div class="mb-3">
+						<strong>{{ $getCurrentTranslation['time'] ?? 'Time' }}:</strong> <span id="modal-time"></span>
+					</div>
+					<div class="mb-3">
+						<strong>{{ $getCurrentTranslation['day'] ?? 'Day' }}:</strong> <span id="modal-day"></span>
+					</div>
+					<div class="mb-3" id="check-in-info" style="display: none;">
+						<strong>{{ $getCurrentTranslation['check_in_time'] ?? 'Check In Time' }}:</strong> <span id="modal-check-in-time"></span>
+					</div>
+					<div class="mb-3" id="work-time-info" style="display: none;">
+						<strong>{{ $getCurrentTranslation['total_work_time'] ?? 'Total Work Time' }}:</strong> <span id="modal-work-time"></span>
+					</div>
+					<div class="mb-3" id="break-time-info" style="display: none;">
+						<strong>{{ $getCurrentTranslation['total_break_time'] ?? 'Total Break Time' }}:</strong> <span id="modal-break-time"></span>
+					</div>
+					<div class="mt-5 mb-3" id="overtime-section" style="display: none;">
+						<div class="form-check mb-3">
+							<input class="form-check-input" type="checkbox" id="forgot-clock-out" name="forgot_clock_out" style="border-color: #dc3545; accent-color: #dc3545;">
+							<label class="form-check-label text-danger" for="forgot-clock-out">
+								<b>{{ $getCurrentTranslation['forgot_to_clock_out_in_time'] ?? 'Forgot to clock out in time' }}</b>
+							</label>
+						</div>
+						<div class="form-group" id="overtime-task-group" style="display: none;">
+							<label for="overtime-task-description" class="form-label">
+								{{ $getCurrentTranslation['overtime_task_description'] ?? 'Overtime Task Description' }} <span class="text-danger">*</span>
+							</label>
+							<textarea class="form-control" id="overtime-task-description" name="overtime_task_description" rows="4" required placeholder="{{ $getCurrentTranslation['describe_tasks_done_during_overtime'] ?? 'Please describe the tasks completed during overtime' }}"></textarea>
+							<div class="invalid-feedback d-block" id="overtime-task-error" style="display: none;">
+								<span class="text-danger">{{ $getCurrentTranslation['overtime_task_description_required'] ?? 'Overtime task description is required' }}</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $getCurrentTranslation['cancel'] ?? 'Cancel' }}</button>
+				<button type="button" class="btn btn-primary" id="confirm-attendance-action">{{ $getCurrentTranslation['confirm'] ?? 'Confirm' }}</button>
+			</div>
+		</div>
+	</div>
+</div>
+<!--end::Attendance Modal-->

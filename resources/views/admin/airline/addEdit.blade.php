@@ -85,9 +85,9 @@
 
 										@endphp
 										<div class="file-input-box">
-											<input name="logo" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? '' : '' }}>
+											<input name="logo" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? '' : '' }} data-old="{{ $selected ? $selected : '' }}">
 										</div>
-										<div class="preview-image">
+										<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
 											<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="100" style="{{ $selected ? '' : 'display: none;' }}">
 										</div>
 										@error('logo')

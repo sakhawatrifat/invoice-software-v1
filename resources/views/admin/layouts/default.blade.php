@@ -13,6 +13,7 @@
         <meta property="og:url" content="" />
         <meta property="og:site_name" content="" />
         <link rel="canonical" href="" />
+        <meta name="csrf-token" content="{{ csrf_token() }}">
         <link rel="shortcut icon" href="{{ $globalData->company_data->dark_icon_url ?? '' }}" />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,400,500,600,700" />
         <link href="{{asset('/assets')}}/plugins/custom/daterangepicker/daterangepicker.css" rel="stylesheet" type="text/css" />
@@ -106,6 +107,7 @@
 
         @include('common._partials.message')
         @include('common._partials.commonScripts')
+        @include('common._partials.attendanceScripts')
         @include('common._partials.dateRangeScripts')
         @stack('script')
     </body>

@@ -228,7 +228,31 @@ $(document).on('click','.mf-prev',function(){
     if(img_src == undefined){
         img_src = $(this).find('.mf-url').attr('data-src');
     }
-    $('.mf-img-popup').children('img').attr('src', img_src);
+    
+    // Check if it's a PDF file
+    var isPdf = img_src && (img_src.toLowerCase().endsWith('.pdf') || img_src.toLowerCase().includes('.pdf'));
+    
+    if(isPdf) {
+        // Show PDF in iframe
+        $('.mf-img-popup').children('img').hide();
+        var iframe = $('.mf-img-popup').find('iframe');
+        if(iframe.length === 0) {
+            iframe = $('<iframe>').css({
+                'width': '90%',
+                'height': '90%',
+                'border': 'none',
+                'max-width': '90%',
+                'max-height': '90%'
+            });
+            $('.mf-img-popup').append(iframe);
+        }
+        iframe.attr('src', img_src).show();
+    } else {
+        // Show image
+        $('.mf-img-popup').find('iframe').hide();
+        $('.mf-img-popup').children('img').attr('src', img_src).show();
+    }
+    
     $('.mf-img-popup').addClass('opened');
 });
 
@@ -236,6 +260,7 @@ $(document).on('click','.mf-img-popup, .mf-img-popup-close-btn',function(){
     $('body').removeClass('mf-popup-visible');
     $('.mf-img-popup').removeClass('opened');
     $('.mf-img-popup').children('img').attr('src', '');
+    $('.mf-img-popup').find('iframe').attr('src', '').hide();
 });
 
 $('.mf-img-popup img').on('click', function(e) {

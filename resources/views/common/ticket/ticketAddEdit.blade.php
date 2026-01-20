@@ -68,6 +68,13 @@
                         {{ $getCurrentTranslation['mail'] ?? 'mail' }}
                     </a>
                 @endif
+
+				@if(hasPermission('ticket.search.form') && !isset($editData))
+                	<a href="{{ route('ticket.search.form') }}?document_type=ticket" class="btn btn-sm fw-bold btn-primary">
+						<i class="fa-solid fa-file-import"></i>
+						{{ $getCurrentTranslation['import_data'] ?? 'import_data' }}
+					</a>
+                @endif
 				
 				@if(isset($listRoute) && !empty($listRoute))
 					<a href="{{ $listRoute }}" class="btn btn-sm fw-bold btn-primary">

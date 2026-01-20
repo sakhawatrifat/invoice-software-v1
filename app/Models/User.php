@@ -111,4 +111,24 @@ class User extends Authenticatable
         return $this->belongsTo(User::class, 'created_by', 'id');
     }
 
+    public function department()
+    {
+        return $this->belongsTo(Department::class, 'department_id', 'id');
+    }
+
+    public function designation()
+    {
+        return $this->belongsTo(Designation::class, 'designation_id', 'id');
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(UserDocument::class, 'user_id', 'id');
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class, 'employee_id', 'id');
+    }
+
 }

@@ -114,6 +114,7 @@ class UserController extends Controller
                 return $row->creator ? $row->creator->name : 'N/A';
             })
             ->addColumn('action', function ($row) {
+                $showUrl = route('admin.user.show', $row->id);
                 $deleteUrl = route('admin.user.destroy', $row->id);
                 $editUrl = route('admin.user.edit', $row->id);
 
@@ -122,14 +123,16 @@ class UserController extends Controller
                     $deleteButton = '
                         <button class="btn btn-sm btn-danger delete-table-data-btn"
                             data-id="' . $row->id . '"
-                            data-url="' . $deleteUrl . '">
+                            data-url="' . $deleteUrl . '"
+                            title="Delete">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     ';
                 }
 
                 return '
-                    <a href="' . $editUrl . '" class="btn btn-sm btn-primary"><i class="fa-solid fa-pen-to-square"></i></a>
+                    <a href="' . $showUrl . '" class="btn btn-sm btn-info" title="View"><i class="fa-solid fa-eye"></i></a>
+                    <a href="' . $editUrl . '" class="btn btn-sm btn-primary" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
                     ' . $deleteButton . '
                 ';
             })
@@ -203,6 +206,31 @@ class UserController extends Controller
             'icon' => 'success',
             'message' => (getCurrentTranslation()['status_updated'] ?? 'status_updated') . ' (' . $statusName . ')',
         ];
+    }
+
+    public function show($id)
+    {
+        if($id == 1){
+            abort(404);
+        }
+
+        $user = Auth::user();
+        $listRoute = route('admin.user.index');
+        $editRoute = route('admin.user.edit', $id);
+
+        $editData = User::with(['company', 'creator'])->where('is_staff', 0)->where('id', $id)->first();
+        if(empty($editData)){
+            abort(404);
+        }
+
+        // Get language name if default_language exists
+        $languageName = null;
+        if($editData->default_language){
+            $language = Language::where('code', $editData->default_language)->first();
+            $languageName = $language ? $language->name : null;
+        }
+
+        return view('admin.user.details', get_defined_vars());
     }
 
     public function edit($id)
@@ -368,7 +396,6 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'admin' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
-            'designation' => 'required|string|max:255',
             'image' => 'nullable|mimes:' . $logoMimes . '|max:' . $maxImageSize,
             'address' => 'nullable|string|max:255',
             'phone' => 'nullable|string',
@@ -403,7 +430,6 @@ class UserController extends Controller
             // Unique
             'unique' => $messages['unique_message'] ?? 'This value has already been taken.',
             // Specific max length for certain fields (overrides generic)
-            'designation.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
             'name.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
             'address.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
             'company_name.max' => ($messages['max_string_message'] ?? 'This field allowed maximum character length is: ') . ' 255',
@@ -503,7 +529,6 @@ class UserController extends Controller
 
             //$user->user_id = $userId;
             $user->name = $request->name ?? null;
-            $user->designation = $request->designation ?? null;
             $user->image = $image;
             $user->address = $request->address;
             $user->phone = $request->phone;

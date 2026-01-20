@@ -297,42 +297,55 @@
 
 										<div class="col-10">
 											<div class="input-item-wrap mt-2">
-												<input type="hidden" name="documents[0][id]" value="{{ $doc->id }}">
+												<input type="hidden" name="documents[{{ $index }}][id]" value="{{ $doc->id }}">
 												<label class="form-label">{{ $getCurrentTranslation['file_label'] ?? 'file_label' }}:</label>
 												@php
-													$selected = $doc->file_full_url ?? '';
-
-													$isFileExist = false;
-													if (isset($selected) && !empty($selected)) {
-														if (!empty($selected)) {
-															$isFileExist = true;
-														}
-													}
-
-													$fileUrl = $selected;
-													$fileName = basename($fileUrl);
+													$fileUrl = $doc->file_full_url ?? '';
 													$extension = strtolower(pathinfo($doc->file_url, PATHINFO_EXTENSION));
 													$imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 													$isImage = in_array($extension, $imageExtensions);
 													$isPdf = in_array($extension, ['pdf']);
-													$isDocx = in_array($extension, ['docx']);
-
+													$isFileExist = !empty($fileUrl);
 												@endphp
 												<div class="file-input-box">
-													<input name="documents[0][file]" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.jpg,.png,.pdf,.doc,.docx" {{ empty($selected) ? '' : '' }}>
+													<input name="documents[{{ $index }}][file]" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.jpg,.png,.pdf,.doc,.docx" {{ empty($fileUrl) ? '' : '' }} data-old="{{ $fileUrl ?? '' }}">
 												</div>
-												<div class="preview-image mf-prev hover-effect mt-2" data-src="{{ $selected ? $selected : '' }}" style="{{ $selected ? '' : 'display: none;' }}">
-													<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img fixed-value ml-2" width="100" alt='You selected "{{ $fileName }}"'>
-												</div>
-
-												{{-- <a class="append-prev file-prev-thumb mt-2" href="{{ $fileUrl }}" target="_blank" 
-												onclick="return confirm('Are you sure you want to download this file?');" download style="{{ $selected && !$isImage ? '' : 'display: none;' }}">
-													@if($isPdf)
-														<i class="fas fa-file-pdf"></i>
+												<div class="preview-image mt-2" style="{{ $isFileExist ? '' : 'display: none;' }}" data-old="{{ $fileUrl ?? '' }}">
+													@if($isFileExist)
+														@if($isImage)
+															<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="{{ $fileUrl }}">
+																<img src="{{ $fileUrl }}" alt="Document" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;" old-selected="{{ $fileUrl }}">
+															</div>
+															<div class="pdf-preview" data-src="" style="display: none;">
+																<a href="javascript:void(0);" class="file-prev-thumb">
+																	<i class="fas fa-file-pdf fa-3x text-danger"></i>
+																</a>
+															</div>
+														@elseif($isPdf)
+															<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+																<img src="" alt="Document" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+															</div>
+															<div class="append-prev mf-prev hover-effect m-0 pdf-preview" data-src="{{ $fileUrl }}" old-selected="{{ $fileUrl }}">
+																<a href="javascript:void(0);" class="file-prev-thumb">
+																	<i class="fas fa-file-pdf fa-3x text-danger"></i>
+																</a>
+															</div>
+														@else
+															<a href="{{ $fileUrl }}" target="_blank" class="file-prev-thumb">
+																<i class="fas fa-file-alt fa-3x"></i>
+															</a>
+														@endif
 													@else
-														<i class="fas fa-file-alt"></i>
+														<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+															<img src="" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+														</div>
+														<div class="pdf-preview" data-src="" style="display: none;">
+															<a href="javascript:void(0);" class="file-prev-thumb">
+																<i class="fas fa-file-pdf fa-3x text-danger"></i>
+															</a>
+														</div>
 													@endif
-												</a> --}}
+												</div>
 											</div>
 										</div>
 									</div>
@@ -356,10 +369,17 @@
 												$selected = '';
 											@endphp
 											<div class="file-input-box">
-												<input name="documents[0][file]" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.jpg,.png,.pdf,.doc,.docx" {{ empty($selected) ? '' : '' }}>
+												<input name="documents[0][file]" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.jpg,.png,.pdf,.doc,.docx" data-old="">
 											</div>
-											<div class="preview-image mf-prev hover-effect mt-2" data-src="{{ $selected ? $selected : '' }}" style="{{ $selected ? '' : 'display: none;' }}">
-												<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img fixed-value ml-2" width="100">
+											<div class="preview-image mt-2" style="display: none;" data-old="">
+												<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+													<img src="" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+												</div>
+												<div class="pdf-preview" data-src="" style="display: none;">
+													<a href="javascript:void(0);" class="file-prev-thumb">
+														<i class="fas fa-file-pdf fa-3x text-danger"></i>
+													</a>
+												</div>
 											</div>
 										</div>
 									</div>

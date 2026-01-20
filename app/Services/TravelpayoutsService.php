@@ -9,95 +9,52 @@ use Exception;
 
 class TravelpayoutsService
 {
-    private string $apiToken;
-    private string $marker;
+    private ?string $apiToken;
+    private ?string $marker;
     private string $websiteUrl;
     private string $baseUrl = 'https://api.travelpayouts.com';
     private string $searchBaseUrl = 'https://tickets-api.travelpayouts.com';
+    
+    // InnoTravelTech API credentials
+    private string $innoApiKey;
+    private string $innoSecretCode;
+    private string $innoBaseUrl = 'https://serviceapi.nakamura-tour.com';
 
     // Valid airport codes cache
     private array $validAirportCodes = [];
 
     public function __construct()
     {
-        $this->apiToken = config('services.travelpayouts.token');
-        $this->marker = config('services.travelpayouts.marker');
+        $this->apiToken = config('services.travelpayouts.token') ?? null;
+        $this->marker = config('services.travelpayouts.marker') ?? null;
         $this->websiteUrl = config('services.travelpayouts.website_url', config('app.url'));
+        
+        // InnoTravelTech API credentials
+        $this->innoApiKey = config('services.innotraveltech.api_key', 'S5668328683392945113');
+        $this->innoSecretCode = config('services.innotraveltech.secret_code', '2uzKdwNMna7m434jHQd2K2wPmCPJHQ4akuB');
     }
 
     /**
      * Search for cheapest flights with validation
      * Supports: one_way, round_trip, multi_city
-     * Uses the new Flight Search API (available from November 1, 2025)
+     * Uses InnoTravelTech API
      */
     public function searchCheapestFlights(array $params, ?string $userIp = null, ?string $realHost = null)
     {
         try {
-            // Get user IP and host from request if not provided
-            if (empty($userIp)) {
-                $userIp = request()->ip();
-                // Replace localhost IPs (prohibited by API)
-                if (str_starts_with($userIp, '127.')) {
-                    $userIp = '8.8.8.8'; // Fallback to a valid IP
-                }
-            }
+            // Determine flight type
+            $flightType = $params['flight_type'] ?? 'one_way';
             
-            if (empty($realHost)) {
-                $realHost = $this->getRealHost();
-            }
-
-            // Handle multi-city flights
-            if (isset($params['flight_type']) && $params['flight_type'] === 'multi_city' && isset($params['flights'])) {
-                // Check if new API is enabled
-                $useNewApi = config('services.travelpayouts.use_new_api', false);
-                if ($useNewApi) {
-                    try {
-                        return $this->searchFlightsNewApi($params, $userIp, $realHost);
-                    } catch (Exception $e) {
-                        // Fallback to old API for multi-city (searches each segment)
-                        if (str_contains($e->getMessage(), 'access denied') || str_contains($e->getMessage(), 'Access denied')) {
-                            Log::warning('New Flight Search API access denied for multi-city, using old API', [
-                                'error' => $e->getMessage(),
-                            ]);
-                            return $this->searchMultiCityFlights($params);
-                        }
-                        throw $e;
-                    }
-                } else {
-                    // Use old API for multi-city (searches each segment separately)
-                    return $this->searchMultiCityFlights($params);
-                }
-            }
-
-            // Validate airport codes before making API call
-            if (!isset($params['origin']) || !isset($params['destination'])) {
-                throw new Exception('Origin and destination airports are required');
-            }
-
-            $this->validateAirportCode($params['origin'], 'Origin');
-            $this->validateAirportCode($params['destination'], 'Destination');
-
-            // Check if new API is enabled in config
-            $useNewApi = config('services.travelpayouts.use_new_api', false);
-            
-            if ($useNewApi) {
-                // Try new Flight Search API first, fallback to old API if access denied
-                try {
-                    return $this->searchFlightsNewApi($params, $userIp, $realHost);
-                } catch (Exception $e) {
-                    // If access denied (403), fallback to old API
-                    if (str_contains($e->getMessage(), 'access denied') || str_contains($e->getMessage(), 'Access denied')) {
-                        Log::warning('New Flight Search API access denied, falling back to old API', [
-                            'error' => $e->getMessage(),
-                        ]);
-                        return $this->searchFlightsOldApi($params);
-                    }
-                    // Re-throw other errors
-                    throw $e;
-                }
+            // Use InnoTravelTech API based on flight type
+            if ($flightType === 'one_way') {
+                return $this->searchInnoTravelTechOneWay($params);
+            } elseif ($flightType === 'round_trip') {
+                return $this->searchInnoTravelTechRoundTrip($params);
+            } elseif ($flightType === 'multi_city' && isset($params['flights'])) {
+                return $this->searchInnoTravelTechMultiCity($params);
             } else {
-                // Use old API by default (was working before)
-                return $this->searchFlightsOldApi($params);
+                // Default to one-way if type not specified
+                return $this->searchInnoTravelTechOneWay($params);
             }
 
         } catch (Exception $e) {
@@ -106,6 +63,616 @@ class TravelpayoutsService
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Search one-way flights using InnoTravelTech API
+     */
+    private function searchInnoTravelTechOneWay(array $params)
+    {
+        try {
+            // Extract airport codes (remove parentheses if present)
+            $origin = $this->extractAirportCode($params['origin'] ?? '');
+            $destination = $this->extractAirportCode($params['destination'] ?? '');
+            
+            if (empty($origin) || empty($destination)) {
+                throw new Exception('Origin and destination airports are required');
+            }
+
+            // Format departure date (ensure Y-m-d format)
+            $departureDate = $params['departure_at'] ?? date('Y-m-d');
+            if (strlen($departureDate) > 10) {
+                $departureDate = date('Y-m-d', strtotime($departureDate));
+            }
+
+            // Prepare request payload
+            $requestData = [
+                'member_id' => $this->innoApiKey,
+                'result_type' => $params['result_type'] ?? 'general',
+                'journey_type' => 'OneWay',
+                'segment' => [
+                    [
+                        'departure_airport_type' => 'AIRPORT',
+                        'departure_airport' => strtoupper($origin),
+                        'arrival_airport_type' => 'AIRPORT',
+                        'arrival_airport' => strtoupper($destination),
+                        'departure_date' => $departureDate,
+                    ]
+                ],
+                'travelers_adult' => $params['adults'] ?? $params['passenger'] ?? 1,
+                'travelers_child' => $params['children'] ?? 0,
+                'travelers_child_age' => $params['child_age'] ?? 0,
+                'travelers_infants' => $params['infants'] ?? 0,
+                'travelers_infants_age' => $params['infant_age'] ?? [''],
+                'booking_class' => $this->mapClassToBookingClass($params['class'] ?? 'economy'),
+                'supplier_uid' => $params['supplier_uid'] ?? 'all',
+                'partner_id' => $this->innoApiKey,
+                'language' => $params['language'] ?? 'en',
+            ];
+
+            // Add preferred carrier if specified
+            if (isset($params['airline']) && !empty($params['airline'])) {
+                $requestData['preferred_carrier'] = [$params['airline']];
+            }
+
+            // Make API request - try different endpoint patterns
+            $response = $this->makeInnoTravelTechRequest('/oneway', $requestData);
+            
+            // Transform response to match expected format
+            return $this->transformInnoTravelTechResponse($response, $params);
+
+        } catch (Exception $e) {
+            Log::error('InnoTravelTech OneWay search error: ' . $e->getMessage(), [
+                'params' => $params,
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Search round-trip flights using InnoTravelTech API
+     */
+    private function searchInnoTravelTechRoundTrip(array $params)
+    {
+        try {
+            // Extract airport codes
+            $origin = $this->extractAirportCode($params['origin'] ?? '');
+            $destination = $this->extractAirportCode($params['destination'] ?? '');
+            
+            if (empty($origin) || empty($destination)) {
+                throw new Exception('Origin and destination airports are required');
+            }
+
+            if (empty($params['return_at'])) {
+                throw new Exception('Return date is required for round-trip flights');
+            }
+
+            // Format dates (ensure Y-m-d format)
+            $departureDate = $params['departure_at'] ?? date('Y-m-d');
+            if (strlen($departureDate) > 10) {
+                $departureDate = date('Y-m-d', strtotime($departureDate));
+            }
+            $returnDate = $params['return_at'];
+            if (strlen($returnDate) > 10) {
+                $returnDate = date('Y-m-d', strtotime($returnDate));
+            }
+
+            // Prepare request payload
+            $requestData = [
+                'member_id' => $this->innoApiKey,
+                'result_type' => $params['result_type'] ?? 'general',
+                'journey_type' => 'RoundTrip',
+                'segment' => [
+                    [
+                        'departure_airport_type' => 'AIRPORT',
+                        'departure_airport' => strtoupper($origin),
+                        'arrival_airport_type' => 'AIRPORT',
+                        'arrival_airport' => strtoupper($destination),
+                        'departure_date' => $departureDate,
+                    ],
+                    [
+                        'departure_airport_type' => 'AIRPORT',
+                        'departure_airport' => strtoupper($destination),
+                        'arrival_airport_type' => 'AIRPORT',
+                        'arrival_airport' => strtoupper($origin),
+                        'departure_date' => $returnDate,
+                    ]
+                ],
+                'travelers_adult' => $params['adults'] ?? $params['passenger'] ?? 1,
+                'travelers_child' => $params['children'] ?? 0,
+                'travelers_child_age' => $params['child_age'] ?? 0,
+                'travelers_infants' => $params['infants'] ?? 0,
+                'travelers_infants_age' => $params['infant_age'] ?? [''],
+                'booking_class' => $this->mapClassToBookingClass($params['class'] ?? 'economy'),
+                'supplier_uid' => $params['supplier_uid'] ?? 'all',
+                'partner_id' => $this->innoApiKey,
+                'language' => $params['language'] ?? 'en',
+            ];
+
+            // Add preferred carrier if specified
+            if (isset($params['airline']) && !empty($params['airline'])) {
+                $requestData['preferred_carrier'] = [$params['airline']];
+            }
+
+            // Make API request - try different endpoint patterns
+            $response = $this->makeInnoTravelTechRequest('/roundtrip', $requestData);
+            
+            // Transform response to match expected format
+            return $this->transformInnoTravelTechResponse($response, $params);
+
+        } catch (Exception $e) {
+            Log::error('InnoTravelTech RoundTrip search error: ' . $e->getMessage(), [
+                'params' => $params,
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Search multi-city flights using InnoTravelTech API
+     */
+    private function searchInnoTravelTechMultiCity(array $params)
+    {
+        try {
+            if (!isset($params['flights']) || !is_array($params['flights']) || count($params['flights']) < 2) {
+                throw new Exception('At least 2 flights are required for multi-city search');
+            }
+
+            // Prepare segments from flights array
+            $segments = [];
+            foreach ($params['flights'] as $flight) {
+                $origin = $this->extractAirportCode($flight['origin'] ?? '');
+                $destination = $this->extractAirportCode($flight['destination'] ?? '');
+                
+                if (empty($origin) || empty($destination)) {
+                    continue;
+                }
+
+                // Format departure date
+                $flightDate = $flight['departure_at'] ?? date('Y-m-d');
+                if (strlen($flightDate) > 10) {
+                    $flightDate = date('Y-m-d', strtotime($flightDate));
+                }
+
+                $segments[] = [
+                    'departure_airport_type' => 'AIRPORT',
+                    'departure_airport' => strtoupper($origin),
+                    'arrival_airport_type' => 'AIRPORT',
+                    'arrival_airport' => strtoupper($destination),
+                    'departure_date' => $flightDate,
+                ];
+            }
+
+            if (empty($segments)) {
+                throw new Exception('No valid flight segments found');
+            }
+
+            // Prepare request payload
+            $requestData = [
+                'member_id' => $this->innoApiKey,
+                'result_type' => $params['result_type'] ?? 'general',
+                'journey_type' => 'MultiCity',
+                'segment' => $segments,
+                'travelers_adult' => $params['adults'] ?? $params['passenger'] ?? 1,
+                'travelers_child' => $params['children'] ?? 0,
+                'travelers_child_age' => $params['child_age'] ?? 0,
+                'travelers_infants' => $params['infants'] ?? 0,
+                'travelers_infants_age' => $params['infant_age'] ?? [''],
+                'booking_class' => $this->mapClassToBookingClass($params['class'] ?? 'economy'),
+                'supplier_uid' => $params['supplier_uid'] ?? 'all',
+                'partner_id' => $this->innoApiKey,
+                'language' => $params['language'] ?? 'en',
+            ];
+
+            // Add preferred carrier if specified
+            if (isset($params['airline']) && !empty($params['airline'])) {
+                $requestData['preferred_carrier'] = [$params['airline']];
+            }
+
+            // Make API request - try different endpoint patterns
+            $response = $this->makeInnoTravelTechRequest('/multicity', $requestData);
+            
+            // Transform response to match expected format
+            return $this->transformInnoTravelTechResponse($response, $params);
+
+        } catch (Exception $e) {
+            Log::error('InnoTravelTech MultiCity search error: ' . $e->getMessage(), [
+                'params' => $params,
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Make request to InnoTravelTech API
+     */
+    private function makeInnoTravelTechRequest(string $endpoint, array $data)
+    {
+        try {
+            // Try different endpoint patterns based on common API structures
+            $endpoints = [
+                rtrim($this->innoBaseUrl, '/') . $endpoint, // Direct: /oneway, /roundtrip, /multicity
+                rtrim($this->innoBaseUrl, '/') . '/api' . $endpoint, // With /api prefix
+                rtrim($this->innoBaseUrl, '/') . '/flight' . $endpoint, // With /flight prefix
+                rtrim($this->innoBaseUrl, '/') . '/api/flight' . $endpoint, // With /api/flight prefix
+            ];
+            
+            $lastException = null;
+            $triedEndpoints = [];
+            
+            foreach ($endpoints as $url) {
+                $triedEndpoints[] = $url;
+                try {
+                    Log::info('Trying InnoTravelTech API endpoint', ['url' => $url]);
+                    
+                    // Try with authentication in headers first
+                    $response = Http::withHeaders([
+                        'Content-Type' => 'application/json',
+                        'Accept' => 'application/json',
+                        'X-API-Key' => $this->innoApiKey,
+                        'X-Secret-Code' => $this->innoSecretCode,
+                    ])->timeout(120)->post($url, $data);
+
+                    Log::info('InnoTravelTech API response', [
+                        'url' => $url,
+                        'status' => $response->status(),
+                    ]);
+
+                    // If we get a 404, try next endpoint
+                    if ($response->status() === 404) {
+                        Log::warning('InnoTravelTech API endpoint returned 404', ['url' => $url]);
+                        continue;
+                    }
+
+                    if ($response->failed()) {
+                        // If it's not a 404, check if it's an authentication issue
+                        // Try with credentials in body instead
+                        if ($response->status() === 401 || $response->status() === 403) {
+                            $dataWithAuth = array_merge($data, [
+                                'api_key' => $this->innoApiKey,
+                                'secret_code' => $this->innoSecretCode,
+                            ]);
+                            
+                            $response = Http::withHeaders([
+                                'Content-Type' => 'application/json',
+                                'Accept' => 'application/json',
+                            ])->timeout(120)->post($url, $dataWithAuth);
+                        }
+                        
+                        if ($response->failed() && $response->status() !== 404) {
+                            $errorMessage = $response->json()['message'] ?? $response->body() ?? 'Unknown error';
+                            throw new Exception('InnoTravelTech API error: ' . $errorMessage);
+                        }
+                    }
+
+                    // Check if response is HTML (error page)
+                    $body = $response->body();
+                    if (str_contains($body, '<!DOCTYPE') || str_contains($body, '<html')) {
+                        continue; // Try next endpoint
+                    }
+
+                    $responseData = $response->json();
+                    
+                    if (!isset($responseData['status']) || $responseData['status'] !== 'success') {
+                        $errorMessage = $responseData['reason'] ?? $responseData['message'] ?? 'Unknown error';
+                        throw new Exception('InnoTravelTech API returned error: ' . $errorMessage);
+                    }
+
+                    return $responseData;
+                    
+                } catch (Exception $e) {
+                    $lastException = $e;
+                    // If it's a 404, continue to next endpoint
+                    if (str_contains($e->getMessage(), '404') || str_contains($e->getMessage(), 'Not Found')) {
+                        continue;
+                    }
+                    // For other errors, log and continue trying
+                    Log::warning('InnoTravelTech API endpoint attempt failed', [
+                        'url' => $url,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+            
+            // If all endpoints failed, throw the last exception with details
+            $errorMessage = 'InnoTravelTech API endpoint not found. ';
+            $errorMessage .= 'Tried endpoints: ' . implode(', ', $triedEndpoints) . '. ';
+            if ($lastException) {
+                $errorMessage .= 'Last error: ' . $lastException->getMessage();
+            } else {
+                $errorMessage .= 'All endpoints returned 404 Not Found. Please verify the API endpoint path in the documentation.';
+            }
+            
+            throw new Exception($errorMessage);
+
+        } catch (Exception $e) {
+            Log::error('InnoTravelTech API request error: ' . $e->getMessage(), [
+                'endpoint' => $endpoint,
+                'base_url' => $this->innoBaseUrl,
+                'data' => $data,
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Transform InnoTravelTech API response to match expected format
+     */
+    private function transformInnoTravelTechResponse(array $apiResponse, array $searchParams): array
+    {
+        $transformed = [
+            'status' => 'success',
+            'data' => [
+                'data' => [], // Frontend expects data.data
+            ],
+        ];
+
+        // Extract flight data from response
+        // InnoTravelTech API may return data directly or in a 'data' key
+        $flightDataArray = [];
+        
+        if (isset($apiResponse['data']) && is_array($apiResponse['data'])) {
+            $flightDataArray = $apiResponse['data'];
+        } elseif (isset($apiResponse['flights']) && is_array($apiResponse['flights'])) {
+            $flightDataArray = $apiResponse['flights'];
+        } elseif (is_array($apiResponse) && isset($apiResponse[0])) {
+            // Response might be a direct array of flights
+            $flightDataArray = $apiResponse;
+        }
+
+        foreach ($flightDataArray as $flightData) {
+            $flight = $this->transformFlightData($flightData, $searchParams);
+            if ($flight) {
+                $transformed['data']['data'][] = $flight;
+            }
+        }
+
+        return $transformed;
+    }
+
+    /**
+     * Transform individual flight data
+     */
+    private function transformFlightData(array $flightData, array $searchParams): ?array
+    {
+        try {
+            $departureTime = $this->extractDepartureTime($flightData);
+            $arrivalTime = $this->extractArrivalTime($flightData);
+            
+            $flight = [
+                'airline' => $this->extractAirlineName($flightData),
+                'flight_number' => $this->extractFlightNumber($flightData),
+                'origin' => $this->extractOrigin($flightData),
+                'origin_iata' => $this->extractOrigin($flightData),
+                'destination' => $this->extractDestination($flightData),
+                'destination_iata' => $this->extractDestination($flightData),
+                'departure_at' => $departureTime,
+                'arrival_at' => $arrivalTime,
+                'return_at' => $arrivalTime, // For frontend compatibility
+                'price' => $this->extractPrice($flightData),
+                'currency' => $this->extractCurrency($flightData),
+                'segments' => $this->extractSegments($flightData),
+            ];
+
+            // Add search context
+            $flight['search_origin'] = $searchParams['origin'] ?? null;
+            $flight['search_destination'] = $searchParams['destination'] ?? null;
+            $flight['search_departure_at'] = $searchParams['departure_at'] ?? null;
+            $flight['search_return_at'] = $searchParams['return_at'] ?? null;
+            $flight['search_flight_type'] = $searchParams['flight_type'] ?? 'one_way';
+            $flight['search_class'] = $searchParams['class'] ?? 'economy';
+            $flight['search_passenger'] = $searchParams['passenger'] ?? $searchParams['adults'] ?? 1;
+
+            // Store full flight data for processing
+            $flight['_raw_data'] = $flightData;
+
+            return $flight;
+
+        } catch (Exception $e) {
+            Log::warning('Failed to transform flight data: ' . $e->getMessage(), [
+                'flight_data' => $flightData,
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Extract airline name from flight data
+     */
+    private function extractAirlineName(array $flightData): ?string
+    {
+        // Check multiple possible locations
+        if (isset($flightData['flight_group']) && is_array($flightData['flight_group'])) {
+            foreach ($flightData['flight_group'] as $group) {
+                if (isset($group['routes']) && is_array($group['routes'])) {
+                    foreach ($group['routes'] as $route) {
+                        if (isset($route['operating']['carrier_name'])) {
+                            return $route['operating']['carrier_name'];
+                        }
+                        if (isset($route['marketing']['carrier_name'])) {
+                            return $route['marketing']['carrier_name'];
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extract flight number from flight data
+     */
+    private function extractFlightNumber(array $flightData): ?string
+    {
+        if (isset($flightData['flight_group']) && is_array($flightData['flight_group'])) {
+            foreach ($flightData['flight_group'] as $group) {
+                if (isset($group['routes']) && is_array($group['routes'])) {
+                    foreach ($group['routes'] as $route) {
+                        if (isset($route['operating']['flight_number'])) {
+                            return $route['operating']['carrier'] . $route['operating']['flight_number'];
+                        }
+                        if (isset($route['marketing']['flight_number'])) {
+                            return $route['marketing']['carrier'] . $route['marketing']['flight_number'];
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extract origin airport
+     */
+    private function extractOrigin(array $flightData): ?string
+    {
+        if (isset($flightData['flight_group'][0]['routes'][0]['origin'])) {
+            return $flightData['flight_group'][0]['routes'][0]['origin'];
+        }
+        if (isset($flightData['search_parameter']['segment'][0]['departure_airport'])) {
+            return $flightData['search_parameter']['segment'][0]['departure_airport'];
+        }
+        return null;
+    }
+
+    /**
+     * Extract destination airport
+     */
+    private function extractDestination(array $flightData): ?string
+    {
+        if (isset($flightData['flight_group'][0]['routes'][0]['destination'])) {
+            return $flightData['flight_group'][0]['routes'][0]['destination'];
+        }
+        if (isset($flightData['search_parameter']['segment'][0]['arrival_airport'])) {
+            return $flightData['search_parameter']['segment'][0]['arrival_airport'];
+        }
+        return null;
+    }
+
+    /**
+     * Extract departure time
+     */
+    private function extractDepartureTime(array $flightData): ?string
+    {
+        if (isset($flightData['flight_group'][0]['routes'][0]['departure_time'])) {
+            return $flightData['flight_group'][0]['routes'][0]['departure_time'];
+        }
+        return null;
+    }
+
+    /**
+     * Extract arrival time
+     */
+    private function extractArrivalTime(array $flightData): ?string
+    {
+        if (isset($flightData['flight_group'])) {
+            $lastGroup = end($flightData['flight_group']);
+            if (isset($lastGroup['routes'])) {
+                $lastRoute = end($lastGroup['routes']);
+                if (isset($lastRoute['arrival_time'])) {
+                    return $lastRoute['arrival_time'];
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extract price
+     */
+    private function extractPrice(array $flightData): ?float
+    {
+        if (isset($flightData['price']['sell']['total'])) {
+            return (float) $flightData['price']['sell']['total'];
+        }
+        if (isset($flightData['price']['total'])) {
+            return (float) $flightData['price']['total'];
+        }
+        if (isset($flightData['validation_price']['amount'])) {
+            return (float) $flightData['validation_price']['amount'];
+        }
+        return null;
+    }
+
+    /**
+     * Extract currency
+     */
+    private function extractCurrency(array $flightData): ?string
+    {
+        if (isset($flightData['price']['sell']['currency'])) {
+            return $flightData['price']['sell']['currency'];
+        }
+        if (isset($flightData['price']['currency'])) {
+            return $flightData['price']['currency'];
+        }
+        if (isset($flightData['validation_price']['currency'])) {
+            return $flightData['validation_price']['currency'];
+        }
+        return 'USD';
+    }
+
+    /**
+     * Extract segments for transit handling
+     */
+    private function extractSegments(array $flightData): array
+    {
+        $segments = [];
+        
+        if (isset($flightData['flight_group']) && is_array($flightData['flight_group'])) {
+            foreach ($flightData['flight_group'] as $group) {
+                if (isset($group['routes']) && is_array($group['routes'])) {
+                    foreach ($group['routes'] as $route) {
+                        $segments[] = [
+                            'origin' => $route['origin'] ?? null,
+                            'destination' => $route['destination'] ?? null,
+                            'departure_at' => $route['departure_time'] ?? null,
+                            'arrival_at' => $route['arrival_time'] ?? null,
+                            'airline' => $route['operating']['carrier_name'] ?? $route['marketing']['carrier_name'] ?? null,
+                            'flight_number' => ($route['operating']['carrier'] ?? '') . ($route['operating']['flight_number'] ?? ''),
+                        ];
+                    }
+                }
+            }
+        }
+        
+        return $segments;
+    }
+
+    /**
+     * Extract airport code from string (handles formats like "DAC" or "Dhaka (DAC)")
+     */
+    private function extractAirportCode(string $input): string
+    {
+        // If it's already a 3-letter code
+        if (preg_match('/^[A-Z]{3}$/i', trim($input))) {
+            return strtoupper(trim($input));
+        }
+        
+        // Extract from parentheses: "Dhaka (DAC)" -> "DAC"
+        if (preg_match('/\(([A-Z]{3})\)/i', $input, $matches)) {
+            return strtoupper($matches[1]);
+        }
+        
+        // Extract 3-letter code from anywhere in the string
+        if (preg_match('/([A-Z]{3})/i', $input, $matches)) {
+            return strtoupper($matches[1]);
+        }
+        
+        return strtoupper(trim($input));
+    }
+
+    /**
+     * Map class to booking class
+     */
+    private function mapClassToBookingClass(string $class): string
+    {
+        $map = [
+            'economy' => 'Economy',
+            'business' => 'Business',
+            'first' => 'First',
+        ];
+        
+        return $map[strtolower($class)] ?? 'Economy';
     }
 
     /**
