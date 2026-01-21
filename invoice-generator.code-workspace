@@ -1,6 +1,7 @@
 {
 	"folders": [
 		{
+			"name": "invoice-generator",
 			"path": "."
 		}
 	],
