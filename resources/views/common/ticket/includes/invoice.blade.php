@@ -153,7 +153,7 @@
                <tbody>
                   @foreach($editData->passengers as $key => $passenger)
                      <tr>
-                        <td style="font-family: {{ language_font(strip_tags($passenger->name)) }}; color: #474751; padding: 10px; font-size: 14px;">{{ $passenger->name }}{{ $passenger->pax_type ? ', '.$passenger->pax_type : '' }}</td>
+                        <td style="font-family: {{ language_font(strip_tags($passenger->name)) }}; color: #474751; padding: 10px; font-size: 14px;">{{ $passenger->name }}{{ $passenger->gender ? ' (' . $passenger->gender . ')' : '' }}{{ $passenger->pax_type ? ', '.$passenger->pax_type : '' }}</td>
                         <td style="color: #474751; padding: 10px; font-size: 14px;">
                            @if(isset($passenger->flights) && count($passenger->flights))
                               @foreach($passenger->flights as $pKey => $pFlight)

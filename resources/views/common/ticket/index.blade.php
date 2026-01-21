@@ -141,6 +141,22 @@
 											</div>
 										</div>
 
+										{{-- <div class="col-md-4">
+											<div class="form-item mb-5">
+												@php
+													$genderOptions = ['Male', 'Female', 'Transgender', 'Non-binary', 'Other', 'Prefer not to say'];
+													$genderSelected = request()->gender ?? '';
+												@endphp
+												<label class="form-label">{{ $getCurrentTranslation['gender_label'] ?? 'gender_label' }}:</label>
+												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['gender_placeholder'] ?? 'gender_placeholder' }}" name="gender">
+													<option value="0">----</option>
+													@foreach($genderOptions as $option)
+														<option value="{{ $option }}" {{ $option == $genderSelected ? 'selected' : '' }}>{{ $option }}</option>
+													@endforeach
+												</select>
+											</div>
+										</div> --}}
+
 										<div class="col-md-4">
 											<div class="input-item-wrap">
 												<label class="form-label">{{ $getCurrentTranslation['flight_date_range_label'] ?? 'flight_date_range_label' }}:</label>

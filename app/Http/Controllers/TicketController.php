@@ -73,6 +73,7 @@ class TicketController extends Controller
         $hasFilter =
             (request()->filled('trip_type') && request()->trip_type != 0) ||
             (request()->filled('airline_id') && request()->airline_id != 0) ||
+            (request()->filled('gender') && request()->gender != '0') ||
             request()->filled('flight_date_range') ||
             request()->filled('invoice_date_range') ||
             (request()->has('search') && !empty(request('search')['value']));
@@ -137,6 +138,13 @@ class TicketController extends Controller
                     if ($airlineIds->isNotEmpty()) {
                         $query->whereIn('id', $airlineIds);
                     }
+                }
+
+                // ✅ Gender filter (passenger)
+                if (!empty(request()->gender) && request()->gender != '0') {
+                    $query->whereHas('passengers', function ($q) {
+                        $q->where('gender', request()->gender);
+                    });
                 }
 
                 // ✅ Flight date range filter
@@ -266,9 +274,15 @@ class TicketController extends Controller
                 
                 $passengerNames = '';
                 if (!empty($row->passengers) && is_iterable($row->passengers)) {
-                    $firstName = collect($row->passengers)->pluck('name')->filter()->first();
-                    if ($firstName) {
-                        $passengerNames = '<br><strong>' . ($currentTranslation['passenger'] ?? 'passenger') . ':</strong> ' . $firstName;
+                    $passengerCount = count($row->passengers);
+                    $firstPassenger = collect($row->passengers)->first();
+                    if ($firstPassenger && $firstPassenger->name) {
+                        $passengerNames = '<br><strong>' . ($currentTranslation['passenger'] ?? 'passenger') . ' (' . $passengerCount . '):</strong> ' . e($firstPassenger->name);
+                        if ($firstPassenger->gender) {
+                            $passengerNames .= ' (' . e($firstPassenger->gender) . ')';
+                        }
+                    } else {
+                        $passengerNames = '<br><strong>' . ($currentTranslation['passenger'] ?? 'passenger') . ' (' . $passengerCount . '):</strong> -';
                     }
                 }
 
@@ -1081,6 +1095,7 @@ class TicketController extends Controller
             'passenger_info.*.name' => 'nullable|string|max:100',
             'passenger_info.*.phone' => 'nullable|string|max:20',
             'passenger_info.*.email' => 'nullable|email|max:100',
+            'passenger_info.*.gender' => 'nullable|in:Male,Female,Transgender,Non-binary,Genderqueer,Genderfluid,Agender,Bigender,Two-Spirit,Other,Prefer not to say',
             'passenger_info.*.pax_type' => 'nullable|in:Adult,Child,Infant',
             //'passenger_info.*.ticket_number' => 'nullable|string|max:100',
             'passenger_info.*.ticket_price' => 'nullable|numeric',
@@ -1187,6 +1202,7 @@ class TicketController extends Controller
                 'passenger_info.*.name' => 'required|string|max:100',
                 'passenger_info.*.phone' => 'nullable|string|max:20',
                 'passenger_info.*.email' => 'nullable|email|max:100',
+                'passenger_info.*.gender' => 'nullable|in:Male,Female,Transgender,Non-binary,Genderqueer,Genderfluid,Agender,Bigender,Two-Spirit,Other,Prefer not to say',
                 'passenger_info.*.pax_type' => 'required|in:Adult,Child,Infant',
                 //'passenger_info.*.ticket_number' => 'nullable|string|max:100',
                 'passenger_info.*.ticket_price' => 'nullable|numeric',
@@ -1420,6 +1436,7 @@ class TicketController extends Controller
                         $ticketPassenger->name = $passenger['name'] ?? null;
                         $ticketPassenger->phone = $passenger['phone'] ?? null;
                         $ticketPassenger->email = $passenger['email'] ?? null;
+                        $ticketPassenger->gender = $passenger['gender'] ?? null;
                         $ticketPassenger->pax_type = $passenger['pax_type'] ?? null;
                         //$ticketPassenger->ticket_number = $passenger['ticket_number'] ?? null;
                         $ticketPassenger->ticket_price = $passenger['ticket_price'] ?? null;

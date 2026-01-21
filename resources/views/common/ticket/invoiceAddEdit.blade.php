@@ -179,6 +179,21 @@
 										<div class="col-md-4">
 											<div class="form-item mb-5">
 												@php
+													$genderOptions = ['Male', 'Female', 'Transgender', 'Non-binary', 'Other', 'Prefer not to say'];
+													$genderSelected = $item->gender ?? '';
+												@endphp
+												<label class="form-label">{{ $getCurrentTranslation['gender_label'] ?? 'gender_label' }}:</label>
+												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['gender_placeholder'] ?? 'gender_placeholder' }}" name="passenger_info[0][gender]">
+													<option value="">----</option>
+													@foreach($genderOptions as $option)
+														<option value="{{ $option }}" {{ $option == $genderSelected ? 'selected' : '' }}>{{ $option }}</option>
+													@endforeach
+												</select>
+											</div>
+										</div>
+										<div class="col-md-4">
+											<div class="form-item mb-5">
+												@php
 													$options = ['Adult', 'Child', 'Infant'];
 
 													$selected = $item->pax_type;
@@ -316,6 +331,21 @@
 										<div class="form-item mb-5">
 											<label class="form-label">{{ $getCurrentTranslation['passenger_email_label'] ?? 'passenger_email_label' }}:</label>
 											<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['passenger_email_placeholder'] ?? 'passenger_email_placeholder' }}" name="passenger_info[0][email]" value=""/>
+										</div>
+									</div>
+									<div class="col-md-4">
+										<div class="form-item mb-5">
+											@php
+												$genderOptions = ['Male', 'Female', 'Transgender', 'Non-binary', 'Other', 'Prefer not to say'];
+												$genderSelected = '';
+											@endphp
+											<label class="form-label">{{ $getCurrentTranslation['gender_label'] ?? 'gender_label' }}:</label>
+											<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['gender_placeholder'] ?? 'gender_placeholder' }}" name="passenger_info[0][gender]">
+												<option value="">----</option>
+												@foreach($genderOptions as $option)
+													<option value="{{ $option }}" {{ $option == $genderSelected ? 'selected' : '' }}>{{ $option }}</option>
+												@endforeach
+											</select>
 										</div>
 									</div>
 									<div class="col-md-4">

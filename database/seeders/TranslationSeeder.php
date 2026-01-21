@@ -190,6 +190,9 @@ class TranslationSeeder extends Seeder
                 'pax_type_label' => 'Pax Type',
                 'pax_type_placeholder' => 'Select pax type',
 
+                'gender_label' => 'Gender',
+                'gender_placeholder' => 'Select gender',
+
                 'ticket_price_label' => 'Ticket Price',
                 'ticket_price_placeholder' => 'Enter ticket price',
 
@@ -1287,6 +1290,9 @@ class TranslationSeeder extends Seeder
 
                 'pax_type_label' => 'PAXタイプ',
                 'pax_type_placeholder' => 'PAXタイプを選択',
+
+                'gender_label' => '性別',
+                'gender_placeholder' => '性別を選択',
 
                 'ticket_price_label' => 'チケット価格',
                 'ticket_price_placeholder' => 'チケット価格を入力',

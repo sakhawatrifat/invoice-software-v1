@@ -23,21 +23,20 @@ return new class extends Migration
             //$table->longText('ticket_number')->nullable();
             $table->longText('ticket_price')->nullable();
             $table->date('date_of_birth')->nullable();
-            // $table->enum('gender', [
-            //     'Male',
-            //     'Female',
-            //     'Transgender',
-            //     'Non-binary',
-            //     'Genderqueer',
-            //     'Genderfluid',
-            //     'Agender',
-            //     'Bigender',
-            //     'Two-Spirit',
-            //     'Other',
-            //     'Prefer not to say'
-            // ])->nullable();
-            // $table->longText('nationality')->nullable();
-            // $table->enum('type', ['Adult', 'Child', 'Infant'])->nullable();
+            $table->enum('gender', [
+                'Male',
+                'Female',
+                'Transgender',
+                'Non-binary',
+                'Genderqueer',
+                'Genderfluid',
+                'Agender',
+                'Bigender',
+                'Two-Spirit',
+                'Other',
+                'Prefer not to say'
+            ])->nullable();
+            $table->longText('nationality')->nullable();
             $table->longText('passport_number')->nullable();
             // $table->longText('passport_expiry_date')->nullable();
             $table->longText('baggage_allowance')->nullable();
