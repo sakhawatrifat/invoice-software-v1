@@ -326,7 +326,7 @@
 									        <div>
 									            <div class="fs-5 fw-semibold text-gray-800 mb-1">
 									                <b>{{ $getCurrentTranslation['passenger_name_label'] ?? 'passenger_name_label' }}:</b> 
-									                {{ $flight->client_name ?? 'N/A' }}
+									                {{ $flight->client_name ?? 'N/A' }}{{ ($g = $flight->ticket?->passengers?->first()?->gender) ? ' (' . e($g) . ')' : '' }}
 									            </div>
 									            <div class="fs-7 text-gray-800 mb-0">
 									                <b>{{ $getCurrentTranslation['passenger_phone_label'] ?? 'passenger_phone_label' }}:</b> 

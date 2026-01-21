@@ -2051,7 +2051,7 @@ if (!function_exists('toDoListData')) {
 
         $rangeType = determineRangeType($startDate, $endDate); //keep the commented line
 
-        $toDoData = Payment::with('ticket', 'country', 'issuedBy', 'airline')
+        $toDoData = Payment::with('ticket', 'ticket.passengers', 'country', 'issuedBy', 'airline')
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('departure_date_time', [$startDate, $endDate])
                     ->orWhereBetween('return_date_time', [$startDate, $endDate]);
@@ -2100,7 +2100,7 @@ if (!function_exists('flightListData')) {
         
         $rangeType = determineRangeType($startDate, $endDate);
         
-        $toDoData = Payment::with('ticket', 'country', 'issuedBy', 'airline')
+        $toDoData = Payment::with('ticket', 'ticket.passengers', 'country', 'issuedBy', 'airline')
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('departure_date_time', [$startDate, $endDate])
                     ->orWhereBetween('return_date_time', [$startDate, $endDate]);

@@ -109,6 +109,9 @@ class TicketReminderController extends Controller
         $currentTranslation = getCurrentTranslation();
         return DataTables::of($query)
             ->addIndexColumn()
+            ->editColumn('name', function ($row) {
+                return e($row->name) . ($row->gender ? ' (' . e($row->gender) . ')' : '');
+            })
             // ->addColumn('user_id', function ($row) {
             //     return $row->user?->name ?? 'N/A';
             // })

@@ -182,7 +182,7 @@
 																<tr>
 																	<td class="ps-2">{{ $index + 1 }}</td>
 																	<td class="text-start">
-																		<strong>{{ $getCurrentTranslation['passenger_name_label'] ?? 'passenger_name_label' }} :</strong> {{ $item->client_name ?? 'N/A' }} <br>
+																		<strong>{{ $getCurrentTranslation['passenger_name_label'] ?? 'passenger_name_label' }} :</strong> {{ $item->client_name ?? 'N/A' }}{{ ($g = $item->ticket?->passengers?->first()?->gender) ? ' (' . e($g) . ')' : '' }} <br>
 																		<strong>{{ $getCurrentTranslation['payment_invoice_id_label'] ?? 'payment_invoice_id_label' }} :</strong> {{ $item->payment_invoice_id ?? 'N/A' }} <br>
 																		<strong>{{ $getCurrentTranslation['ticket_invoice_id_label'] ?? 'ticket_invoice_id_label' }} :</strong> {{ $item->ticket->invoice_id ?? 'N/A' }} <br>
 
