@@ -52,20 +52,31 @@
 										<label>{{ $getCurrentTranslation['image'] ?? 'image' }} (100x100):</label>
 										@php
 											$selected = old('image') ?? ($editData->image_url ?? '');
-
-											$isFileExist = false;
-											if (isset($selected) && !empty($selected)) {
-												if (!empty($selected)) {
-													$isFileExist = true;
-												}
-											}
-
+											$isFileExist = !empty($selected);
 										@endphp
 										<div class="file-input-box">
-											<input name="image" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? '' : '' }} data-old="{{ $selected ? $selected : '' }}">
+											<input name="image" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? '' : '' }} data-old="{{ $selected ?? '' }}">
 										</div>
-										<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
-											<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="100px" style="{{ $selected ? '' : 'display: none;' }}">
+										<div class="preview-image mt-2" style="{{ $isFileExist ? '' : 'display: none;' }}" data-old="{{ $selected ?? '' }}">
+											@if($isFileExist)
+												<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="{{ $selected }}">
+													<img src="{{ $selected }}" alt="Image" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;" old-selected="{{ $selected }}">
+												</div>
+												<div class="pdf-preview" data-src="" style="display: none;">
+													<a href="javascript:void(0);" class="file-prev-thumb">
+														<i class="fas fa-file-pdf fa-3x text-danger"></i>
+													</a>
+												</div>
+											@else
+												<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+													<img src="" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+												</div>
+												<div class="pdf-preview" data-src="" style="display: none;">
+													<a href="javascript:void(0);" class="file-prev-thumb">
+														<i class="fas fa-file-pdf fa-3x text-danger"></i>
+													</a>
+												</div>
+											@endif
 										</div>
 										@error('image')
 											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
@@ -246,20 +257,31 @@
 											<label>{{ $getCurrentTranslation['logo_label'] ?? 'logo_label' }}:</label>
 											@php
 												$selected = old('dark_logo') ?? ($editData->company->dark_logo_url ?? '');
-
-												$isFileExist = false;
-												if (isset($selected) && !empty($selected)) {
-													if (!empty($selected)) {
-														$isFileExist = true;
-													}
-												}
-
+												$isFileExist = !empty($selected);
 											@endphp
 											<div class="file-input-box">
-												<input name="dark_logo" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ? $selected : '' }}">
+												<input name="dark_logo" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ?? '' }}">
 											</div>
-											<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
-												<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="30%" style="{{ $selected ? '' : 'display: none;' }}">
+											<div class="preview-image mt-2" style="{{ $isFileExist ? '' : 'display: none;' }}" data-old="{{ $selected ?? '' }}">
+												@if($isFileExist)
+													<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="{{ $selected }}">
+														<img src="{{ $selected }}" alt="Logo" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;" old-selected="{{ $selected }}">
+													</div>
+													<div class="pdf-preview" data-src="" style="display: none;">
+														<a href="javascript:void(0);" class="file-prev-thumb">
+															<i class="fas fa-file-pdf fa-3x text-danger"></i>
+														</a>
+													</div>
+												@else
+													<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+														<img src="" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+													</div>
+													<div class="pdf-preview" data-src="" style="display: none;">
+														<a href="javascript:void(0);" class="file-prev-thumb">
+															<i class="fas fa-file-pdf fa-3x text-danger"></i>
+														</a>
+													</div>
+												@endif
 											</div>
 											@error('dark_logo')
 												<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
@@ -296,20 +318,31 @@
 											<label>{{ $getCurrentTranslation['icon_label'] ?? 'icon_label' }}:</label>
 											@php
 												$selected = old('dark_icon') ?? ($editData->company->dark_icon_url ?? '');
-
-												$isFileExist = false;
-												if (isset($selected) && !empty($selected)) {
-													if (!empty($selected)) {
-														$isFileExist = true;
-													}
-												}
-
+												$isFileExist = !empty($selected);
 											@endphp
 											<div class="file-input-box">
-												<input name="dark_icon" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ? $selected : '' }}">
+												<input name="dark_icon" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ?? '' }}">
 											</div>
-											<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
-												<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="30%" style="{{ $selected ? '' : 'display: none;' }}">
+											<div class="preview-image mt-2" style="{{ $isFileExist ? '' : 'display: none;' }}" data-old="{{ $selected ?? '' }}">
+												@if($isFileExist)
+													<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="{{ $selected }}">
+														<img src="{{ $selected }}" alt="Icon" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;" old-selected="{{ $selected }}">
+													</div>
+													<div class="pdf-preview" data-src="" style="display: none;">
+														<a href="javascript:void(0);" class="file-prev-thumb">
+															<i class="fas fa-file-pdf fa-3x text-danger"></i>
+														</a>
+													</div>
+												@else
+													<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+														<img src="" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+													</div>
+													<div class="pdf-preview" data-src="" style="display: none;">
+														<a href="javascript:void(0);" class="file-prev-thumb">
+															<i class="fas fa-file-pdf fa-3x text-danger"></i>
+														</a>
+													</div>
+												@endif
 											</div>
 											@error('dark_icon')
 												<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
@@ -346,20 +379,31 @@
 											<label>{{ $getCurrentTranslation['seal_label'] ?? 'seal_label' }}:</label>
 											@php
 												$selected = old('dark_seal') ?? ($editData->company->dark_seal_url ?? '');
-
-												$isFileExist = false;
-												if (isset($selected) && !empty($selected)) {
-													if (!empty($selected)) {
-														$isFileExist = true;
-													}
-												}
-
+												$isFileExist = !empty($selected);
 											@endphp
 											<div class="file-input-box">
-												<input name="dark_seal" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ? $selected : '' }}">
+												<input name="dark_seal" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? 'ip-required' : '' }} data-old="{{ $selected ?? '' }}">
 											</div>
-											<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
-												<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="30%" style="{{ $selected ? '' : 'display: none;' }}">
+											<div class="preview-image mt-2" style="{{ $isFileExist ? '' : 'display: none;' }}" data-old="{{ $selected ?? '' }}">
+												@if($isFileExist)
+													<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="{{ $selected }}">
+														<img src="{{ $selected }}" alt="Seal" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;" old-selected="{{ $selected }}">
+													</div>
+													<div class="pdf-preview" data-src="" style="display: none;">
+														<a href="javascript:void(0);" class="file-prev-thumb">
+															<i class="fas fa-file-pdf fa-3x text-danger"></i>
+														</a>
+													</div>
+												@else
+													<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+														<img src="" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+													</div>
+													<div class="pdf-preview" data-src="" style="display: none;">
+														<a href="javascript:void(0);" class="file-prev-thumb">
+															<i class="fas fa-file-pdf fa-3x text-danger"></i>
+														</a>
+													</div>
+												@endif
 											</div>
 											@error('dark_seal')
 												<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>

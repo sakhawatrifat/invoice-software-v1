@@ -209,6 +209,8 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
                 Route::get('/expense/edit/{id}', 'edit')->name('expense.edit');
                 Route::put('/expense/update/{id}', 'update')->name('expense.update');
                 Route::delete('/expense/delete/{id}', 'destroy')->name('expense.destroy');
+                Route::get('/expense/report', 'report')->name('expense.report');
+                Route::get('/expense/report/export-pdf', 'exportPdf')->name('expense.exportPdf');
             });
 
             //Homepage CRUD Routes
@@ -243,13 +245,17 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
             //Admin Report Routes
             Route::controller(AdminReportController::class)->group(function () {
                 Route::get('/gross-profit-loss-report', 'grossProfitLossReport')->name('grossProfitLossReport');
+                Route::get('/gross-profit-loss-report/export-pdf', 'grossProfitLossReportExportPdf')->name('grossProfitLossReport.exportPdf');
                 Route::get('/net-profit-loss-report', 'netProfitLossReport')->name('netProfitLossReport');
+                Route::get('/net-profit-loss-report/export-pdf', 'netProfitLossReportExportPdf')->name('netProfitLossReport.exportPdf');
             });
 
             //Attendance Report Routes
             Route::controller(AttendanceController::class)->group(function () {
                 Route::get('/attendance/report', 'report')->name('attendance.report');
+                Route::get('/attendance/export-pdf', 'exportPdf')->name('attendance.exportPdf');
                 Route::get('/attendance/employee-details/{employeeId}', 'employeeAttendanceDetails')->name('attendance.employeeDetails');
+                Route::get('/attendance/employee-details/{employeeId}/export-pdf', 'employeeAttendanceDetailsExportPdf')->name('attendance.employeeDetailsExportPdf');
                 Route::get('/attendance/get-details', 'getAttendanceDetails')->name('attendance.getDetails');
             });
 
@@ -259,6 +265,11 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
                 Route::post('/salary/generate', 'generate')->name('salary.generate');
                 Route::post('/salary/check-duplicates', 'checkDuplicates')->name('salary.checkDuplicates');
                 Route::get('/salary/list', 'list')->name('salary.list');
+                Route::get('/salary/report', 'report')->name('salary.report');
+                Route::get('/salary/report/export-pdf', 'exportPdf')->name('salary.exportPdf');
+                Route::get('/salary/staff-report/{id}', 'staffSalaryReport')->name('salary.staffReport');
+                Route::get('/salary/staff-report/{id}/export-pdf', 'staffSalaryReportExportPdf')->name('salary.staffReportExportPdf');
+                Route::get('/salary/staff-report/{id}/export-csv', 'staffSalaryReportExportCsv')->name('salary.staffReportExportCsv');
                 Route::put('/salary/{id}', 'update')->name('salary.update');
                 Route::get('/salary/{id}/details', 'getDetails')->name('salary.getDetails');
                 Route::delete('/salary/{id}', 'destroy')->name('salary.destroy');
@@ -292,6 +303,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
     //Staff Attendance Routes (for is_staff == 1)
     Route::controller(AttendanceController::class)->group(function () {
         Route::get('/staff/attendance/report', 'staffAttendanceReport')->name('staff.attendance.report');
+        Route::get('/staff/attendance/export-pdf', 'staffExportPdf')->name('staff.attendance.exportPdf');
     });
 
     Route::controller(\App\Http\Controllers\Admin\SalaryController::class)->group(function () {
@@ -382,6 +394,35 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
 
         Route::get('/flight-list', 'flightList')->name('flight.list');
         Route::get('/flight-list-datatable', 'flightListDatatable')->name('flight.list.datatable');
+    });
+
+    // CRM Lead Routes
+    Route::controller(\App\Http\Controllers\LeadController::class)->group(function () {
+        Route::get('/crm/leads', 'index')->name('lead.index');
+        Route::get('/crm/leads-datatable', 'datatable')->name('lead.datatable');
+        Route::get('/crm/leads/create', 'create')->name('lead.create');
+        Route::post('/crm/leads/store', 'store')->name('lead.store');
+        Route::get('/crm/leads/show/{id}', 'show')->name('lead.show');
+        Route::get('/crm/leads/edit/{id}', 'edit')->name('lead.edit');
+        Route::put('/crm/leads/update/{id}', 'update')->name('lead.update');
+        Route::delete('/crm/leads/delete/{id}', 'destroy')->name('lead.delete');
+    });
+
+    // CRM Lead Source Routes
+    Route::controller(\App\Http\Controllers\LeadSourceController::class)->group(function () {
+        Route::get('/crm/lead-source-list', 'index')->name('leadSource.index');
+        Route::get('/crm/lead-source-datatble', 'datatable')->name('leadSource.datatable');
+        Route::get('/crm/lead-source/create', 'create')->name('leadSource.create');
+        Route::post('/crm/lead-source/store', 'store')->name('leadSource.store');
+        Route::get('/crm/lead-source/status/{id}/{status}', 'status')->name('leadSource.status');
+        Route::get('/crm/lead-source/edit/{id}', 'edit')->name('leadSource.edit');
+        Route::put('/crm/lead-source/update/{id}', 'update')->name('leadSource.update');
+        Route::delete('/crm/lead-source/delete/{id}', 'destroy')->name('leadSource.delete');
+    });
+
+    // CRM Customer History Routes
+    Route::controller(\App\Http\Controllers\CustomerHistoryController::class)->group(function () {
+        Route::get('/crm/customer-history', 'index')->name('customerHistory.index');
     });
 
     //Common IntroductionSource Routes

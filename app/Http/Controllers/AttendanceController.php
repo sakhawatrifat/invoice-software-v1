@@ -1140,4 +1140,321 @@ class AttendanceController extends Controller
         
         return view('common.staff.attendance.report', get_defined_vars());
     }
+
+    /**
+     * Export attendance report as PDF (Admin)
+     */
+    public function exportPdf(Request $request, \App\Services\PdfService $pdfService)
+    {
+        if (!hasPermission('admin.attendance.report')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $user = Auth::user();
+        
+        // Reuse the same logic from report() method
+        $attendanceQuery = Attendance::withTrashed()
+            ->with(['employee' => function($query) {
+                $query->withTrashed()->with('designation');
+            }, 'pauses']);
+
+        $attendanceQuery->whereHas('employee', function ($query) {
+            $query->withTrashed()->where(function($q) {
+                $q->where('is_staff', 1)->orWhere('id', 1);
+            });
+        });
+
+        if (!empty($request->date_range) && $request->date_range != 0 && $request->date_range != '0') {
+            $dateRange = $request->date_range;
+            [$start, $end] = explode('-', $dateRange);
+            $startDate = Carbon::createFromFormat('Y/m/d', trim($start));
+            $endDate = Carbon::createFromFormat('Y/m/d', trim($end));
+            $attendanceQuery->whereDate('date', '>=', $startDate->format('Y-m-d'))
+                           ->whereDate('date', '<=', $endDate->format('Y-m-d'));
+        } else {
+            $startDate = Carbon::today();
+            $endDate = Carbon::today();
+            $attendanceQuery->whereDate('date', '>=', $startDate->format('Y-m-d'))
+                           ->whereDate('date', '<=', $endDate->format('Y-m-d'));
+        }
+
+        if (!empty($request->search)) {
+            $search = $request->search;
+            $attendanceQuery->where(function ($q) use ($search) {
+                $q->whereHas('employee', function ($query) use ($search) {
+                    $query->withTrashed()->where(function($q2) {
+                        $q2->where('is_staff', 1)->orWhere('id', 1);
+                    })->where(function ($q) use ($search) {
+                        $q->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('email', 'like', '%' . $search . '%');
+                    });
+                })
+                ->orWhere('ip_address', 'like', '%' . $search . '%')
+                ->orWhere('device_browser', 'like', '%' . $search . '%')
+                ->orWhere('overtime_task_description', 'like', '%' . $search . '%');
+            });
+        }
+
+        if (!empty($request->employee_id) && $request->employee_id != 0) {
+            $attendanceQuery->where('employee_id', $request->employee_id);
+        }
+
+        if (!empty($request->status) && $request->status != 0) {
+            $attendanceQuery->where('status', $request->status);
+        }
+
+        $attendanceQuery->orderBy('date', 'desc')->orderBy('check_in', 'desc');
+        $attendances = $attendanceQuery->get();
+        
+        // Calculate summary statistics (same as report method)
+        $dailyWorkTime = (float) env('DAILY_WORK_TIME', 8);
+        $totalRecords = $attendances->count();
+        $totalHours = $attendances->sum('total_hours') ?? 0;
+        $totalOvertimeHours = $attendances->filter(function ($attendance) use ($dailyWorkTime) {
+            return ($attendance->total_hours ?? 0) > $dailyWorkTime;
+        })->sum(function ($attendance) use ($dailyWorkTime) {
+            return ($attendance->total_hours ?? 0) - $dailyWorkTime;
+        });
+        
+        $statusCounts = $attendances->groupBy('status')->map->count();
+        
+        // Get all users for summary
+        $allUsers = User::where(function($q) {
+            $q->where('is_staff', 1)->orWhere('id', 1);
+        })->with('designation')->get();
+        
+        $userSummary = [];
+        foreach ($allUsers as $user) {
+            $userAttendances = Attendance::withTrashed()
+                ->where('employee_id', $user->id)
+                ->whereDate('date', '>=', $startDate->format('Y-m-d'))
+                ->whereDate('date', '<=', $endDate->format('Y-m-d'))
+                ->get();
+            
+            $totalPresentDays = $userAttendances->where('status', 'Present')->count();
+            $totalWorkHours = $userAttendances->sum('total_hours') ?? 0;
+            $totalRunningHours = $userAttendances->filter(function($att) {
+                return empty($att->check_out) && !empty($att->check_in);
+            })->sum('running_total_hour') ?? 0;
+            $totalWorkHoursWithRunning = $totalWorkHours + $totalRunningHours;
+            $userOvertimeHours = $userAttendances->filter(function($att) use ($dailyWorkTime) {
+                return ($att->total_hours ?? 0) > $dailyWorkTime;
+            })->sum(function($att) use ($dailyWorkTime) {
+                return ($att->total_hours ?? 0) - $dailyWorkTime;
+            });
+            
+            $workingDays = $startDate->copy();
+            $totalWorkingDays = 0;
+            while ($workingDays->lte($endDate)) {
+                if ($workingDays->dayOfWeek >= 1 && $workingDays->dayOfWeek <= 5) {
+                    $totalWorkingDays++;
+                }
+                $workingDays->addDay();
+            }
+            $totalAbsentDays = max(0, $totalWorkingDays - $totalPresentDays);
+            $expectedWorkHoursPresent = $totalPresentDays * $dailyWorkTime;
+            $workHoursGapPresent = max(0, $expectedWorkHoursPresent - $totalWorkHoursWithRunning);
+            $expectedWorkHoursTotal = ($totalPresentDays + $totalAbsentDays) * $dailyWorkTime;
+            $workHoursGapTotal = max(0, $expectedWorkHoursTotal - $totalWorkHoursWithRunning);
+            
+            $userSummary[] = [
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'designation' => $user->designation->name ?? 'N/A',
+                'total_present_days' => $totalPresentDays,
+                'total_absent_days' => $totalAbsentDays,
+                'total_work_hours' => $totalWorkHoursWithRunning,
+                'total_overtime_hours' => $userOvertimeHours,
+                'work_hours_gap_present' => $workHoursGapPresent,
+                'work_hours_gap_total' => $workHoursGapTotal,
+            ];
+        }
+        
+        usort($userSummary, function($a, $b) {
+            return strcmp($a['name'], $b['name']);
+        });
+        
+        $userSummaryTotals = [
+            'total_present_days' => array_sum(array_column($userSummary, 'total_present_days')),
+            'total_absent_days' => array_sum(array_column($userSummary, 'total_absent_days')),
+            'total_work_hours' => array_sum(array_column($userSummary, 'total_work_hours')),
+            'total_overtime_hours' => array_sum(array_column($userSummary, 'total_overtime_hours')),
+            'work_hours_gap_present' => array_sum(array_column($userSummary, 'work_hours_gap_present')),
+            'work_hours_gap_total' => array_sum(array_column($userSummary, 'work_hours_gap_total')),
+        ];
+        
+        $getCurrentTranslation = getCurrentTranslation();
+        $dateRangeStr = $request->date_range ?? ($startDate->format('Y/m/d') . '-' . $endDate->format('Y/m/d'));
+        
+        $html = view('admin.report.attendance-pdf', compact('attendances', 'totalRecords', 'totalHours', 'totalOvertimeHours', 'statusCounts', 'userSummary', 'userSummaryTotals', 'startDate', 'endDate', 'dateRangeStr', 'getCurrentTranslation', 'dailyWorkTime'))->render();
+        
+        $filename = 'Attendance_Report_' . $startDate->format('Y-m-d') . '_to_' . $endDate->format('Y-m-d') . '.pdf';
+        
+        return $pdfService->generatePdf(null, $html, $filename, 'D');
+    }
+
+    /**
+     * Export staff attendance report as PDF
+     */
+    public function staffExportPdf(Request $request, \App\Services\PdfService $pdfService)
+    {
+        $user = Auth::user();
+        
+        if ($user->is_staff != 1) {
+            abort(403, 'Unauthorized action.');
+        }
+        
+        $attendanceQuery = Attendance::withTrashed()
+            ->where('employee_id', $user->id)
+            ->with(['employee' => function($query) {
+                $query->withTrashed()->with('designation');
+            }, 'pauses']);
+
+        if (!empty($request->date_range) && $request->date_range != 0 && $request->date_range != '0') {
+            $dateRange = $request->date_range;
+            [$start, $end] = explode('-', $dateRange);
+            $startDate = Carbon::createFromFormat('Y/m/d', trim($start));
+            $endDate = Carbon::createFromFormat('Y/m/d', trim($end));
+            $attendanceQuery->whereDate('date', '>=', $startDate->format('Y-m-d'))
+                           ->whereDate('date', '<=', $endDate->format('Y-m-d'));
+        } else {
+            $startDate = Carbon::now()->firstOfMonth();
+            $endDate = Carbon::today();
+            $attendanceQuery->whereDate('date', '>=', $startDate->format('Y-m-d'))
+                           ->whereDate('date', '<=', $endDate->format('Y-m-d'));
+        }
+
+        if (!empty($request->status) && $request->status != 0) {
+            $attendanceQuery->where('status', $request->status);
+        }
+
+        $attendanceQuery->orderBy('date', 'desc')->orderBy('check_in', 'desc');
+        $attendances = $attendanceQuery->get();
+        
+        $dailyWorkTime = (float) env('DAILY_WORK_TIME', 8);
+        $totalPresentDays = $attendances->where('status', 'Present')->count();
+        $totalAbsentDays = $attendances->where('status', 'Absent')->count();
+        $totalWorkHours = 0;
+        $totalOvertimeHours = 0;
+        $totalRunningHours = 0;
+        
+        foreach ($attendances as $attendance) {
+            if ($attendance->status == 'Present') {
+                $dutyTime = $attendance->duty_time ?? 0;
+                $runningTime = $attendance->running_total_hour ?? 0;
+                $overtime = $attendance->overtime_hours ?? 0;
+                
+                $totalWorkHours += $dutyTime;
+                $totalRunningHours += $runningTime;
+                $totalOvertimeHours += $overtime;
+            }
+        }
+        
+        $expectedWorkHours = $totalPresentDays * $dailyWorkTime;
+        $workHoursGapPresent = max(0, $expectedWorkHours - ($totalWorkHours + $totalRunningHours));
+        $workHoursGapTotal = max(0, (($totalPresentDays + $totalAbsentDays) * $dailyWorkTime) - ($totalWorkHours + $totalRunningHours));
+        
+        $employeeSummary = [
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'designation' => $user->designation,
+            'total_present_days' => $totalPresentDays,
+            'total_absent_days' => $totalAbsentDays,
+            'total_work_hours' => $totalWorkHours + $totalRunningHours,
+            'total_overtime_hours' => $totalOvertimeHours,
+            'work_hours_gap_present' => $workHoursGapPresent,
+            'work_hours_gap_total' => $workHoursGapTotal,
+        ];
+        
+        $getCurrentTranslation = getCurrentTranslation();
+        $dateRangeStr = $request->date_range ?? ($startDate->format('Y/m/d') . '-' . $endDate->format('Y/m/d'));
+        
+        $html = view('common.staff.attendance.report-pdf', compact('attendances', 'employeeSummary', 'startDate', 'endDate', 'dateRangeStr', 'getCurrentTranslation', 'dailyWorkTime'))->render();
+        
+        $filename = 'My_Attendance_Report_' . $startDate->format('Y-m-d') . '_to_' . $endDate->format('Y-m-d') . '.pdf';
+        
+        return $pdfService->generatePdf(null, $html, $filename, 'D');
+    }
+
+    /**
+     * Export employee attendance details as PDF
+     */
+    public function employeeAttendanceDetailsExportPdf($employeeId, Request $request, \App\Services\PdfService $pdfService)
+    {
+        if (!hasPermission('admin.attendance.report')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $user = Auth::user();
+        $employee = User::with('designation')->findOrFail($employeeId);
+        
+        // Date range filter - default to current month if not provided
+        if (!empty($request->date_range) && $request->date_range != 0 && $request->date_range != '0') {
+            $dateRange = $request->date_range;
+            [$start, $end] = explode('-', $dateRange);
+            $startDate = Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+            $endDate = Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+        } else {
+            // Default to current month
+            $startDate = Carbon::now()->firstOfMonth()->startOfDay();
+            $endDate = Carbon::today()->endOfDay();
+        }
+        
+        // Get attendances for this employee
+        $attendances = Attendance::withTrashed()
+            ->where('employee_id', $employeeId)
+            ->whereDate('date', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('date', '<=', $endDate->format('Y-m-d'))
+            ->with('pauses')
+            ->orderBy('date', 'desc')
+            ->orderBy('check_in', 'desc')
+            ->get();
+        
+        $dailyWorkTime = (float) env('DAILY_WORK_TIME', 8);
+        
+        // Calculate summary statistics for this employee
+        $totalPresentDays = $attendances->where('status', 'Present')->count();
+        $totalWorkHours = $attendances->sum('total_hours') ?? 0;
+        $totalRunningHours = $attendances->filter(function($att) {
+            return empty($att->check_out) && !empty($att->check_in);
+        })->sum('running_total_hour') ?? 0;
+        $totalWorkHoursWithRunning = $totalWorkHours + $totalRunningHours;
+        $totalOvertimeHours = $attendances->filter(function($att) use ($dailyWorkTime) {
+            return ($att->total_hours ?? 0) > $dailyWorkTime;
+        })->sum(function($att) use ($dailyWorkTime) {
+            return ($att->total_hours ?? 0) - $dailyWorkTime;
+        });
+        
+        // Calculate absent days
+        $workingDays = $startDate->copy();
+        $totalWorkingDays = 0;
+        while ($workingDays->lte($endDate)) {
+            if ($workingDays->dayOfWeek >= 1 && $workingDays->dayOfWeek <= 5) {
+                $totalWorkingDays++;
+            }
+            $workingDays->addDay();
+        }
+        $totalAbsentDays = max(0, $totalWorkingDays - $totalPresentDays);
+        
+        $expectedWorkHoursPresent = $totalPresentDays * $dailyWorkTime;
+        $workHoursGapPresent = max(0, $expectedWorkHoursPresent - $totalWorkHoursWithRunning);
+        $expectedWorkHoursTotal = ($totalPresentDays + $totalAbsentDays) * $dailyWorkTime;
+        $workHoursGapTotal = max(0, $expectedWorkHoursTotal - $totalWorkHoursWithRunning);
+        
+        $employeeSummary = [
+            'total_present_days' => $totalPresentDays,
+            'total_absent_days' => $totalAbsentDays,
+            'total_work_hours' => $totalWorkHoursWithRunning,
+            'total_overtime_hours' => $totalOvertimeHours,
+            'work_hours_gap_present' => $workHoursGapPresent,
+            'work_hours_gap_total' => $workHoursGapTotal,
+        ];
+        
+        $getCurrentTranslation = getCurrentTranslation();
+        $dateRangeStr = $request->date_range ?? ($startDate->format('Y/m/d') . '-' . $endDate->format('Y/m/d'));
+        
+        $html = view('admin.report.employee-attendance-details-pdf', compact('attendances', 'employee', 'employeeSummary', 'startDate', 'endDate', 'dateRangeStr', 'getCurrentTranslation', 'dailyWorkTime'))->render();
+        
+        $filename = 'Employee_Attendance_' . str_replace(' ', '_', $employee->name) . '_' . $startDate->format('Y-m-d') . '_to_' . $endDate->format('Y-m-d') . '.pdf';
+        
+        return $pdfService->generatePdf(null, $html, $filename, 'D');
+    }
 }

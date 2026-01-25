@@ -1220,6 +1220,18 @@ if (!function_exists('getPermissionList')) {
                 ],
             ],
             [
+                'title' => 'manage_crm',
+                'for' => 'admin',
+                'permissions' => [
+                    ['title' => 'lead_list', 'key' => 'lead.index'],
+                    ['title' => 'lead_create', 'key' => 'lead.create'],
+                    ['title' => 'lead_edit', 'key' => 'lead.edit'],
+                    ['title' => 'lead_delete', 'key' => 'lead.delete'],
+                    ['title' => 'lead_source', 'key' => 'leadSource'],
+                    ['title' => 'customer_history', 'key' => 'customerHistory'],
+                ],
+            ],
+            [
                 'title' => 'manage_dashboard_summary',
                 'for' => 'admin',
                 'permissions' => [

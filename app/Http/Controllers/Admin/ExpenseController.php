@@ -464,4 +464,126 @@ class ExpenseController extends Controller
             ];
         }
     }
+
+    /**
+     * Expense report
+     */
+    public function report(Request $request)
+    {
+        if (!hasPermission('expense.index')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $user = Auth::user();
+        
+        // Default to current month if no date range is provided
+        $dateRange = $request->date_range;
+        $categoryId = $request->category_id;
+        $forUserId = $request->for_user_id;
+        $paymentStatus = $request->payment_status;
+        
+        // If no date range provided, default to current month
+        if (empty($dateRange) || $dateRange == 0 || $dateRange == '0') {
+            $startDate = Carbon::now()->firstOfMonth()->startOfDay();
+            $endDate = Carbon::now()->endOfMonth()->endOfDay();
+        } else {
+            [$start, $end] = explode('-', $dateRange);
+            $startDate = Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+            $endDate = Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+        }
+        
+        $expenses = Expense::with(['category', 'forUser', 'creator'])
+            ->whereBetween('expense_date', [$startDate, $endDate])
+            ->when($categoryId && $categoryId !== 'all' && $categoryId !== '', function($query) use ($categoryId) {
+                return $query->where('expense_category_id', $categoryId);
+            })
+            ->when($forUserId && $forUserId !== 'all' && $forUserId !== '', function($query) use ($forUserId) {
+                return $query->where('for_user_id', $forUserId);
+            })
+            ->when($paymentStatus && $paymentStatus !== 'all' && $paymentStatus !== '', function($query) use ($paymentStatus) {
+                return $query->where('payment_status', $paymentStatus);
+            })
+            ->orderBy('expense_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Calculate summary statistics
+        $totalAmount = $expenses->sum('amount');
+        $totalPaid = $expenses->where('payment_status', 'Paid')->sum('amount');
+        $totalUnpaid = $expenses->where('payment_status', 'Unpaid')->sum('amount');
+        $totalCount = $expenses->count();
+        $paidCount = $expenses->where('payment_status', 'Paid')->count();
+        $unpaidCount = $expenses->where('payment_status', 'Unpaid')->count();
+        
+        // Get all active expense categories for dropdown
+        $categories = ExpenseCategory::where('status', 1)
+            ->orderBy('name')
+            ->get();
+        
+        // Get all active users for dropdown
+        $users = User::where('status', 'Active')
+            ->with('designation')
+            ->orderBy('name')
+            ->get();
+        
+        // Get default date range for filter (current month)
+        $defaultDateRange = $dateRange ?? ($startDate->format('Y/m/d') . '-' . $endDate->format('Y/m/d'));
+        
+        return view('admin.report.expense', compact('expenses', 'dateRange', 'categoryId', 'forUserId', 'paymentStatus', 'categories', 'users', 'totalAmount', 'totalPaid', 'totalUnpaid', 'totalCount', 'paidCount', 'unpaidCount', 'defaultDateRange'));
+    }
+
+    /**
+     * Export expense report as PDF
+     */
+    public function exportPdf(Request $request, \App\Services\PdfService $pdfService)
+    {
+        if (!hasPermission('expense.index')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $user = Auth::user();
+
+        $dateRange = $request->date_range;
+        $categoryId = $request->category_id;
+        $forUserId = $request->for_user_id;
+        $paymentStatus = $request->payment_status;
+
+        if (empty($dateRange) || $dateRange == 0 || $dateRange == '0') {
+            $startDate = Carbon::now()->firstOfMonth()->startOfDay();
+            $endDate = Carbon::now()->endOfMonth()->endOfDay();
+        } else {
+            [$start, $end] = explode('-', $dateRange);
+            $startDate = Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
+            $endDate = Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
+        }
+
+        $expenses = Expense::with(['category', 'forUser', 'creator'])
+            ->whereBetween('expense_date', [$startDate, $endDate])
+            ->when($categoryId && $categoryId !== 'all' && $categoryId !== '', function($query) use ($categoryId) {
+                return $query->where('expense_category_id', $categoryId);
+            })
+            ->when($forUserId && $forUserId !== 'all' && $forUserId !== '', function($query) use ($forUserId) {
+                return $query->where('for_user_id', $forUserId);
+            })
+            ->when($paymentStatus && $paymentStatus !== 'all' && $paymentStatus !== '', function($query) use ($paymentStatus) {
+                return $query->where('payment_status', $paymentStatus);
+            })
+            ->orderBy('expense_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $totalAmount = $expenses->sum('amount');
+        $totalPaid = $expenses->where('payment_status', 'Paid')->sum('amount');
+        $totalUnpaid = $expenses->where('payment_status', 'Unpaid')->sum('amount');
+        $totalCount = $expenses->count();
+        $paidCount = $expenses->where('payment_status', 'Paid')->count();
+        $unpaidCount = $expenses->where('payment_status', 'Unpaid')->count();
+
+        $getCurrentTranslation = getCurrentTranslation();
+        $dateRangeStr = $dateRange ?? ($startDate->format('Y/m/d') . '-' . $endDate->format('Y/m/d'));
+        
+        $html = view('admin.report.expense-pdf', compact('expenses', 'dateRangeStr', 'totalAmount', 'totalPaid', 'totalUnpaid', 'totalCount', 'paidCount', 'unpaidCount', 'getCurrentTranslation', 'startDate', 'endDate'))->render();
+        
+        $filename = 'Expense_Report_' . $startDate->format('Y-m-d') . '_to_' . $endDate->format('Y-m-d') . '.pdf';
+        
+        return $pdfService->generatePdf(null, $html, $filename, 'D');
+    }
 }

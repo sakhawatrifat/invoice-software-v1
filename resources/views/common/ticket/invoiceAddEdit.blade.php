@@ -193,6 +193,18 @@
 										</div>
 										<div class="col-md-4">
 											<div class="form-item mb-5">
+												<label class="form-label">{{ $getCurrentTranslation['date_of_birth_label'] ?? 'date_of_birth_label' }}:</label>
+												<input 
+													type="text"
+													placeholder="{{ $getCurrentTranslation['date_of_birth_placeholder'] ?? 'date_of_birth_placeholder' }}"
+													class="form-control mb-2 append-datepicker flatpickr-input date"
+													name="passenger_info[0][date_of_birth]"
+													value="{{ $item->date_of_birth ?? '' }}"
+												/>
+											</div>
+										</div>
+										<div class="col-md-4">
+											<div class="form-item mb-5">
 												@php
 													$options = ['Adult', 'Child', 'Infant'];
 
@@ -346,6 +358,18 @@
 													<option value="{{ $option }}" {{ $option == $genderSelected ? 'selected' : '' }}>{{ $option }}</option>
 												@endforeach
 											</select>
+										</div>
+									</div>
+									<div class="col-md-4">
+										<div class="form-item mb-5">
+											<label class="form-label">{{ $getCurrentTranslation['date_of_birth_label'] ?? 'date_of_birth_label' }}:</label>
+											<input 
+												type="text"
+												placeholder="{{ $getCurrentTranslation['date_of_birth_placeholder'] ?? 'date_of_birth_placeholder' }}"
+												class="form-control mb-2 append-datepicker flatpickr-input date"
+												name="passenger_info[0][date_of_birth]"
+												value=""
+											/>
 										</div>
 									</div>
 									<div class="col-md-4">

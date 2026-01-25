@@ -144,16 +144,24 @@ class SalaryController extends Controller
         }
         $user = Auth::user();
         
-        $month = $request->month ?? Carbon::now()->month;
-        $year = $request->year ?? Carbon::now()->year;
+        // Handle month: if not set, default to current month; if 'all', show all months
+        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        // Handle year: if not set, default to current year; if 'all', show all years
+        $year = $request->has('year') ? $request->year : Carbon::now()->year;
         $employeeId = $request->employee_id;
         
         $salaries = Salary::with(['employee.designation', 'creator'])
-            ->where('year', $year)
-            ->where('month', $month)
-            ->when($employeeId, function($query) use ($employeeId) {
+            ->when($year && $year !== 'all', function($query) use ($year) {
+                return $query->where('year', $year);
+            })
+            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
+                return $query->where('month', $month);
+            })
+            ->when($employeeId && $employeeId !== 'all' && $employeeId !== '', function($query) use ($employeeId) {
                 return $query->where('employee_id', $employeeId);
             })
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
             ->orderBy('created_at', 'desc')
             ->get();
         
@@ -331,5 +339,301 @@ class SalaryController extends Controller
         $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         
         return view('common.staff.salary.list', compact('salaries', 'month', 'year', 'monthNames'));
+    }
+
+    /**
+     * Salary report
+     */
+    public function report(Request $request)
+    {
+        if (!hasPermission('admin.salary.index')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $user = Auth::user();
+        
+        $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        // Handle month: if not set, default to current month; if 'all', show all months
+        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        // Handle year: if not set, default to current year; if 'all', show all years
+        $year = $request->has('year') ? $request->year : Carbon::now()->year;
+        $employeeId = $request->employee_id;
+        $paymentStatus = $request->payment_status;
+        
+        $salaries = Salary::with(['employee.designation', 'creator'])
+            ->when($year && $year !== 'all', function($query) use ($year) {
+                return $query->where('year', $year);
+            })
+            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
+                return $query->where('month', $month);
+            })
+            ->when($employeeId && $employeeId !== 'all' && $employeeId !== '', function($query) use ($employeeId) {
+                return $query->where('employee_id', $employeeId);
+            })
+            ->when($paymentStatus && $paymentStatus !== 'all' && $paymentStatus !== '', function($query) use ($paymentStatus) {
+                return $query->where('payment_status', $paymentStatus);
+            })
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Calculate summary statistics
+        $totalBaseSalary = $salaries->sum('base_salary');
+        $totalDeductions = $salaries->sum('deductions');
+        $totalBonus = $salaries->sum('bonus');
+        $totalNetSalary = $salaries->sum('net_salary');
+        $totalPaid = $salaries->where('payment_status', 'Paid')->sum('net_salary');
+        $totalUnpaid = $salaries->where('payment_status', 'Unpaid')->sum('net_salary');
+        $totalPartial = $salaries->where('payment_status', 'Partial')->sum('net_salary');
+        
+        // Get all active users (both staff and non-staff) for dropdown
+        $employees = User::where('status', 'Active')
+            ->with('designation')
+            ->orderBy('name')
+            ->get();
+        
+        return view('admin.report.salary', compact('salaries', 'month', 'year', 'employeeId', 'employees', 'monthNames', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial'));
+    }
+
+    /**
+     * Export salary report as PDF
+     */
+    public function exportPdf(Request $request, \App\Services\PdfService $pdfService)
+    {
+        if (!hasPermission('admin.salary.index')) {
+            abort(403, 'Unauthorized action.');
+        }
+        $user = Auth::user();
+        
+        $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        $year = $request->has('year') ? $request->year : Carbon::now()->year;
+        $employeeId = $request->employee_id;
+        $paymentStatus = $request->payment_status;
+        
+        $salaries = Salary::with(['employee.designation', 'creator'])
+            ->when($year && $year !== 'all', function($query) use ($year) {
+                return $query->where('year', $year);
+            })
+            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
+                return $query->where('month', $month);
+            })
+            ->when($employeeId && $employeeId !== 'all' && $employeeId !== '', function($query) use ($employeeId) {
+                return $query->where('employee_id', $employeeId);
+            })
+            ->when($paymentStatus && $paymentStatus !== 'all' && $paymentStatus !== '', function($query) use ($paymentStatus) {
+                return $query->where('payment_status', $paymentStatus);
+            })
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        $totalBaseSalary = $salaries->sum('base_salary');
+        $totalDeductions = $salaries->sum('deductions');
+        $totalBonus = $salaries->sum('bonus');
+        $totalNetSalary = $salaries->sum('net_salary');
+        $totalPaid = $salaries->where('payment_status', 'Paid')->sum('net_salary');
+        $totalUnpaid = $salaries->where('payment_status', 'Unpaid')->sum('net_salary');
+        $totalPartial = $salaries->where('payment_status', 'Partial')->sum('net_salary');
+        
+        $getCurrentTranslation = getCurrentTranslation();
+        $monthStr = ($month && $month !== 'all') ? $monthNames[$month] : 'All Months';
+        $yearStr = ($year && $year !== 'all') ? $year : 'All Years';
+        
+        $html = view('admin.report.salary-pdf', compact('salaries', 'month', 'year', 'monthNames', 'monthStr', 'yearStr', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial', 'getCurrentTranslation'))->render();
+        
+        $filename = 'Salary_Report_' . $yearStr . '_' . $monthStr . '.pdf';
+        
+        return $pdfService->generatePdf(null, $html, $filename, 'D');
+    }
+
+    /**
+     * Salary report for specific staff/user from details page
+     */
+    public function staffSalaryReport($id, Request $request)
+    {
+        $user = Auth::user();
+        
+        // Allow staff to view their own salary report, or admin with permission
+        if ($user->is_staff == 1 && $user->id != $id) {
+            abort(403, 'Unauthorized action.');
+        }
+        if ($user->is_staff != 1 && !hasPermission('admin.salary.index')) {
+            abort(403, 'Unauthorized action.');
+        }
+        
+        $employee = User::with('designation')->findOrFail($id);
+        
+        $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        // Handle month: if not set, default to current month; if 'all', show all months
+        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        // Handle year: if not set, default to current year; if 'all', show all years
+        $year = $request->has('year') ? $request->year : Carbon::now()->year;
+        $paymentStatus = $request->payment_status;
+        
+        $salaries = Salary::with(['employee.designation', 'creator'])
+            ->where('employee_id', $id)
+            ->when($year && $year !== 'all', function($query) use ($year) {
+                return $query->where('year', $year);
+            })
+            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
+                return $query->where('month', $month);
+            })
+            ->when($paymentStatus && $paymentStatus !== 'all' && $paymentStatus !== '', function($query) use ($paymentStatus) {
+                return $query->where('payment_status', $paymentStatus);
+            })
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Calculate summary statistics
+        $totalBaseSalary = $salaries->sum('base_salary');
+        $totalDeductions = $salaries->sum('deductions');
+        $totalBonus = $salaries->sum('bonus');
+        $totalNetSalary = $salaries->sum('net_salary');
+        $totalPaid = $salaries->where('payment_status', 'Paid')->sum('net_salary');
+        $totalUnpaid = $salaries->where('payment_status', 'Unpaid')->sum('net_salary');
+        $totalPartial = $salaries->where('payment_status', 'Partial')->sum('net_salary');
+        
+        return view('admin.salary.staff-report', compact('salaries', 'month', 'year', 'employee', 'monthNames', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial'));
+    }
+
+    /**
+     * Export staff salary report as PDF
+     */
+    public function staffSalaryReportExportPdf($id, Request $request, \App\Services\PdfService $pdfService)
+    {
+        $user = Auth::user();
+        
+        // Allow staff to export their own salary report, or admin with permission
+        if ($user->is_staff == 1 && $user->id != $id) {
+            abort(403, 'Unauthorized action.');
+        }
+        if ($user->is_staff != 1 && !hasPermission('admin.salary.index')) {
+            abort(403, 'Unauthorized action.');
+        }
+        
+        $employee = User::with('designation')->findOrFail($id);
+        
+        $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        $year = $request->has('year') ? $request->year : Carbon::now()->year;
+        $paymentStatus = $request->payment_status;
+        
+        $salaries = Salary::with(['employee.designation', 'creator'])
+            ->where('employee_id', $id)
+            ->when($year && $year !== 'all', function($query) use ($year) {
+                return $query->where('year', $year);
+            })
+            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
+                return $query->where('month', $month);
+            })
+            ->when($paymentStatus && $paymentStatus !== 'all' && $paymentStatus !== '', function($query) use ($paymentStatus) {
+                return $query->where('payment_status', $paymentStatus);
+            })
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        $totalBaseSalary = $salaries->sum('base_salary');
+        $totalDeductions = $salaries->sum('deductions');
+        $totalBonus = $salaries->sum('bonus');
+        $totalNetSalary = $salaries->sum('net_salary');
+        $totalPaid = $salaries->where('payment_status', 'Paid')->sum('net_salary');
+        $totalUnpaid = $salaries->where('payment_status', 'Unpaid')->sum('net_salary');
+        $totalPartial = $salaries->where('payment_status', 'Partial')->sum('net_salary');
+        
+        $getCurrentTranslation = getCurrentTranslation();
+        $monthStr = ($month && $month !== 'all') ? $monthNames[$month] : 'All Months';
+        $yearStr = ($year && $year !== 'all') ? $year : 'All Years';
+        
+        $html = view('admin.salary.staff-report-pdf', compact('salaries', 'month', 'year', 'monthNames', 'monthStr', 'yearStr', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial', 'getCurrentTranslation', 'employee'))->render();
+        
+        $filename = 'Salary_Report_' . str_replace(' ', '_', $employee->name) . '_' . $yearStr . '_' . $monthStr . '.pdf';
+        
+        return $pdfService->generatePdf(null, $html, $filename, 'D');
+    }
+
+    /**
+     * Export staff salary report as CSV
+     */
+    public function staffSalaryReportExportCsv($id, Request $request)
+    {
+        $user = Auth::user();
+        
+        // Allow staff to export their own salary report, or admin with permission
+        if ($user->is_staff == 1 && $user->id != $id) {
+            abort(403, 'Unauthorized action.');
+        }
+        if ($user->is_staff != 1 && !hasPermission('admin.salary.index')) {
+            abort(403, 'Unauthorized action.');
+        }
+        
+        $employee = User::with('designation')->findOrFail($id);
+        
+        $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        $year = $request->has('year') ? $request->year : Carbon::now()->year;
+        $paymentStatus = $request->payment_status;
+        
+        $salaries = Salary::with(['employee.designation', 'creator'])
+            ->where('employee_id', $id)
+            ->when($year && $year !== 'all', function($query) use ($year) {
+                return $query->where('year', $year);
+            })
+            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
+                return $query->where('month', $month);
+            })
+            ->when($paymentStatus && $paymentStatus !== 'all' && $paymentStatus !== '', function($query) use ($paymentStatus) {
+                return $query->where('payment_status', $paymentStatus);
+            })
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        $filename = 'Salary_Report_' . str_replace(' ', '_', $employee->name) . '_' . date('Y-m-d') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+        
+        $callback = function() use ($salaries, $monthNames) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Headers
+            fputcsv($file, ['#', 'Month', 'Year', 'Base Salary', 'Deductions', 'Bonus', 'Net Salary', 'Payment Status', 'Payment Date']);
+            
+            // Data
+            foreach ($salaries as $index => $salary) {
+                fputcsv($file, [
+                    $index + 1,
+                    $monthNames[$salary->month] ?? $salary->month,
+                    $salary->year,
+                    number_format($salary->base_salary, 2),
+                    number_format($salary->deductions, 2),
+                    number_format($salary->bonus, 2),
+                    number_format($salary->net_salary, 2),
+                    $salary->payment_status,
+                    $salary->payment_date ? \Carbon\Carbon::parse($salary->payment_date)->format('Y-m-d') : '-'
+                ]);
+            }
+            
+            fclose($file);
+        };
+        
+        return response()->stream($callback, 200, $headers);
     }
 }

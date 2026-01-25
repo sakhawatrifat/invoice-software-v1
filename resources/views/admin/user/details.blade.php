@@ -38,7 +38,7 @@
                     </a>
                 @endif
                 @if (hasPermission('admin.salary.index'))
-                    <a href="{{ route('admin.salary.list', ['employee_id' => $editData->id]) }}" class="btn btn-sm fw-bold btn-success">
+                    <a href="{{ route('admin.salary.staffReport', $editData->id) }}" class="btn btn-sm fw-bold btn-success">
                         <i class="fa-solid fa-file-invoice-dollar"></i>
                         {{ $getCurrentTranslation['view_salary_report'] ?? 'View Salary Report' }}
                     </a>

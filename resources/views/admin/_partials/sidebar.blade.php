@@ -424,7 +424,12 @@
 						@endif
 						@if(hasPermission('admin.netProfitLossReport'))
 						<div class="menu-item">
-							<a class="menu-link {{ getCurrentRouteName() == 'admin.netProfitLossReport' ? 'active' : '' }}" href="{{ route('admin.netProfitLossReport') }}?date_range={{ getDateRange(6, 'Previous') }}">
+							@php
+								$currentMonthStart = \Carbon\Carbon::now()->firstOfMonth()->format('Y/m/d');
+								$currentMonthEnd = \Carbon\Carbon::now()->endOfMonth()->format('Y/m/d');
+								$currentMonthRange = $currentMonthStart . '-' . $currentMonthEnd;
+							@endphp
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.netProfitLossReport' ? 'active' : '' }}" href="{{ route('admin.netProfitLossReport') }}?date_range={{ $currentMonthRange }}">
 								<span class="menu-bullet">
 									<span class="bullet bullet-dot"></span>
 								</span>
@@ -434,6 +439,99 @@
 						@endif
 					</div>
 				</div>
+				@endif
+
+				@php
+					$hasCrmPermissions = hasPermission('lead.index') || hasPermission('lead.create') || hasPermission('leadSource') || hasPermission('customerHistory');
+				@endphp
+				@if($hasCrmPermissions)
+				<!-- CRM Module -->
+				<div class="menu-item">
+					<div class="menu-content pt-8 pb-2">
+						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>{{ $getCurrentTranslation['crm_module'] ?? 'CRM Module' }}</strong></span>
+					</div>
+				</div>
+
+				@php
+					$leadSourceRoutes = ['leadSource.index','leadSource.datatable','leadSource.create','leadSource.store','leadSource.edit','leadSource.update','leadSource.delete'];
+				@endphp
+				@if(hasPermission('leadSource'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($leadSourceRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fa-solid fa-bullseye h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['lead_source'] ?? 'lead_source' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($leadSourceRoutes, 'show') }}">
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'leadSource.index' ? 'active' : '' }}" href="{{ route('leadSource.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['lead_source_list'] ?? 'lead_source_list' }}</span>
+							</a>
+						</div>
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'leadSource.create' ? 'active' : '' }}" href="{{ route('leadSource.create') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['create_lead_source'] ?? 'create_lead_source' }}</span>
+							</a>
+						</div>
+					</div>
+				</div>
+				@endif
+
+				@php
+					$leadRoutes = ['lead.index','lead.datatable','lead.create','lead.store','lead.edit','lead.update','lead.delete'];
+				@endphp
+				@if(hasPermission('lead.index') || hasPermission('lead.create'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($leadRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fa-solid fa-user-plus h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['manage_leads'] ?? 'manage_leads' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($leadRoutes, 'show') }}">
+						@if(hasPermission('lead.index'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'lead.index' ? 'active' : '' }}" href="{{ route('lead.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['lead_list'] ?? 'lead_list' }}</span>
+							</a>
+						</div>
+						@endif
+						@if(hasPermission('lead.create'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'lead.create' ? 'active' : '' }}" href="{{ route('lead.create') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['create_lead'] ?? 'create_lead' }}</span>
+							</a>
+						</div>
+						@endif
+					</div>
+				</div>
+				@endif
+
+				@if(hasPermission('customerHistory'))
+				<div class="menu-item">
+					<a class="menu-link {{ getCurrentRouteName() == 'customerHistory.index' ? 'active' : '' }}" href="{{ route('customerHistory.index') }}">
+						<span class="menu-icon">
+							<i class="fa-solid fa-search h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['check_customer_history'] ?? 'Check Customer History' }}</span>
+					</a>
+				</div>
+				@endif
 				@endif
 
 				@php
@@ -599,31 +697,6 @@
 				</div>
 				@endif
 
-				@php
-					$hrReportRoutes = ['admin.attendance.report', 'admin.attendance.getDetails', 'admin.attendance.employeeDetails'];
-				@endphp
-				@if(hasPermission('admin.attendance.report'))
-				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($hrReportRoutes, 'hover show') }}">
-					<span class="menu-link">
-						<span class="menu-icon">
-							<i class="fas fa-chart-line h4 mb-0"></i>
-						</span>
-						<span class="menu-title">{{ $getCurrentTranslation['hr_reports'] ?? 'HR Reports' }}</span>
-						<span class="menu-arrow"></span>
-					</span>
-					<div class="menu-sub menu-sub-accordion {{ getActiveClass($hrReportRoutes, 'show') }}">
-						<div class="menu-item">
-							<a class="menu-link {{ getCurrentRouteName() == 'admin.attendance.report' ? 'active' : '' }}" href="{{ route('admin.attendance.report') }}">
-								<span class="menu-bullet">
-									<span class="bullet bullet-dot"></span>
-								</span>
-								<span class="menu-title">{{ $getCurrentTranslation['attendance_report'] ?? 'attendance_report' }}</span>
-							</a>
-						</div>
-					</div>
-				</div>
-				@endif
-
 				{{-- Salary Management --}}
 				@php $salaryRoutes = ['admin.salary.index', 'admin.salary.list', 'admin.salary.generate', 'admin.salary.update', 'admin.salary.getDetails']; @endphp
 				@if(hasPermission('admin.salary.index'))
@@ -652,6 +725,43 @@
 								<span class="menu-title">{{ $getCurrentTranslation['salary_list'] ?? 'Salary List' }}</span>
 							</a>
 						</div>
+					</div>
+				</div>
+				@endif
+
+				@php
+					$hrReportRoutes = ['admin.attendance.report', 'admin.attendance.getDetails', 'admin.attendance.employeeDetails', 'admin.salary.report', 'admin.salary.staffReport'];
+				@endphp
+				@if(hasPermission('admin.attendance.report') || hasPermission('admin.salary.index'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($hrReportRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fas fa-chart-line h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['hr_reports'] ?? 'HR Reports' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($hrReportRoutes, 'show') }}">
+						@if(hasPermission('admin.attendance.report'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.attendance.report' ? 'active' : '' }}" href="{{ route('admin.attendance.report') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['attendance_report'] ?? 'attendance_report' }}</span>
+							</a>
+						</div>
+						@endif
+						@if(hasPermission('admin.salary.index'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.salary.report' ? 'active' : '' }}" href="{{ route('admin.salary.report') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['salary_report'] ?? 'Salary Report' }}</span>
+							</a>
+						</div>
+						@endif
 					</div>
 				</div>
 				@endif
@@ -741,6 +851,22 @@
 				</div>
 				@endif
 
+				@if(hasPermission('expense.index'))
+				<div class="menu-item">
+					@php
+						$currentMonthStart = \Carbon\Carbon::now()->firstOfMonth()->format('Y/m/d');
+						$currentMonthEnd = \Carbon\Carbon::now()->endOfMonth()->format('Y/m/d');
+						$currentMonthRange = $currentMonthStart . '-' . $currentMonthEnd;
+					@endphp
+					<a class="menu-link {{ getCurrentRouteName() == 'admin.expense.report' ? 'active' : '' }}" href="{{ route('admin.expense.report') }}?date_range={{ $currentMonthRange }}">
+						<span class="menu-icon">
+							<i class="fas fa-chart-bar h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['expense_report'] ?? 'Expense Report' }}</span>
+					</a>
+				</div>
+				@endif
+
 				@php
 					$hasOtherSettingsPermissions = hasPermission('homepage.edit');
 				@endphp
@@ -757,7 +883,7 @@
 				@if(Auth::user()->is_staff == 1)
 				@php
 					$staffAttendanceRoutes = ['staff.attendance.report'];
-					$staffSalaryRoutes = ['staff.salary.list'];
+					$staffSalaryRoutes = ['admin.salary.staffReport'];
 				@endphp
 				
 				{{-- Staff Attendance Report --}}
@@ -781,7 +907,7 @@
 					</div>
 				</div>
 
-				{{-- Staff Salary List --}}
+				{{-- Staff Salary Report --}}
 				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($staffSalaryRoutes, 'hover show') }}">
 					<span class="menu-link">
 						<span class="menu-icon">
@@ -792,11 +918,11 @@
 					</span>
 					<div class="menu-sub menu-sub-accordion {{ getActiveClass($staffSalaryRoutes, 'show') }}">
 						<div class="menu-item">
-							<a class="menu-link {{ getCurrentRouteName() == 'staff.salary.list' ? 'active' : '' }}" href="{{ route('staff.salary.list') }}">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.salary.staffReport' ? 'active' : '' }}" href="{{ route('admin.salary.staffReport', Auth::user()->id) }}">
 								<span class="menu-bullet">
 									<span class="bullet bullet-dot"></span>
 								</span>
-								<span class="menu-title">{{ $getCurrentTranslation['salary_list'] ?? 'Salary List' }}</span>
+								<span class="menu-title">{{ $getCurrentTranslation['salary_report'] ?? 'Salary Report' }}</span>
 							</a>
 						</div>
 					</div>

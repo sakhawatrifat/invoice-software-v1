@@ -20,7 +20,12 @@
 				</ul>
 			</div>
 			<div class="d-flex align-items-center gap-2 gap-lg-3">
-				
+				@php
+					$exportUrl = route('admin.netProfitLossReport.exportPdf', request()->all());
+				@endphp
+				<a href="{{ $exportUrl }}" class="btn btn-sm fw-bold btn-danger" target="_blank">
+					<i class="fas fa-file-pdf"></i> {{ $getCurrentTranslation['export_pdf'] ?? 'Export PDF' }}
+				</a>
 			</div>
 		</div>
 	</div>

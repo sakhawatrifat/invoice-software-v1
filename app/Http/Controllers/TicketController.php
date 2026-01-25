@@ -1095,6 +1095,7 @@ class TicketController extends Controller
             'passenger_info.*.name' => 'nullable|string|max:100',
             'passenger_info.*.phone' => 'nullable|string|max:20',
             'passenger_info.*.email' => 'nullable|email|max:100',
+            'passenger_info.*.date_of_birth' => 'nullable|date_format:'.$dateFormat,
             'passenger_info.*.gender' => 'nullable|in:Male,Female,Transgender,Non-binary,Genderqueer,Genderfluid,Agender,Bigender,Two-Spirit,Other,Prefer not to say',
             'passenger_info.*.pax_type' => 'nullable|in:Adult,Child,Infant',
             //'passenger_info.*.ticket_number' => 'nullable|string|max:100',
@@ -1203,6 +1204,7 @@ class TicketController extends Controller
                 'passenger_info.*.phone' => 'nullable|string|max:20',
                 'passenger_info.*.email' => 'nullable|email|max:100',
                 'passenger_info.*.gender' => 'nullable|in:Male,Female,Transgender,Non-binary,Genderqueer,Genderfluid,Agender,Bigender,Two-Spirit,Other,Prefer not to say',
+                'passenger_info.*.date_of_birth' => 'nullable|date_format:'.$dateFormat,
                 'passenger_info.*.pax_type' => 'required|in:Adult,Child,Infant',
                 //'passenger_info.*.ticket_number' => 'nullable|string|max:100',
                 'passenger_info.*.ticket_price' => 'nullable|numeric',
@@ -1436,6 +1438,7 @@ class TicketController extends Controller
                         $ticketPassenger->name = $passenger['name'] ?? null;
                         $ticketPassenger->phone = $passenger['phone'] ?? null;
                         $ticketPassenger->email = $passenger['email'] ?? null;
+                        $ticketPassenger->date_of_birth = $passenger['date_of_birth'] ?? null;
                         $ticketPassenger->gender = $passenger['gender'] ?? null;
                         $ticketPassenger->pax_type = $passenger['pax_type'] ?? null;
                         //$ticketPassenger->ticket_number = $passenger['ticket_number'] ?? null;

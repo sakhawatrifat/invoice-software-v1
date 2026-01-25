@@ -1,0 +1,43 @@
+Invoice Software New Features (January 2026):
+
+======================
+
+#Admin Panel:
+01. CRM Module 
+	-Manage Lead Source (Facebook, Google, Website...etc.)
+	-Manage Lead (customer_full_name, email, phone, etc.)
+	-Customer History Check by Name/Email/Phone, Also can check from Lead data list by selection specific lead.
+
+02. HR Module
+	-Manage Department
+	-Manage Designation
+	-User Details Page (Admin can check Specific user Attendance & Salary History From Details Page)
+	-Staff Details Page (Admin can check Specific staff Attendance & Salary History From Details Page)
+	-Attendance functionality. Example: Check In, Pause (Break), Check Out (Overtime hours Count, Forgot Option if not Checkout in time)
+	-Salary Generate (Also can add bonus, deduct salary as punishment)
+	-HR Report -> Attendance Report (Everyting covered in one with details page)
+	-Attendance Export PDF Option
+	-HR Report -> Salary Report
+	-Salary Export PDF Option
+
+03. Expense Module
+	-Manage Expense Category
+	-Manage Expense with document record
+	-Expense Report
+	-Expense Export PDF Option
+
+04. Manage Report
+	-Net Profit Loss Report
+	-Net Profit Loss Export PDF Option
+	-Gross Profit Loss Export PDF Option
+
+======================
+
+#Staff Panel:
+01. My Attendance
+	-Attendance Report
+	-Attendance Report Export PDF Option
+
+02. My Salary
+	-Salary Report
+	-Salary Report Export PDF Option
