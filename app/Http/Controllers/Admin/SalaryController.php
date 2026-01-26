@@ -447,7 +447,7 @@ class SalaryController extends Controller
         
         $filename = 'Salary_Report_' . $yearStr . '_' . $monthStr . '.pdf';
         
-        return $pdfService->generatePdf(null, $html, $filename, 'D');
+        return $pdfService->generatePdf(null, $html, $filename, 'I');
     }
 
     /**
@@ -558,7 +558,7 @@ class SalaryController extends Controller
         
         $filename = 'Salary_Report_' . str_replace(' ', '_', $employee->name) . '_' . $yearStr . '_' . $monthStr . '.pdf';
         
-        return $pdfService->generatePdf(null, $html, $filename, 'D');
+        return $pdfService->generatePdf(null, $html, $filename, 'I');
     }
 
     /**
@@ -635,5 +635,34 @@ class SalaryController extends Controller
         };
         
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export individual salary payslip as PDF
+     */
+    public function exportPayslip($id, \App\Services\PdfService $pdfService)
+    {
+        $user = Auth::user();
+        
+        $salary = Salary::with(['employee.designation', 'creator'])->findOrFail($id);
+        
+        // Allow staff to export their own payslip, or admin with permission
+        if ($user->is_staff == 1 && $user->id != $salary->employee_id) {
+            abort(403, 'Unauthorized action.');
+        }
+        if ($user->is_staff != 1 && !hasPermission('admin.salary.index')) {
+            abort(403, 'Unauthorized action.');
+        }
+        
+        $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        $getCurrentTranslation = getCurrentTranslation();
+        
+        $html = view('admin.salary.payslip-pdf', compact('salary', 'monthNames', 'getCurrentTranslation'))->render();
+        
+        $monthName = $monthNames[$salary->month] ?? $salary->month;
+        $employeeName = str_replace(' ', '_', $salary->employee->name ?? 'Employee');
+        $filename = 'Payslip_' . $employeeName . '_' . $monthName . '_' . $salary->year . '.pdf';
+        
+        return $pdfService->generatePdf(null, $html, $filename, 'I');
     }
 }

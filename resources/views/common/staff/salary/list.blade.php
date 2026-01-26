@@ -100,6 +100,7 @@
 									<th class="fw-semibold">{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_date'] ?? 'Payment Date' }}</th>
+									<th class="fw-semibold">{{ $getCurrentTranslation['action'] ?? 'Action' }}</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -144,6 +145,11 @@
 											</span>
 										</td>
 										<td>{{ $salary->payment_date ? $salary->payment_date->format('Y-m-d') : '-' }}</td>
+										<td>
+											<a href="{{ route('admin.salary.exportPayslip', $salary->id) }}" class="btn btn-sm btn-danger" target="_blank" title="{{ $getCurrentTranslation['export_payslip'] ?? 'Export Payslip' }}">
+												<i class="fas fa-file-pdf"></i> {{ $getCurrentTranslation['payslip'] ?? 'Payslip' }}
+											</a>
+										</td>
 									</tr>
 								@empty
 									<tr>

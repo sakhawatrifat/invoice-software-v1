@@ -23,6 +23,65 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
         <link href="{{asset('/assets')}}/css/style.bundle.css?v={{ env('APP_DESIGN_VERSION') ?? time() }}" rel="stylesheet" type="text/css" />
         <link href="{{asset('/assets')}}/css/custom.css?v={{time()}}" rel="stylesheet" type="text/css" />
+        <style>
+            /* Force sidebar scrollbar to always be visible */
+            #kt_app_sidebar_menu_wrapper {
+                overflow-y: scroll !important;
+                overflow-x: hidden !important;
+            }
+            #kt_app_sidebar_menu_wrapper::-webkit-scrollbar {
+                width: 8px !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            #kt_app_sidebar_menu_wrapper::-webkit-scrollbar-track {
+                background: transparent !important;
+            }
+            #kt_app_sidebar_menu_wrapper::-webkit-scrollbar-thumb {
+                background: rgba(0, 0, 0, 0.2) !important;
+                border-radius: 4px !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                display: block !important;
+                min-height: 20px !important;
+            }
+            /* CRITICAL: Override framework's default opacity: 0 - force visible when NOT hovered */
+            #kt_app_sidebar_menu_wrapper:not(:hover)::-webkit-scrollbar-thumb,
+            .hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+            #kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+            .app-sidebar-wrapper.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb {
+                background: rgba(0, 0, 0, 0.2) !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                display: block !important;
+            }
+            #kt_app_sidebar_menu_wrapper:hover::-webkit-scrollbar-thumb,
+            #kt_app_sidebar_menu_wrapper::-webkit-scrollbar-thumb:hover {
+                background: rgba(0, 0, 0, 0.3) !important;
+                opacity: 1 !important;
+            }
+            /* Override any hover-only rules - make thumb always visible */
+            .hover-scroll-overlay-y::-webkit-scrollbar-thumb,
+            #kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb,
+            .app-sidebar-wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb {
+                opacity: 1 !important;
+                visibility: visible !important;
+                background: rgba(0, 0, 0, 0.2) !important;
+                display: block !important;
+            }
+            /* CRITICAL: Force thumb visible when NOT hovered - override framework default */
+            #kt_app_sidebar_menu_wrapper:not(:hover)::-webkit-scrollbar-thumb,
+            .hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+            #kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+            .app-sidebar-wrapper.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+            .app-sidebar-wrapper:not(:hover)::-webkit-scrollbar-thumb {
+                background: rgba(0, 0, 0, 0.2) !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                display: block !important;
+            }
+        </style>
     </head>
 
     <body id="kt_app_body" data-kt-app-layout="dark-sidebar" data-kt-app-header-fixed="true" data-kt-app-sidebar-enabled="true" data-kt-app-sidebar-fixed="true" data-kt-app-sidebar-hoverable="true" data-kt-app-sidebar-push-header="true" data-kt-app-sidebar-push-toolbar="true" data-kt-app-sidebar-push-footer="true" data-kt-app-toolbar-enabled="true" class="app-default">
@@ -94,6 +153,136 @@
         <script src="{{asset('/assets')}}/js/custom/utilities/modals/new-target.js"></script>
         <script src="{{asset('/assets')}}/js/custom/utilities/modals/users-search.js"></script>
         <script src="{{asset('/assets')}}/js/custom.js?v={{time()}}"></script>
+
+        <script>
+            // Force sidebar scrollbar to always be visible
+            document.addEventListener('DOMContentLoaded', function() {
+                function forceSidebarScrollbar() {
+                    const sidebarWrapper = document.getElementById('kt_app_sidebar_menu_wrapper');
+                    if (sidebarWrapper) {
+                        // Force overflow-y to scroll
+                        sidebarWrapper.style.overflowY = 'scroll';
+                        sidebarWrapper.style.overflowX = 'hidden';
+                        
+                        // Add style tag to ensure scrollbar is visible
+                        if (!document.getElementById('sidebar-scrollbar-style')) {
+                            const style = document.createElement('style');
+                            style.id = 'sidebar-scrollbar-style';
+                            style.textContent = `
+                                #kt_app_sidebar_menu_wrapper {
+                                    overflow-y: scroll !important;
+                                    overflow-x: hidden !important;
+                                }
+                                #kt_app_sidebar_menu_wrapper::-webkit-scrollbar {
+                                    width: 8px !important;
+                                    display: block !important;
+                                    visibility: visible !important;
+                                    opacity: 1 !important;
+                                }
+                                #kt_app_sidebar_menu_wrapper::-webkit-scrollbar-track {
+                                    background: transparent !important;
+                                }
+                                #kt_app_sidebar_menu_wrapper::-webkit-scrollbar-thumb {
+                                    background: rgba(0, 0, 0, 0.2) !important;
+                                    border-radius: 4px !important;
+                                    visibility: visible !important;
+                                    opacity: 1 !important;
+                                    display: block !important;
+                                    min-height: 20px !important;
+                                }
+                                /* CRITICAL: Override framework's default opacity: 0 - force visible when NOT hovered */
+                                #kt_app_sidebar_menu_wrapper:not(:hover)::-webkit-scrollbar-thumb,
+                                .hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+                                #kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+                                .app-sidebar-wrapper.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb {
+                                    background: rgba(0, 0, 0, 0.2) !important;
+                                    opacity: 1 !important;
+                                    visibility: visible !important;
+                                    display: block !important;
+                                }
+                                #kt_app_sidebar_menu_wrapper:hover::-webkit-scrollbar-thumb,
+                                #kt_app_sidebar_menu_wrapper::-webkit-scrollbar-thumb:hover {
+                                    background: rgba(0, 0, 0, 0.3) !important;
+                                    opacity: 1 !important;
+                                }
+                                /* Override any hover-only rules - make thumb always visible */
+                                .hover-scroll-overlay-y::-webkit-scrollbar-thumb,
+                                #kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb,
+                                .app-sidebar-wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb {
+                                    opacity: 1 !important;
+                                    visibility: visible !important;
+                                    background: rgba(0, 0, 0, 0.2) !important;
+                                    display: block !important;
+                                }
+                            `;
+                            document.head.appendChild(style);
+                        }
+                    }
+                }
+                
+                // Run immediately
+                forceSidebarScrollbar();
+                
+                // Run after delays to ensure framework has initialized
+                setTimeout(forceSidebarScrollbar, 100);
+                setTimeout(forceSidebarScrollbar, 500);
+                setTimeout(forceSidebarScrollbar, 1000);
+                
+                // Use MutationObserver to watch for style changes and override them
+                const observer = new MutationObserver(function(mutations) {
+                    const sidebarWrapper = document.getElementById('kt_app_sidebar_menu_wrapper');
+                    if (sidebarWrapper) {
+                        // Force styles via inline style attribute
+                        const style = sidebarWrapper.style;
+                        if (style.overflowY !== 'scroll') {
+                            style.setProperty('overflow-y', 'scroll', 'important');
+                        }
+                        if (style.overflowX !== 'hidden') {
+                            style.setProperty('overflow-x', 'hidden', 'important');
+                        }
+                    }
+                });
+                
+                // Observe the sidebar wrapper for attribute changes
+                const sidebarWrapper = document.getElementById('kt_app_sidebar_menu_wrapper');
+                if (sidebarWrapper) {
+                    observer.observe(sidebarWrapper, {
+                        attributes: true,
+                        attributeFilter: ['style', 'class']
+                    });
+                }
+            });
+            
+            // Also run on window load to catch late-loading styles
+            window.addEventListener('load', function() {
+                const style = document.createElement('style');
+                style.id = 'sidebar-scrollbar-force-visible';
+                style.textContent = `
+                    /* Force scrollbar thumb always visible - highest priority */
+                    #kt_app_sidebar_menu_wrapper::-webkit-scrollbar-thumb,
+                    #kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb,
+                    .hover-scroll-overlay-y::-webkit-scrollbar-thumb,
+                    .app-sidebar-wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb {
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                        background: rgba(0, 0, 0, 0.2) !important;
+                        display: block !important;
+                    }
+                    #kt_app_sidebar_menu_wrapper:not(:hover)::-webkit-scrollbar-thumb,
+                    #kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+                    .hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+                    .app-sidebar-wrapper.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb {
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                        background: rgba(0, 0, 0, 0.2) !important;
+                        display: block !important;
+                    }
+                `;
+                if (!document.getElementById('sidebar-scrollbar-force-visible')) {
+                    document.head.appendChild(style);
+                }
+            });
+        </script>
 
         @include('common._partials.message')
         @include('common._partials.commonScripts')

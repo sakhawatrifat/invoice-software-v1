@@ -412,7 +412,7 @@ class ReportController extends Controller
         
         $filename = 'Gross_Profit_Loss_Report_' . date('Y-m-d') . '.pdf';
         
-        return $pdfService->generatePdf(null, $html, $filename, 'D');
+        return $pdfService->generatePdf(null, $html, $filename, 'I');
     }
 
     /**
@@ -550,7 +550,7 @@ class ReportController extends Controller
         
         $filename = 'Net_Profit_Loss_Report_' . date('Y-m-d') . '.pdf';
         
-        return $pdfService->generatePdf(null, $html, $filename, 'D');
+        return $pdfService->generatePdf(null, $html, $filename, 'I');
     }
 
 }

@@ -5,7 +5,7 @@
     <title>{{ $getCurrentTranslation['employee_attendance_details'] ?? 'Employee Attendance Details' }}</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: arial, sans-serif;
             font-size: 12px;
             margin: 0;
             padding: 20px;
@@ -34,6 +34,32 @@
         .summary-section {
             margin-bottom: 20px;
         }
+        .payslip-section {
+            margin-bottom: 15px;
+        }
+        .payslip-section-title {
+            background-color: #f0f0f0;
+            padding: 3px;
+            font-weight: bold;
+            font-size: 13px;
+            border: 1px solid #ddd;
+            margin-bottom: 5px;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        .info-table td {
+            padding: 3px;
+            border: 1px solid #ddd;
+            font-size: 11px;
+        }
+        .info-table td:first-child {
+            background-color: #f9f9f9;
+            font-weight: bold;
+            width: 30%;
+        }
         .summary-cards {
             width: 100%;
             border-collapse: collapse;
@@ -41,7 +67,7 @@
         }
         .summary-card {
             width: 16.66%;
-            padding: 10px;
+            padding: 5px;
             border: 1px solid #ddd;
             text-align: center;
             vertical-align: top;
@@ -49,7 +75,7 @@
         .summary-card-header {
             background-color: #f0f0f0;
             font-weight: bold;
-            padding: 5px;
+            padding: 3px;
             margin-bottom: 5px;
             font-size: 10px;
         }
@@ -64,7 +90,7 @@
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 5px;
             text-align: left;
             font-size: 10px;
         }
@@ -121,20 +147,67 @@
                 $globalData = Auth::user();
             @endphp
             @if(env('UNDER_DEVELOPMENT') == true)
-                <strong style="font-size: 16px;">{{ $globalData->company_data->company_name ?? 'N/A' }}</strong>
+                <strong style="font-size: 16px; font-family: {{ language_font(strip_tags($globalData->company_data->company_name ?? 'N/A')) }};">{{ $globalData->company_data->company_name ?? 'N/A' }}</strong>
             @else
                 @if(!empty($globalData->company_data->dark_logo_url))
                     <img alt="{{ $globalData->company_data->company_name ?? 'N/A' }}" src="{{ $globalData->company_data->dark_logo_url ?? '' }}" style="height: 30px; max-width: 200px;" />
                 @endif
             @endif
+            @php
+                $email = $globalData->company_data->email_1 ?? '';
+                $phone = $globalData->company_data->phone_1 ?? '';
+                $address = $globalData->company_data->address ?? '';
+            @endphp
+            @if($address || $email || $phone)
+            <div style="margin-top: 0px; font-size: 10px; text-align: center;">
+                @if($address)
+                <div style="font-family: {{ language_font(strip_tags($address)) }}; margin-bottom: 0px;">
+                    {!! $address !!}
+                </div>
+                @endif
+                @if($email || $phone)
+                <div>
+                    @if($email)
+                    <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['email'] ?? 'Email')) }};">{{ $getCurrentTranslation['email'] ?? 'Email' }}:</span> <span style="font-family: arial;">{{ $email }}</span>
+                    @endif
+                    @if($email && $phone) <span style="margin: 0 5px;">|</span> @endif
+                    @if($phone)
+                    <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['phone'] ?? 'Phone')) }};">{{ $getCurrentTranslation['phone'] ?? 'Phone' }}:</span> <span style="font-family: arial;">{{ $phone }}</span>
+                    @endif
+                </div>
+                @endif
+            </div>
+            @endif
         </div>
         <div class="header-content">
-            <h1>{{ $getCurrentTranslation['employee_attendance_details'] ?? 'Employee Attendance Details' }}</h1>
-            <p><strong>{{ $getCurrentTranslation['employee'] ?? 'Employee' }}:</strong> {{ $employee->name ?? 'N/A' }}</p>
-            <p><strong>{{ $getCurrentTranslation['designation'] ?? 'Designation' }}:</strong> {{ $employee->designation->name ?? 'N/A' }}</p>
-            <p><strong>{{ $getCurrentTranslation['email'] ?? 'Email' }}:</strong> {{ $employee->email ?? 'N/A' }}</p>
-            <p><strong>{{ $getCurrentTranslation['date_range'] ?? 'Date Range' }}:</strong> {{ $dateRangeStr }}</p>
-            <p><strong>{{ $getCurrentTranslation['generated_at'] ?? 'Generated At' }}:</strong> {{ \Carbon\Carbon::now()->format('Y-m-d H:i:s') }}</p>
+            <h1 style="font-family: {{ language_font(strip_tags($getCurrentTranslation['employee_attendance_details'] ?? 'Employee Attendance Details')) }};">{{ $getCurrentTranslation['employee_attendance_details'] ?? 'Employee Attendance Details' }}</h1>
+            <p><strong style="font-family: {{ language_font(strip_tags($getCurrentTranslation['date_range'] ?? 'Date Range')) }};">{{ $getCurrentTranslation['date_range'] ?? 'Date Range' }}:</strong> <span style="font-family: {{ language_font(strip_tags($dateRangeStr)) }};">{{ $dateRangeStr }}</span></p>
+            <p><strong style="font-family: {{ language_font(strip_tags($getCurrentTranslation['generated_at'] ?? 'Generated At')) }};">{{ $getCurrentTranslation['generated_at'] ?? 'Generated At' }}:</strong> <span style="font-family: arial;">{{ \Carbon\Carbon::now()->format('Y-m-d H:i:s') }}</span></p>
+        </div>
+    </div>
+
+    {{-- Employee Information --}}
+    <div class="summary-section">
+        <div class="payslip-section">
+            <div class="payslip-section-title" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['employee_information'] ?? 'Employee Information')) }};">{{ $getCurrentTranslation['employee_information'] ?? 'Employee Information' }}</div>
+            <table class="info-table">
+                <tr>
+                    <td style="font-family: {{ language_font(strip_tags($getCurrentTranslation['employee_name'] ?? 'Employee Name')) }};">{{ $getCurrentTranslation['employee_name'] ?? 'Employee Name' }}</td>
+                    <td style="font-family: {{ language_font(strip_tags($employee->name ?? 'N/A')) }};">{{ $employee->name ?? 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td style="font-family: {{ language_font(strip_tags($getCurrentTranslation['designation'] ?? 'Designation')) }};">{{ $getCurrentTranslation['designation'] ?? 'Designation' }}</td>
+                    <td style="font-family: {{ language_font(strip_tags($employee->designation->name ?? 'N/A')) }};">{{ $employee->designation->name ?? 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td style="font-family: {{ language_font(strip_tags($getCurrentTranslation['email'] ?? 'Email')) }};">{{ $getCurrentTranslation['email'] ?? 'Email' }}</td>
+                    <td style="font-family: arial;">{{ $employee->email ?? 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td style="font-family: {{ language_font(strip_tags($getCurrentTranslation['phone'] ?? 'Phone')) }};">{{ $getCurrentTranslation['phone'] ?? 'Phone' }}</td>
+                    <td style="font-family: {{ language_font(strip_tags($employee->phone ?? 'N/A')) }};">{{ $employee->phone ?? 'N/A' }}</td>
+                </tr>
+            </table>
         </div>
     </div>
 
@@ -143,28 +216,28 @@
         <table class="summary-cards">
             <tr>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['total_present_days'] ?? 'Present Days' }}</div>
-                    <div class="summary-card-value">{{ $employeeSummary['total_present_days'] ?? 0 }}</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_present_days'] ?? 'Present Days')) }};">{{ $getCurrentTranslation['total_present_days'] ?? 'Present Days' }}</div>
+                    <div class="summary-card-value" style="font-family: arial;">{{ $employeeSummary['total_present_days'] ?? 0 }}</div>
                 </td>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['total_absent_days'] ?? 'Absent Days' }}</div>
-                    <div class="summary-card-value">{{ $employeeSummary['total_absent_days'] ?? 0 }}</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_absent_days'] ?? 'Absent Days')) }};">{{ $getCurrentTranslation['total_absent_days'] ?? 'Absent Days' }}</div>
+                    <div class="summary-card-value" style="font-family: arial;">{{ $employeeSummary['total_absent_days'] ?? 0 }}</div>
                 </td>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['total_work_hours'] ?? 'Work Hours' }}</div>
-                    <div class="summary-card-value">{{ formatHoursMinutes($employeeSummary['total_work_hours'] ?? 0) }}</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_work_hours'] ?? 'Work Hours')) }};">{{ $getCurrentTranslation['total_work_hours'] ?? 'Work Hours' }}</div>
+                    <div class="summary-card-value" style="font-family: arial;">{{ formatHoursMinutes($employeeSummary['total_work_hours'] ?? 0) }}</div>
                 </td>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['total_overtime_hours'] ?? 'Overtime' }}</div>
-                    <div class="summary-card-value">{{ formatHoursMinutes($employeeSummary['total_overtime_hours'] ?? 0) }}</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_overtime_hours'] ?? 'Overtime')) }};">{{ $getCurrentTranslation['total_overtime_hours'] ?? 'Overtime' }}</div>
+                    <div class="summary-card-value" style="font-family: arial;">{{ formatHoursMinutes($employeeSummary['total_overtime_hours'] ?? 0) }}</div>
                 </td>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['work_hours_gap_present'] ?? 'Work Hours Gap (Present)' }}</div>
-                    <div class="summary-card-value">{{ formatHoursMinutes($employeeSummary['work_hours_gap_present'] ?? 0) }}</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['work_hours_gap_present'] ?? 'Work Hours Gap (Present)')) }};">{{ $getCurrentTranslation['work_hours_gap_present'] ?? 'Work Hours Gap (Present)' }}</div>
+                    <div class="summary-card-value" style="font-family: arial;">{{ formatHoursMinutes($employeeSummary['work_hours_gap_present'] ?? 0) }}</div>
                 </td>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['work_hours_gap_total'] ?? 'Work Hours Gap (Total)' }}</div>
-                    <div class="summary-card-value">{{ formatHoursMinutes($employeeSummary['work_hours_gap_total'] ?? 0) }}</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['work_hours_gap_total'] ?? 'Work Hours Gap (Total)')) }};">{{ $getCurrentTranslation['work_hours_gap_total'] ?? 'Work Hours Gap (Total)' }}</div>
+                    <div class="summary-card-value" style="font-family: arial;">{{ formatHoursMinutes($employeeSummary['work_hours_gap_total'] ?? 0) }}</div>
                 </td>
             </tr>
         </table>
@@ -172,17 +245,17 @@
 
     {{-- Detailed Attendance Table --}}
     <div class="summary-section">
-        <h3 style="font-size: 14px; margin-bottom: 10px;">{{ $getCurrentTranslation['attendance_details'] ?? 'Attendance Details' }}</h3>
+        <h3 style="font-size: 14px; margin-bottom: 10px; font-family: {{ language_font(strip_tags($getCurrentTranslation['attendance_details'] ?? 'Attendance Details')) }};">{{ $getCurrentTranslation['attendance_details'] ?? 'Attendance Details' }}</h3>
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>{{ $getCurrentTranslation['date'] ?? 'Date' }}</th>
-                    <th>{{ $getCurrentTranslation['check_in'] ?? 'Check In' }}</th>
-                    <th>{{ $getCurrentTranslation['check_out'] ?? 'Check Out' }}</th>
-                    <th>{{ $getCurrentTranslation['total_hours'] ?? 'Total Hours' }}</th>
-                    <th>{{ $getCurrentTranslation['status'] ?? 'Status' }}</th>
-                    <th>{{ $getCurrentTranslation['overtime'] ?? 'Overtime' }}</th>
+                    <th style="font-family: arial;">#</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['date'] ?? 'Date')) }};">{{ $getCurrentTranslation['date'] ?? 'Date' }}</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['check_in'] ?? 'Check In')) }};">{{ $getCurrentTranslation['check_in'] ?? 'Check In' }}</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['check_out'] ?? 'Check Out')) }};">{{ $getCurrentTranslation['check_out'] ?? 'Check Out' }}</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_hours'] ?? 'Total Hours')) }};">{{ $getCurrentTranslation['total_hours'] ?? 'Total Hours' }}</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['status'] ?? 'Status')) }};">{{ $getCurrentTranslation['status'] ?? 'Status' }}</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['overtime'] ?? 'Overtime')) }};">{{ $getCurrentTranslation['overtime'] ?? 'Overtime' }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -237,7 +310,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="text-center">{{ $getCurrentTranslation['no_data_found'] ?? 'No data found' }}</td>
+                    <td colspan="7" class="text-center" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['no_data_found'] ?? 'No data found')) }};">{{ $getCurrentTranslation['no_data_found'] ?? 'No data found' }}</td>
                 </tr>
                 @endforelse
             </tbody>
@@ -245,8 +318,8 @@
     </div>
 
     <div class="footer">
-        <p>{{ $getCurrentTranslation['report_generated_by'] ?? 'Report Generated By' }}: {{ Auth::user()->name ?? 'System' }}</p>
-        <p>{{ $getCurrentTranslation['generated_at'] ?? 'Generated At' }}: {{ \Carbon\Carbon::now()->format('Y-m-d H:i:s') }}</p>
+        <p><span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['report_generated_by'] ?? 'Report Generated By')) }};">{{ $getCurrentTranslation['report_generated_by'] ?? 'Report Generated By' }}:</span> <span style="font-family: {{ language_font(strip_tags(Auth::user()->name ?? 'System')) }};">{{ Auth::user()->name ?? 'System' }}</span></p>
+        <p><span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['generated_at'] ?? 'Generated At')) }};">{{ $getCurrentTranslation['generated_at'] ?? 'Generated At' }}:</span> <span style="font-family: arial;">{{ \Carbon\Carbon::now()->format('Y-m-d H:i:s') }}</span></p>
     </div>
 </body>
 </html>

@@ -19,6 +19,7 @@ Invoice Software New Features (January 2026):
 	-Attendance Export PDF Option
 	-HR Report -> Salary Report
 	-Salary Export PDF Option
+	-Individual Salary Pay Slip Export PDF Option
 
 03. Expense Module
 	-Manage Expense Category
@@ -41,3 +42,7 @@ Invoice Software New Features (January 2026):
 02. My Salary
 	-Salary Report
 	-Salary Report Export PDF Option
+	-Individual Salary Pay Slip Export PDF Option
+
+
+**Note: All new features included multi-language (English,Japanese..) including PDF exports multilanguage supported.**

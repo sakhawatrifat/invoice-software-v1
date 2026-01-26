@@ -1289,7 +1289,7 @@ class AttendanceController extends Controller
         
         $filename = 'Attendance_Report_' . $startDate->format('Y-m-d') . '_to_' . $endDate->format('Y-m-d') . '.pdf';
         
-        return $pdfService->generatePdf(null, $html, $filename, 'D');
+        return $pdfService->generatePdf(null, $html, $filename, 'I');
     }
 
     /**
@@ -1372,7 +1372,7 @@ class AttendanceController extends Controller
         
         $filename = 'My_Attendance_Report_' . $startDate->format('Y-m-d') . '_to_' . $endDate->format('Y-m-d') . '.pdf';
         
-        return $pdfService->generatePdf(null, $html, $filename, 'D');
+        return $pdfService->generatePdf(null, $html, $filename, 'I');
     }
 
     /**
@@ -1455,6 +1455,6 @@ class AttendanceController extends Controller
         
         $filename = 'Employee_Attendance_' . str_replace(' ', '_', $employee->name) . '_' . $startDate->format('Y-m-d') . '_to_' . $endDate->format('Y-m-d') . '.pdf';
         
-        return $pdfService->generatePdf(null, $html, $filename, 'D');
+        return $pdfService->generatePdf(null, $html, $filename, 'I');
     }
 }

@@ -270,6 +270,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
                 Route::get('/salary/staff-report/{id}', 'staffSalaryReport')->name('salary.staffReport');
                 Route::get('/salary/staff-report/{id}/export-pdf', 'staffSalaryReportExportPdf')->name('salary.staffReportExportPdf');
                 Route::get('/salary/staff-report/{id}/export-csv', 'staffSalaryReportExportCsv')->name('salary.staffReportExportCsv');
+                Route::get('/salary/{id}/export-payslip', 'exportPayslip')->name('salary.exportPayslip');
                 Route::put('/salary/{id}', 'update')->name('salary.update');
                 Route::get('/salary/{id}/details', 'getDetails')->name('salary.getDetails');
                 Route::delete('/salary/{id}', 'destroy')->name('salary.destroy');

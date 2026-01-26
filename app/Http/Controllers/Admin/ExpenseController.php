@@ -584,6 +584,6 @@ class ExpenseController extends Controller
         
         $filename = 'Expense_Report_' . $startDate->format('Y-m-d') . '_to_' . $endDate->format('Y-m-d') . '.pdf';
         
-        return $pdfService->generatePdf(null, $html, $filename, 'D');
+        return $pdfService->generatePdf(null, $html, $filename, 'I');
     }
 }

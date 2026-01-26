@@ -633,3 +633,94 @@ td .mf-prev:before {
 a.brand-logo-min img {
     height: 50px!important;
 }
+
+/* Make sidebar scrollbar always visible - matching sidebar background */
+#kt_app_sidebar_menu_wrapper,
+.app-sidebar-wrapper.hover-scroll-overlay-y,
+#kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y {
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+}
+
+/* Force scrollbar to always be visible - Webkit browsers (Chrome, Safari, Edge) */
+#kt_app_sidebar_menu_wrapper::-webkit-scrollbar,
+.app-sidebar-wrapper.hover-scroll-overlay-y::-webkit-scrollbar,
+#kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y::-webkit-scrollbar {
+    width: 8px !important;
+    -webkit-appearance: none !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+#kt_app_sidebar_menu_wrapper::-webkit-scrollbar-track,
+.app-sidebar-wrapper.hover-scroll-overlay-y::-webkit-scrollbar-track,
+#kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y::-webkit-scrollbar-track {
+    background: transparent !important;
+    -webkit-box-shadow: none !important;
+}
+
+/* Base rule - thumb always visible */
+#kt_app_sidebar_menu_wrapper::-webkit-scrollbar-thumb,
+.app-sidebar-wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb,
+#kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb,
+.hover-scroll-overlay-y::-webkit-scrollbar-thumb,
+.app-sidebar-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-radius: 4px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
+    -webkit-box-shadow: none !important;
+    min-height: 20px !important;
+}
+
+/* Override framework's default opacity: 0 rule - force visible when NOT hovered */
+#kt_app_sidebar_menu_wrapper:not(:hover)::-webkit-scrollbar-thumb,
+.app-sidebar-wrapper.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+#kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb,
+.app-sidebar-wrapper:not(:hover)::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+}
+
+#kt_app_sidebar_menu_wrapper:hover::-webkit-scrollbar-thumb,
+#kt_app_sidebar_menu_wrapper::-webkit-scrollbar-thumb:hover,
+.app-sidebar-wrapper.hover-scroll-overlay-y:hover::-webkit-scrollbar-thumb,
+.app-sidebar-wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb:hover,
+#kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y:hover::-webkit-scrollbar-thumb,
+#kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb:hover,
+.hover-scroll-overlay-y:hover::-webkit-scrollbar-thumb,
+.hover-scroll-overlay-y::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3) !important;
+    opacity: 1 !important;
+}
+
+/* Override framework hover-only behavior - make thumb always visible */
+.hover-scroll-overlay-y::-webkit-scrollbar-thumb,
+#kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y::-webkit-scrollbar-thumb {
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    display: block !important;
+}
+
+/* Force thumb visibility even without hover */
+#kt_app_sidebar_menu_wrapper:not(:hover)::-webkit-scrollbar-thumb,
+.hover-scroll-overlay-y:not(:hover)::-webkit-scrollbar-thumb {
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    display: block !important;
+}
+
+/* Firefox */
+#kt_app_sidebar_menu_wrapper,
+.app-sidebar-wrapper.hover-scroll-overlay-y,
+#kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent !important;
+}

@@ -5,7 +5,7 @@
     <title>{{ $getCurrentTranslation['salary_report'] ?? 'Salary Report' }}</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: arial, sans-serif;
             font-size: 12px;
             margin: 0;
             padding: 20px;
@@ -41,7 +41,7 @@
         }
         .summary-card {
             width: 16.66%;
-            padding: 10px;
+            padding: 5px;
             border: 1px solid #ddd;
             text-align: center;
             vertical-align: top;
@@ -49,7 +49,7 @@
         .summary-card-header {
             background-color: #f0f0f0;
             font-weight: bold;
-            padding: 5px;
+            padding: 3px;
             margin-bottom: 5px;
             font-size: 10px;
         }
@@ -64,7 +64,7 @@
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 5px;
             text-align: left;
             font-size: 10px;
         }
@@ -113,18 +113,43 @@
                 $globalData = Auth::user();
             @endphp
             @if(env('UNDER_DEVELOPMENT') == true)
-                <strong style="font-size: 16px;">{{ $globalData->company_data->company_name ?? 'N/A' }}</strong>
+                <strong style="font-size: 16px; font-family: {{ language_font(strip_tags($globalData->company_data->company_name ?? 'N/A')) }};">{{ $globalData->company_data->company_name ?? 'N/A' }}</strong>
             @else
                 @if(!empty($globalData->company_data->dark_logo_url))
                     <img alt="{{ $globalData->company_data->company_name ?? 'N/A' }}" src="{{ $globalData->company_data->dark_logo_url ?? '' }}" style="height: 30px; max-width: 200px;" />
                 @endif
             @endif
+            @php
+                $email = $globalData->company_data->email_1 ?? '';
+                $phone = $globalData->company_data->phone_1 ?? '';
+                $address = $globalData->company_data->address ?? '';
+            @endphp
+            @if($address || $email || $phone)
+            <div style="margin-top: 0px; font-size: 10px; text-align: center;">
+                @if($address)
+                <div style="font-family: {{ language_font(strip_tags($address)) }}; margin-bottom: 0px;">
+                    {!! $address !!}
+                </div>
+                @endif
+                @if($email || $phone)
+                <div>
+                    @if($email)
+                    <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['email'] ?? 'Email')) }};">{{ $getCurrentTranslation['email'] ?? 'Email' }}:</span> <span style="font-family: arial;">{{ $email }}</span>
+                    @endif
+                    @if($email && $phone) <span style="margin: 0 5px;">|</span> @endif
+                    @if($phone)
+                    <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['phone'] ?? 'Phone')) }};">{{ $getCurrentTranslation['phone'] ?? 'Phone' }}:</span> <span style="font-family: arial;">{{ $phone }}</span>
+                    @endif
+                </div>
+                @endif
+            </div>
+            @endif
         </div>
         <div class="header-content">
-            <h1>{{ $getCurrentTranslation['salary_report'] ?? 'Salary Report' }}</h1>
-            <p><strong>{{ $getCurrentTranslation['year'] ?? 'Year' }}:</strong> {{ $yearStr }}</p>
-            <p><strong>{{ $getCurrentTranslation['month'] ?? 'Month' }}:</strong> {{ $monthStr }}</p>
-            <p><strong>{{ $getCurrentTranslation['generated_at'] ?? 'Generated At' }}:</strong> {{ \Carbon\Carbon::now()->format('Y-m-d H:i:s') }}</p>
+            <h1 style="font-family: {{ language_font(strip_tags($getCurrentTranslation['salary_report'] ?? 'Salary Report')) }};">{{ $getCurrentTranslation['salary_report'] ?? 'Salary Report' }}</h1>
+            <p><strong style="font-family: {{ language_font(strip_tags($getCurrentTranslation['month'] ?? 'Month')) }};">{{ $getCurrentTranslation['month'] ?? 'Month' }}:</strong> <span style="font-family: {{ language_font(strip_tags($monthStr)) }};">{{ $monthStr }}</span></p>
+            <p><strong style="font-family: {{ language_font(strip_tags($getCurrentTranslation['year'] ?? 'Year')) }};">{{ $getCurrentTranslation['year'] ?? 'Year' }}:</strong> <span style="font-family: arial;">{{ $yearStr }}</span></p>
+            <p><strong style="font-family: {{ language_font(strip_tags($getCurrentTranslation['generated_at'] ?? 'Generated At')) }};">{{ $getCurrentTranslation['generated_at'] ?? 'Generated At' }}:</strong> <span style="font-family: arial;">{{ \Carbon\Carbon::now()->format('Y-m-d H:i:s') }}</span></p>
         </div>
     </div>
 
@@ -133,28 +158,28 @@
         <table class="summary-cards">
             <tr>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['total_base_salary'] ?? 'Total Base Salary' }}</div>
-                    <div class="summary-card-value">{{ number_format($totalBaseSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_base_salary'] ?? 'Total Base Salary')) }};">{{ $getCurrentTranslation['total_base_salary'] ?? 'Total Base Salary' }}</div>
+                    <div class="summary-card-value" style="font-family: arial;">{{ number_format($totalBaseSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
                 </td>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['total_deductions'] ?? 'Total Deductions' }}</div>
-                    <div class="summary-card-value" style="color: #dc3545;">{{ number_format($totalDeductions, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_deductions'] ?? 'Total Deductions')) }};">{{ $getCurrentTranslation['total_deductions'] ?? 'Total Deductions' }}</div>
+                    <div class="summary-card-value" style="color: #dc3545; font-family: arial;">{{ number_format($totalDeductions, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
                 </td>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['total_bonus'] ?? 'Total Bonus' }}</div>
-                    <div class="summary-card-value" style="color: #28a745;">{{ number_format($totalBonus, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_bonus'] ?? 'Total Bonus')) }};">{{ $getCurrentTranslation['total_bonus'] ?? 'Total Bonus' }}</div>
+                    <div class="summary-card-value" style="color: #28a745; font-family: arial;">{{ number_format($totalBonus, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
                 </td>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['total_net_salary'] ?? 'Total Net Salary' }}</div>
-                    <div class="summary-card-value">{{ number_format($totalNetSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_net_salary'] ?? 'Total Net Salary')) }};">{{ $getCurrentTranslation['total_net_salary'] ?? 'Total Net Salary' }}</div>
+                    <div class="summary-card-value" style="font-family: arial;">{{ number_format($totalNetSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
                 </td>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['total_paid'] ?? 'Total Paid' }}</div>
-                    <div class="summary-card-value" style="color: #28a745;">{{ number_format($totalPaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_paid'] ?? 'Total Paid')) }};">{{ $getCurrentTranslation['total_paid'] ?? 'Total Paid' }}</div>
+                    <div class="summary-card-value" style="color: #28a745; font-family: arial;">{{ number_format($totalPaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
                 </td>
                 <td class="summary-card">
-                    <div class="summary-card-header">{{ $getCurrentTranslation['total_unpaid'] ?? 'Total Unpaid' }}</div>
-                    <div class="summary-card-value" style="color: #dc3545;">{{ number_format($totalUnpaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
+                    <div class="summary-card-header" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_unpaid'] ?? 'Total Unpaid')) }};">{{ $getCurrentTranslation['total_unpaid'] ?? 'Total Unpaid' }}</div>
+                    <div class="summary-card-value" style="color: #dc3545; font-family: arial;">{{ number_format($totalUnpaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</div>
                 </td>
             </tr>
         </table>
@@ -162,45 +187,45 @@
 
     {{-- Salary Table --}}
     <div class="summary-section">
-        <h3 style="font-size: 14px; margin-bottom: 10px;">{{ $getCurrentTranslation['salary_details'] ?? 'Salary Details' }}</h3>
+        <h3 style="font-size: 14px; margin-bottom: 10px; font-family: {{ language_font(strip_tags($getCurrentTranslation['salary_details'] ?? 'Salary Details')) }};">{{ $getCurrentTranslation['salary_details'] ?? 'Salary Details' }}</h3>
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>{{ $getCurrentTranslation['employee'] ?? 'Employee' }}</th>
-                    <th>{{ $getCurrentTranslation['month'] ?? 'Month' }}</th>
-                    <th>{{ $getCurrentTranslation['year'] ?? 'Year' }}</th>
-                    <th class="text-right">{{ $getCurrentTranslation['base_salary'] ?? 'Base Salary' }}</th>
-                    <th class="text-right">{{ $getCurrentTranslation['deductions'] ?? 'Deductions' }}</th>
-                    <th class="text-right">{{ $getCurrentTranslation['bonus'] ?? 'Bonus' }}</th>
-                    <th class="text-right">{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }}</th>
-                    <th>{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}</th>
+                    <th style="font-family: arial;">#</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['employee'] ?? 'Employee')) }};">{{ $getCurrentTranslation['employee'] ?? 'Employee' }}</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['month'] ?? 'Month')) }};">{{ $getCurrentTranslation['month'] ?? 'Month' }}</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['year'] ?? 'Year')) }};">{{ $getCurrentTranslation['year'] ?? 'Year' }}</th>
+                    <th class="text-right" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['base_salary'] ?? 'Base Salary')) }};">{{ $getCurrentTranslation['base_salary'] ?? 'Base Salary' }}</th>
+                    <th class="text-right" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['deductions'] ?? 'Deductions')) }};">{{ $getCurrentTranslation['deductions'] ?? 'Deductions' }}</th>
+                    <th class="text-right" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['bonus'] ?? 'Bonus')) }};">{{ $getCurrentTranslation['bonus'] ?? 'Bonus' }}</th>
+                    <th class="text-right" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['net_salary'] ?? 'Net Salary')) }};">{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }}</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['payment_status'] ?? 'Payment Status')) }}; width: 80px;">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($salaries as $index => $salary)
                 <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ $salary->employee->name ?? 'N/A' }}</td>
-                    <td class="text-center">{{ $monthNames[$salary->month] ?? $salary->month }}</td>
-                    <td class="text-center">{{ $salary->year }}</td>
-                    <td class="text-right">{{ number_format($salary->base_salary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
-                    <td class="text-right" style="color: #dc3545;">{{ number_format($salary->deductions, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
-                    <td class="text-right" style="color: #28a745;">{{ number_format($salary->bonus, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
-                    <td class="text-right">{{ number_format($salary->net_salary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
-                    <td class="text-center">
+                    <td class="text-center" style="font-family: arial;">{{ $index + 1 }}</td>
+                    <td style="font-family: {{ language_font(strip_tags($salary->employee->name ?? 'N/A')) }};">{{ $salary->employee->name ?? 'N/A' }}</td>
+                    <td class="text-center" style="font-family: {{ language_font(strip_tags($monthNames[$salary->month] ?? $salary->month)) }};">{{ $monthNames[$salary->month] ?? $salary->month }}</td>
+                    <td class="text-center" style="font-family: arial;">{{ $salary->year }}</td>
+                    <td class="text-right" style="font-family: arial;">{{ number_format($salary->base_salary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
+                    <td class="text-right" style="color: #dc3545; font-family: arial;">{{ number_format($salary->deductions, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
+                    <td class="text-right" style="color: #28a745; font-family: arial;">{{ number_format($salary->bonus, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
+                    <td class="text-right" style="font-family: arial;">{{ number_format($salary->net_salary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
+                    <td class="text-center" style="width: 80px;">
                         <span class="badge 
                             @if($salary->payment_status == 'Paid') badge-success
                             @elseif($salary->payment_status == 'Partial') badge-warning
                             @else badge-danger
-                            @endif">
+                            @endif" style="font-family: {{ language_font(strip_tags($salary->payment_status)) }};">
                             {{ $salary->payment_status }}
                         </span>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9" class="text-center">{{ $getCurrentTranslation['no_data_found'] ?? 'No data found' }}</td>
+                    <td colspan="9" class="text-center" style="font-family: {{ language_font(strip_tags($getCurrentTranslation['no_data_found'] ?? 'No data found')) }};">{{ $getCurrentTranslation['no_data_found'] ?? 'No data found' }}</td>
                 </tr>
                 @endforelse
             </tbody>
@@ -208,8 +233,8 @@
     </div>
 
     <div class="footer">
-        <p>{{ $getCurrentTranslation['report_generated_by'] ?? 'Report Generated By' }}: {{ Auth::user()->name ?? 'System' }}</p>
-        <p>{{ $getCurrentTranslation['generated_at'] ?? 'Generated At' }}: {{ \Carbon\Carbon::now()->format('Y-m-d H:i:s') }}</p>
+        <p><span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['report_generated_by'] ?? 'Report Generated By')) }};">{{ $getCurrentTranslation['report_generated_by'] ?? 'Report Generated By' }}:</span> <span style="font-family: {{ language_font(strip_tags(Auth::user()->name ?? 'System')) }};">{{ Auth::user()->name ?? 'System' }}</span></p>
+        <p><span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['generated_at'] ?? 'Generated At')) }};">{{ $getCurrentTranslation['generated_at'] ?? 'Generated At' }}:</span> <span style="font-family: arial;">{{ \Carbon\Carbon::now()->format('Y-m-d H:i:s') }}</span></p>
     </div>
 </body>
 </html>

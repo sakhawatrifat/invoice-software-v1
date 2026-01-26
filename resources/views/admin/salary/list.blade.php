@@ -197,6 +197,9 @@
 											@endif
 										</td>
 										<td>
+											<a href="{{ route('admin.salary.exportPayslip', $salary->id) }}" class="btn btn-sm btn-danger" target="_blank" title="{{ $getCurrentTranslation['export_payslip'] ?? 'Export Payslip' }}">
+												<i class="fas fa-file-pdf"></i> {{ $getCurrentTranslation['payslip'] ?? 'Payslip' }}
+											</a>
 											<button type="button" class="btn btn-sm btn-info edit-salary" 
 												data-salary-id="{{ $salary->id }}">
 												<i class="fas fa-edit"></i> {{ $getCurrentTranslation['edit'] ?? 'Edit' }}

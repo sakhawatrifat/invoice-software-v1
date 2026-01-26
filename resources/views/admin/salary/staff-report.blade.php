@@ -266,6 +266,7 @@
 									<th class="fw-semibold">{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_date'] ?? 'Payment Date' }}</th>
+									<th class="fw-semibold">{{ $getCurrentTranslation['action'] ?? 'Action' }}</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -306,10 +307,15 @@
 												<span class="text-muted">-</span>
 											@endif
 										</td>
+										<td>
+											<a href="{{ route('admin.salary.exportPayslip', $salary->id) }}" class="btn btn-sm btn-danger" target="_blank" title="{{ $getCurrentTranslation['export_payslip'] ?? 'Export Payslip' }}">
+												<i class="fas fa-file-pdf"></i> {{ $getCurrentTranslation['payslip'] ?? 'Payslip' }}
+											</a>
+										</td>
 									</tr>
 								@empty
 									<tr>
-										<td colspan="9" class="p-10 text-center">
+										<td colspan="10" class="p-10 text-center">
 											{{ $getCurrentTranslation['no_data_found'] ?? 'No data found' }}
 										</td>
 									</tr>
@@ -341,7 +347,7 @@
 									<td class="fw-bold">
 										<strong>{{ number_format($totalNetSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
 									</td>
-									<td colspan="2"></td>
+									<td colspan="3"></td>
 								</tr>
 							</tfoot>
 							@endif

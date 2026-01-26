@@ -814,6 +814,14 @@ class TranslationSeeder extends Seeder
                 
                 // Salary Report
                 'salary_report' => 'Salary Report',
+                'salary_payslip' => 'Salary Payslip',
+                'payslip' => 'Payslip',
+                'export_payslip' => 'Export Payslip',
+                'employee_information' => 'Employee Information',
+                'employee_name' => 'Employee Name',
+                'salary_breakdown' => 'Salary Breakdown',
+                'payment_information' => 'Payment Information',
+                'this_is_a_system_generated_document' => 'This is a system generated document and does not require a signature.',
                 'all_month' => 'All Month',
                 'all_year' => 'All Year',
                 'all_employee' => 'All Employee',
@@ -2021,6 +2029,14 @@ class TranslationSeeder extends Seeder
                 
                 // Salary Report
                 'salary_report' => '給与レポート',
+                'salary_payslip' => '給与明細書',
+                'payslip' => '給与明細',
+                'export_payslip' => '給与明細をエクスポート',
+                'employee_information' => '従業員情報',
+                'employee_name' => '従業員名',
+                'salary_breakdown' => '給与内訳',
+                'payment_information' => '支払情報',
+                'this_is_a_system_generated_document' => 'これはシステム生成された文書であり、署名は不要です。',
                 'all_month' => 'すべての月',
                 'all_year' => 'すべての年',
                 'all_employee' => 'すべての従業員',
