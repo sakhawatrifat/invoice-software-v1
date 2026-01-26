@@ -49,7 +49,7 @@
 
 								<div class="col-md-6">
 									<div class="input-item-wrap mb-5">
-										<label>{{ $getCurrentTranslation['image'] ?? 'image' }} (100x100):</label>
+										<label>{{ $getCurrentTranslation['image'] ?? 'image' }} (150x150):</label>
 										@php
 											$selected = old('image') ?? ($editData->image_url ?? '');
 											$isFileExist = !empty($selected);
@@ -254,7 +254,7 @@
 
 									<div class="col-md-6">
 										<div class="input-item-wrap mb-5">
-											<label>{{ $getCurrentTranslation['logo_label'] ?? 'logo_label' }}:</label>
+											<label>{{ $getCurrentTranslation['logo_label'] ?? 'logo_label' }} (380x100):</label>
 											@php
 												$selected = old('dark_logo') ?? ($editData->company->dark_logo_url ?? '');
 												$isFileExist = !empty($selected);
@@ -315,7 +315,7 @@
 
 									<div class="col-md-6">
 										<div class="input-item-wrap mb-5">
-											<label>{{ $getCurrentTranslation['icon_label'] ?? 'icon_label' }}:</label>
+											<label>{{ $getCurrentTranslation['icon_label'] ?? 'icon_label' }}(64x64):</label>
 											@php
 												$selected = old('dark_icon') ?? ($editData->company->dark_icon_url ?? '');
 												$isFileExist = !empty($selected);
@@ -376,7 +376,7 @@
 
 									<div class="col-md-6">
 										<div class="input-item-wrap mb-5">
-											<label>{{ $getCurrentTranslation['seal_label'] ?? 'seal_label' }}:</label>
+											<label>{{ $getCurrentTranslation['seal_label'] ?? 'seal_label' }}(150x150):</label>
 											@php
 												$selected = old('dark_seal') ?? ($editData->company->dark_seal_url ?? '');
 												$isFileExist = !empty($selected);
@@ -469,7 +469,7 @@
 											$selected = $editData->company->currency_id ?? '';
 										@endphp
 										<label class="form-label">{{ $getCurrentTranslation['currency_label'] ?? 'currency_label' }}:</label>
-										<select class="form-select select2-with-images" data-placeholder="{{ $getCurrentTranslation['currency_placeholder'] ?? 'currency_placeholder' }}" name="currency_id" ip-required>
+										<select class="form-select select2-with-images" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="currency_id" ip-required>
 											<option value="">Select</option>
 											@foreach($options as $option)
 												<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>
@@ -499,7 +499,7 @@
 										$selected = $editData->default_language ?? '';
 									@endphp
 									<label class="form-label">{{ $getCurrentTranslation['default_language_label'] ?? 'default_language_label' }}:</label>
-									<select class="form-select select2-with-images" data-placeholder="{{ $getCurrentTranslation['default_language_placeholder'] ?? 'default_language_placeholder' }}" name="default_language" ip-required>
+									<select class="form-select select2-with-images" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="default_language" ip-required>
 										<option value="">----</option>
 										@foreach($options as $option)
 											<option value="{{ $option->code }}" {{ $option->code == $selected ? 'selected' : '' }}>

@@ -73,7 +73,7 @@
 										<div class="col-md-3 mb-3">
 											<div class="input-item">
 												<label class="form-label">{{ $getCurrentTranslation['expense_category'] ?? 'Expense Category' }}:</label>
-												<select class="form-select" name="category_id">
+												<select class="form-select" name="category_id" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 													<option value="all" {{ (isset($categoryId) && $categoryId === 'all') ? 'selected' : '' }}>
 														{{ $getCurrentTranslation['all'] ?? 'All' }}
 													</option>
@@ -88,7 +88,7 @@
 										<div class="col-md-3 mb-3">
 											<div class="input-item">
 												<label class="form-label">{{ $getCurrentTranslation['for'] ?? 'For' }}:</label>
-												<select class="form-select" name="for_user_id">
+												<select class="form-select" name="for_user_id" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 													<option value="all" {{ (isset($forUserId) && $forUserId === 'all') ? 'selected' : '' }}>
 														{{ $getCurrentTranslation['all'] ?? 'All' }}
 													</option>
@@ -106,7 +106,7 @@
 										<div class="col-md-3 mb-3">
 											<div class="input-item">
 												<label class="form-label">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}:</label>
-												<select class="form-select" name="payment_status">
+												<select class="form-select" name="payment_status" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 													<option value="all" {{ (isset($paymentStatus) && $paymentStatus === 'all') ? 'selected' : '' }}>
 														{{ $getCurrentTranslation['all'] ?? 'All' }}
 													</option>

@@ -107,7 +107,7 @@
 											$selected = isset($editData) ? ($editData->user_type ?? 'admin') : 'admin';
 										@endphp
 										<label class="form-label">{{ $getCurrentTranslation['user_type'] ?? 'user_type' }}:</label>
-										<select class="form-select select2-with-images" data-placeholder="{{ $getCurrentTranslation['select_user_type'] ?? 'select_user_type' }}" name="user_type" ip-required>
+										<select class="form-select select2-with-images" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="user_type" ip-required>
 											<option value="">----</option>
 											@foreach($options as $option)
 												<option value="{{ $option->name }}" {{ $option->name == $selected ? 'selected' : '' }}>
@@ -125,7 +125,7 @@
 											$selected = isset($editData) ? ($editData->parent_id ?? '') : '';
 										@endphp
 										<label class="form-label">{{ $getCurrentTranslation['user'] ?? 'user' }}:</label>
-										<select class="form-select select2-with-images" data-placeholder="{{ $getCurrentTranslation['select_user'] ?? 'select_user' }}" name="user_id">
+										<select class="form-select select2-with-images" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="user_id">
 											<option value="">----</option>
 											@foreach($options as $option)
 												<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>

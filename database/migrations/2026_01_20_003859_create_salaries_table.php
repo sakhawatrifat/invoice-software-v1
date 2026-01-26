@@ -23,6 +23,8 @@ return new class extends Migration
             $table->longText('bonus_note')->nullable();
             $table->decimal('net_salary', 20, 2)->nullable()->default(0);
             $table->enum('payment_status', ['Unpaid', 'Paid', 'Partial'])->nullable()->default('Unpaid');
+            $table->decimal('paid_amount', 20, 2)->nullable()->default(0);
+            $table->enum('payment_method', ['Bank Transfer', 'Card Payments', 'Cheque', 'bKash', 'Nagad', 'Rocket', 'Upay'])->nullable();
             $table->date('payment_date')->nullable();
             $table->longText('payment_note')->nullable();
             $table->bigInteger('created_by')->nullable();

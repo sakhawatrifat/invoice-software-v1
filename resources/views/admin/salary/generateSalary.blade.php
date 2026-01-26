@@ -43,7 +43,7 @@
 							<div class="col-md-6 mb-5">
 								<div class="input-item">
 									<label class="form-label">{{ $getCurrentTranslation['month'] ?? 'Month' }}: <span class="text-danger">*</span></label>
-									<select class="form-select" name="month" required>
+									<select class="form-select" name="month" required data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 										<option value="">-- {{ $getCurrentTranslation['select_month'] ?? 'Select Month' }} --</option>
 										@for($i = 1; $i <= 12; $i++)
 											<option value="{{ $i }}" {{ $i == Carbon\Carbon::now()->month ? 'selected' : '' }}>
@@ -60,7 +60,7 @@
 							<div class="col-md-6 mb-5">
 								<div class="input-item">
 									<label class="form-label">{{ $getCurrentTranslation['year'] ?? 'Year' }}: <span class="text-danger">*</span></label>
-									<select class="form-select" name="year" required>
+									<select class="form-select" name="year" required data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 										<option value="">-- {{ $getCurrentTranslation['select_year'] ?? 'Select Year' }} --</option>
 										@for($i = Carbon\Carbon::now()->year; $i >= Carbon\Carbon::now()->year - 5; $i--)
 											<option value="{{ $i }}" {{ $i == Carbon\Carbon::now()->year ? 'selected' : '' }}>

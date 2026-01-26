@@ -85,12 +85,9 @@
 										<div class="col-md-4 mb-3">
 											<div class="input-item">
 												<label class="form-label">{{ $getCurrentTranslation['month'] ?? 'Month' }}:</label>
-												<select class="form-select" name="month">
-													<option value="all" {{ (isset($month) && $month === 'all') ? 'selected' : '' }}>
-														{{ $getCurrentTranslation['all_month'] ?? 'All Month' }}
-													</option>
+												<select class="form-select" name="month[]" multiple data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 													@for($i = 1; $i <= 12; $i++)
-														<option value="{{ $i }}" {{ (isset($month) && $month == $i) ? 'selected' : '' }}>
+														<option value="{{ $i }}" {{ (isset($months) && is_array($months) && in_array($i, $months)) ? 'selected' : '' }}>
 															{{ $monthNames[$i] }}
 														</option>
 													@endfor
@@ -100,7 +97,7 @@
 										<div class="col-md-4 mb-3">
 											<div class="input-item">
 												<label class="form-label">{{ $getCurrentTranslation['year'] ?? 'Year' }}:</label>
-												<select class="form-select" name="year">
+												<select class="form-select" name="year" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 													<option value="all" {{ (isset($year) && $year === 'all') ? 'selected' : '' }}>
 														{{ $getCurrentTranslation['all_year'] ?? 'All Year' }}
 													</option>
@@ -115,7 +112,7 @@
 										<div class="col-md-4 mb-3">
 											<div class="input-item">
 												<label class="form-label">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}:</label>
-												<select class="form-select" name="payment_status">
+												<select class="form-select" name="payment_status" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 													<option value="all" {{ (isset($paymentStatus) && $paymentStatus === 'all') ? 'selected' : '' }}>
 														{{ $getCurrentTranslation['all'] ?? 'All' }}
 													</option>
@@ -264,6 +261,8 @@
 									<th class="fw-semibold">{{ $getCurrentTranslation['deductions'] ?? 'Deductions' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['bonus'] ?? 'Bonus' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }}</th>
+									<th class="fw-semibold">{{ $getCurrentTranslation['paid_amount'] ?? 'Paid Amount' }}</th>
+									<th class="fw-semibold">{{ $getCurrentTranslation['due_amount'] ?? 'Due Amount' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_date'] ?? 'Payment Date' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['action'] ?? 'Action' }}</th>
@@ -279,6 +278,16 @@
 										<td>
 											@if($salary->deductions > 0)
 												<span class="text-danger">{{ number_format($salary->deductions, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+												@if($salary->deduction_note)
+													<br>
+													<button type="button" class="btn btn-sm btn-link text-danger p-0 mt-1 view-note" 
+														data-note="{{ $salary->deduction_note }}"
+														data-title="{{ $getCurrentTranslation['deduction_note'] ?? 'Deduction Note' }}"
+														data-bs-toggle="modal" 
+														data-bs-target="#noteModal">
+														<i class="fas fa-info-circle"></i> {{ $getCurrentTranslation['view_note'] ?? 'View Note' }}
+													</button>
+												@endif
 											@else
 												<span class="text-muted">0.00 ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
 											@endif
@@ -286,11 +295,34 @@
 										<td>
 											@if($salary->bonus > 0)
 												<span class="text-success">{{ number_format($salary->bonus, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+												@if($salary->bonus_note)
+													<br>
+													<button type="button" class="btn btn-sm btn-link text-success p-0 mt-1 view-note" 
+														data-note="{{ $salary->bonus_note }}"
+														data-title="{{ $getCurrentTranslation['bonus_note'] ?? 'Bonus Note' }}"
+														data-bs-toggle="modal" 
+														data-bs-target="#noteModal">
+														<i class="fas fa-info-circle"></i> {{ $getCurrentTranslation['view_note'] ?? 'View Note' }}
+													</button>
+												@endif
 											@else
 												<span class="text-muted">0.00 ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
 											@endif
 										</td>
 										<td class="fw-bold">{{ number_format($salary->net_salary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
+										<td>
+											<span class="text-success fw-bold">{{ number_format($salary->paid_amount ?? 0, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+										</td>
+										<td>
+											@php
+												$dueAmount = $salary->net_salary - ($salary->paid_amount ?? 0);
+											@endphp
+											@if($dueAmount > 0)
+												<span class="text-danger fw-bold">{{ number_format($dueAmount, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+											@else
+												<span class="text-muted">0.00 ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+											@endif
+										</td>
 										<td>
 											<span class="badge 
 												@if($salary->payment_status == 'Paid') badge-success
@@ -315,7 +347,7 @@
 									</tr>
 								@empty
 									<tr>
-										<td colspan="10" class="p-10 text-center">
+										<td colspan="12" class="p-10 text-center">
 											{{ $getCurrentTranslation['no_data_found'] ?? 'No data found' }}
 										</td>
 									</tr>
@@ -325,7 +357,7 @@
 							<tfoot class="table-secondary">
 								<tr>
 									<td colspan="3" class="fw-bold text-end ps-3">
-										{{ $getCurrentTranslation['total'] ?? 'Total' }}:
+										<strong>{{ $getCurrentTranslation['total'] ?? 'Total' }}:</strong>
 									</td>
 									<td class="fw-bold">
 										<strong>{{ number_format($totalBaseSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
@@ -347,6 +379,16 @@
 									<td class="fw-bold">
 										<strong>{{ number_format($totalNetSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
 									</td>
+									<td class="fw-bold">
+										<strong class="text-success">{{ number_format($totalPaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+									</td>
+									<td class="fw-bold">
+										@if($totalUnpaid > 0)
+											<strong class="text-danger">{{ number_format($totalUnpaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+										@else
+											<strong class="text-muted">{{ number_format($totalUnpaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+										@endif
+									</td>
 									<td colspan="3"></td>
 								</tr>
 							</tfoot>
@@ -358,8 +400,38 @@
 		</div>
 	</div>
 </div>
+
+{{-- Note Modal --}}
+<div class="modal fade" id="noteModal" tabindex="-1" aria-labelledby="noteModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="noteModalLabel">{{ $getCurrentTranslation['note'] ?? 'Note' }}</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<p id="noteContent" class="mb-0"></p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $getCurrentTranslation['close'] ?? 'Close' }}</button>
+			</div>
+		</div>
+	</div>
+</div>
 @endsection
 
 @push('script')
 @include('common._partials.appendJs')
+<script>
+	$(document).ready(function() {
+		$('#noteModal').on('show.bs.modal', function (event) {
+			const button = $(event.relatedTarget);
+			const note = button.data('note');
+			const title = button.data('title');
+			const modal = $(this);
+			modal.find('.modal-title').text(title);
+			modal.find('#noteContent').text(note);
+		});
+	});
+</script>
 @endpush

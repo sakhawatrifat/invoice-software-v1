@@ -57,7 +57,7 @@
 										<div class="col-md-3 mb-3">
 											<div class="input-item">
 												<label class="form-label">{{ $getCurrentTranslation['employee'] ?? 'Employee' }}:</label>
-												<select class="form-select" name="employee_id">
+												<select class="form-select" name="employee_id" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 													<option value="all" {{ (isset($employeeId) && $employeeId === 'all') ? 'selected' : '' }}>
 														{{ $getCurrentTranslation['all_employee'] ?? 'All Employee' }}
 													</option>
@@ -78,12 +78,9 @@
 										<div class="col-md-3 mb-3">
 											<div class="input-item">
 												<label class="form-label">{{ $getCurrentTranslation['month'] ?? 'Month' }}:</label>
-												<select class="form-select" name="month">
-													<option value="all" {{ (isset($month) && $month === 'all') ? 'selected' : '' }}>
-														{{ $getCurrentTranslation['all_month'] ?? 'All Month' }}
-													</option>
+												<select class="form-select" name="month[]" multiple data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 													@for($i = 1; $i <= 12; $i++)
-														<option value="{{ $i }}" {{ (isset($month) && $month == $i) ? 'selected' : '' }}>
+														<option value="{{ $i }}" {{ (isset($months) && is_array($months) && in_array($i, $months)) ? 'selected' : '' }}>
 															{{ $monthNames[$i] }}
 														</option>
 													@endfor
@@ -93,7 +90,7 @@
 										<div class="col-md-3 mb-3">
 											<div class="input-item">
 												<label class="form-label">{{ $getCurrentTranslation['year'] ?? 'Year' }}:</label>
-												<select class="form-select" name="year">
+												<select class="form-select" name="year" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 													<option value="all" {{ (isset($year) && $year === 'all') ? 'selected' : '' }}>
 														{{ $getCurrentTranslation['all_year'] ?? 'All Year' }}
 													</option>
@@ -108,7 +105,7 @@
 										<div class="col-md-3 mb-3">
 											<div class="input-item">
 												<label class="form-label">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}:</label>
-												<select class="form-select" name="payment_status">
+												<select class="form-select" name="payment_status" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 													<option value="all" {{ (isset($paymentStatus) && $paymentStatus === 'all') ? 'selected' : '' }}>
 														{{ $getCurrentTranslation['all'] ?? 'All' }}
 													</option>
@@ -261,6 +258,8 @@
 									<th class="fw-semibold">{{ $getCurrentTranslation['deductions'] ?? 'Deductions' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['bonus'] ?? 'Bonus' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }}</th>
+									<th class="fw-semibold">{{ $getCurrentTranslation['paid_amount'] ?? 'Paid Amount' }}</th>
+									<th class="fw-semibold">{{ $getCurrentTranslation['due_amount'] ?? 'Due Amount' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_date'] ?? 'Payment Date' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['action'] ?? 'Action' }}</th>
@@ -291,6 +290,19 @@
 										</td>
 										<td class="fw-bold">{{ number_format($salary->net_salary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
 										<td>
+											<span class="text-success fw-bold">{{ number_format($salary->paid_amount ?? 0, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+										</td>
+										<td>
+											@php
+												$dueAmount = $salary->net_salary - ($salary->paid_amount ?? 0);
+											@endphp
+											@if($dueAmount > 0)
+												<span class="text-danger fw-bold">{{ number_format($dueAmount, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+											@else
+												<span class="text-muted">0.00 ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+											@endif
+										</td>
+										<td>
 											<span class="badge 
 												@if($salary->payment_status == 'Paid') badge-success
 												@elseif($salary->payment_status == 'Partial') badge-warning
@@ -314,23 +326,17 @@
 									</tr>
 								@empty
 									<tr>
-										<td colspan="12" class="p-10 text-center">
+										<td colspan="14" class="p-10 text-center">
 											{{ $getCurrentTranslation['no_data_found'] ?? 'No data found' }}
 										</td>
 									</tr>
 								@endforelse
 							</tbody>
 							@if($salaries->count() > 0)
-							@php
-								$totalBaseSalary = $salaries->sum('base_salary');
-								$totalDeductions = $salaries->sum('deductions');
-								$totalBonus = $salaries->sum('bonus');
-								$totalNetSalary = $salaries->sum('net_salary');
-							@endphp
 							<tfoot class="table-secondary">
 								<tr>
 									<td colspan="5" class="fw-bold text-end ps-3">
-										{{ $getCurrentTranslation['total'] ?? 'Total' }}:
+										<strong>{{ $getCurrentTranslation['total'] ?? 'Total' }}:</strong>
 									</td>
 									<td class="fw-bold">
 										<strong>{{ number_format($totalBaseSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
@@ -351,6 +357,16 @@
 									</td>
 									<td class="fw-bold">
 										<strong>{{ number_format($totalNetSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+									</td>
+									<td class="fw-bold">
+										<strong class="text-success">{{ number_format($totalPaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+									</td>
+									<td class="fw-bold">
+										@if($totalUnpaid > 0)
+											<strong class="text-danger">{{ number_format($totalUnpaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+										@else
+											<strong class="text-muted">{{ number_format($totalUnpaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+										@endif
 									</td>
 									<td colspan="3"></td>
 								</tr>

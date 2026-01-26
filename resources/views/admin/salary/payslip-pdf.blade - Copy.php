@@ -379,7 +379,7 @@
         }
         .seal-container {
             position: relative;
-            text-align: left;
+            text-align: right;
             margin-top: 20px;
         }
         .seal-container img {
@@ -431,18 +431,15 @@
                             @endif
                         </td>
                     </tr>
-                    @if($address)
+                    @if($address || $email || $phone)
                     <tr>
-                        <td style="text-align: center; margin: 0; padding: 0; padding-top: 5px; border: none; font-size: 10px; line-height: 1;">
+                        <td style="text-align: center; margin: 0; padding: 0; border: none; font-size: 10px; line-height: 1;">
+                            @if($address)
                             <div style="font-family: {{ language_font(strip_tags($address)) }}; margin: 0; padding: 0; line-height: 1.2;">
                                 {!! $address !!}
                             </div>
-                        </td>
-                    </tr>
-                    @endif
-                    @if($email || $phone)
-                    <tr>
-                        <td style="text-align: center; margin: 0; padding: 0; padding-top: 5px; border: none; font-size: 10px; line-height: 1;">
+                            @endif
+                            @if($email || $phone)
                             <div style="margin: 0; padding: 0; line-height: 1.2;">
                                 @if($email)
                                 <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['email'] ?? 'Email')) }};">{{ $getCurrentTranslation['email'] ?? 'Email' }}:</span> <span style="font-family: arial;">{{ $email }}</span>
@@ -452,6 +449,7 @@
                                 <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['phone'] ?? 'Phone')) }};">{{ $getCurrentTranslation['phone'] ?? 'Phone' }}:</span> <span style="font-family: arial;">{{ $phone }}</span>
                                 @endif
                             </div>
+                            @endif
                         </td>
                     </tr>
                     @endif
@@ -465,9 +463,9 @@
         </div>
 
         {{-- Company Information and Employee Information Tables --}}
-        <table class="info-tables-container" style="width: 100%; table-layout: fixed; padding:0">
+        <table class="info-tables-container" style="width: 100%; table-layout: fixed;">
             <tr>
-                <td style="width: 50%; padding-left:0">
+                <td style="width: 50%;">
                     <table class="company-info-table" style="width: 100%; table-layout: fixed;">
                         <thead>
                             <tr>
@@ -504,7 +502,7 @@
                         </tbody>
                     </table>
                 </td>
-                <td style="width: 50%; padding-right:0">
+                <td style="width: 50%;">
                     <table class="employee-info-table" style="width: 100%; table-layout: fixed;">
                         <thead>
                             <tr>
@@ -551,7 +549,7 @@
         {{-- Earnings and Deductions Tables --}}
         <table class="tables-section-table">
             <tr>
-                <td style="padding-left:0">
+                <td>
                     <table class="earnings-table">
                         <thead>
                             <tr>
@@ -566,17 +564,13 @@
                             </tr>
                             @if($salary->bonus > 0)
                             <tr>
-                                <td style="vertical-align: middle">
+                                <td>
                                     <div style="font-family: {{ language_font(strip_tags($getCurrentTranslation['incentive_bonus'] ?? 'Incentive / Bonus')) }};">{{ $getCurrentTranslation['incentive_bonus'] ?? 'Incentive / Bonus' }}</div>
                                     @if($salary->bonus_note)
-                                    @php
-                                        $bonusNoteText = strip_tags($salary->bonus_note);
-                                        $bonusNoteDisplay = strlen($bonusNoteText) > 55 ? \Str::limit($bonusNoteText, 55) : $bonusNoteText;
-                                    @endphp
-                                    <div class="reason-text" style="font-family: {{ language_font($bonusNoteText) }};">{{ $bonusNoteDisplay }}</div>
+                                    <div class="reason-text" style="font-family: {{ language_font(strip_tags($salary->bonus_note)) }};">{{ $salary->bonus_note }}</div>
                                     @endif
                                 </td>
-                                <td class="text-right" style="font-family: arial; vertical-align: middle;">{{ number_format($salary->bonus, 2) }}</td>
+                                <td class="text-right" style="font-family: arial;">{{ number_format($salary->bonus, 2) }}</td>
                             </tr>
                             @else
                             <tr>
@@ -591,7 +585,7 @@
                         </tbody>
                     </table>
                 </td>
-                <td style="padding-right:0">
+                <td>
                     <table class="deductions-table">
                         <thead>
                             <tr>
@@ -601,17 +595,13 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td style="vertical-align: middle">
+                                <td>
                                     <div style="font-family: {{ language_font(strip_tags($getCurrentTranslation['deductions'] ?? 'Deductions')) }};">{{ $getCurrentTranslation['deductions'] ?? 'Deductions' }}</div>
                                     @if($salary->deduction_note)
-                                    @php
-                                        $deductionNoteText = strip_tags($salary->deduction_note);
-                                        $deductionNoteDisplay = strlen($deductionNoteText) > 55 ? \Str::limit($deductionNoteText, 55) : $deductionNoteText;
-                                    @endphp
-                                    <div class="reason-text" style="font-family: {{ language_font($deductionNoteText) }};">{{ $deductionNoteDisplay }}</div>
+                                    <div class="reason-text" style="font-family: {{ language_font(strip_tags($salary->deduction_note)) }};">{{ $salary->deduction_note }}</div>
                                     @endif
                                 </td>
-                                <td class="text-right" style="font-family: arial; vertical-align: middle;">{{ number_format($salary->deductions, 2) }}</td>
+                                <td class="text-right" style="font-family: arial;">{{ number_format($salary->deductions, 2) }}</td>
                             </tr>
                             <tr>
                                 <td style="font-family: {{ language_font(strip_tags($getCurrentTranslation['other_deductions'] ?? 'Other Deductions')) }};">{{ $getCurrentTranslation['other_deductions'] ?? 'Other Deductions' }}</td>
@@ -630,7 +620,7 @@
         {{-- Net Salary and Payment Info Tables --}}
         <table class="net-payment-table" style="width: 100%; table-layout: fixed;">
             <tr>
-                <td style="width: 50%; padding-left:0">
+                <td style="width: 50%;">
                     <table class="net-salary-table" style="width: 100%; table-layout: fixed; min-height: 250px; height: 250px;">
                         <thead>
                             <tr>
@@ -654,7 +644,7 @@
                         </tbody>
                     </table>
                 </td>
-                <td style="width: 50%; padding-right:0">
+                <td style="width: 50%;">
                     <table class="payment-info-table" style="width: 100%; table-layout: fixed; min-height: 250px; height: 250px;">
                         <thead>
                             <tr>
@@ -719,8 +709,6 @@
         <div class="seal-container">
             <img src="{{ $globalData->company_data->dark_seal }}" alt="Company Seal" />
         </div>
-        @else
-            <span>Company Seal Here</span>
         @endif
 
     </div>

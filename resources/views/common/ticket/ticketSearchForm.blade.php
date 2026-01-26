@@ -345,7 +345,7 @@
 										$selected = '';
 									@endphp
 									<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
-									<select class="form-select select2-with-images parent-ip" data-name="airline_name" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="airline_name">
+									<select class="form-select select2-with-images parent-ip" data-control="select2" data-name="airline_name" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="airline_name">
 										<option value="">----</option>
 										@foreach($options as $option)
 											<option value="{{ $option->name }}" data-image="{{ $option->logo_url ?? defaultImage('s') }}" {{ $option->id == $selected ? 'selected' : '' }}>
@@ -361,7 +361,7 @@
 										<label class="form-label">
 											{{ $getCurrentTranslation['class'] ?? 'class' }}: <span class="text-danger">*</span>
 										</label>
-										<select class="form-select select2-with-images" name="class">
+										<select class="form-select select2-with-images" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="class">
 											<option value="economy" {{ old('class', 'economy') == 'economy' ? 'selected' : '' }}>{{ $getCurrentTranslation['economy'] ?? 'economy' }}</option>
 											<option value="business" {{ old('class') == 'business' ? 'selected' : '' }}>{{ $getCurrentTranslation['business'] ?? 'business' }}</option>
 											<option value="first" {{ old('class') == 'first' ? 'selected' : '' }}>{{ $getCurrentTranslation['first_class'] ?? 'first_class' }}</option>
@@ -378,7 +378,7 @@
 										<label class="form-label">
 											{{ $getCurrentTranslation['passenger'] ?? 'passenger' }}: <span class="text-danger">*</span>
 										</label>
-										<select class="form-select select2-with-images" name="passenger">
+										<select class="form-select select2-with-images" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="passenger">
 											<option value="1" {{ old('passenger', '1') == '1' ? 'selected' : '' }}>1</option>
 											<option value="2" {{ old('passenger') == '2' ? 'selected' : '' }}>2</option>
 											<option value="3" {{ old('passenger') == '3' ? 'selected' : '' }}>3</option>
@@ -633,7 +633,7 @@
 												$selected = $item->airline_id;
 											@endphp
 											<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
-											<select class="form-select select2-with-images parent-ip" data-name="airline_id" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="ticket_flight_info[0][airline_id]">
+											<select class="form-select select2-with-images parent-ip" data-control="select2" data-name="airline_id" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="ticket_flight_info[0][airline_id]">
 												<option value="">----</option>
 												@foreach($options as $option)
 													<option value="{{ $option->id }}" data-image="{{ $option->logo_url ?? defaultImage('s') }}" {{ $option->id == $selected ? 'selected' : '' }}>

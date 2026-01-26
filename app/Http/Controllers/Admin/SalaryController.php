@@ -144,8 +144,12 @@ class SalaryController extends Controller
         }
         $user = Auth::user();
         
-        // Handle month: if not set, default to current month; if 'all', show all months
-        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        // Handle months: can be array or single value
+        $months = $request->has('month') ? (array)$request->month : [Carbon::now()->month];
+        $months = array_filter($months, function($m) { return $m !== '' && $m !== null; });
+        if (empty($months)) {
+            $months = [Carbon::now()->month];
+        }
         // Handle year: if not set, default to current year; if 'all', show all years
         $year = $request->has('year') ? $request->year : Carbon::now()->year;
         $employeeId = $request->employee_id;
@@ -154,8 +158,8 @@ class SalaryController extends Controller
             ->when($year && $year !== 'all', function($query) use ($year) {
                 return $query->where('year', $year);
             })
-            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
-                return $query->where('month', $month);
+            ->when(!empty($months), function($query) use ($months) {
+                return $query->whereIn('month', $months);
             })
             ->when($employeeId && $employeeId !== 'all' && $employeeId !== '', function($query) use ($employeeId) {
                 return $query->where('employee_id', $employeeId);
@@ -171,7 +175,19 @@ class SalaryController extends Controller
             ->orderBy('name')
             ->get();
         
-        return view('admin.salary.list', compact('salaries', 'month', 'year', 'employeeId', 'employees'));
+        $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        // Calculate totals for tfoot
+        $totalBaseSalary = $salaries->sum('base_salary');
+        $totalDeductions = $salaries->sum('deductions');
+        $totalBonus = $salaries->sum('bonus');
+        $totalNetSalary = $salaries->sum('net_salary');
+        $totalPaid = $salaries->sum('paid_amount');
+        $totalDue = $salaries->sum(function($salary) {
+            return $salary->net_salary - ($salary->paid_amount ?? 0);
+        });
+        
+        return view('admin.salary.list', compact('salaries', 'months', 'year', 'employeeId', 'employees', 'monthNames', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalDue'));
     }
 
     /**
@@ -191,14 +207,23 @@ class SalaryController extends Controller
             'bonus' => 'nullable|numeric|min:0',
             'bonus_note' => 'nullable|string',
             'payment_status' => 'nullable|in:Unpaid,Paid,Partial',
+            'payment_method' => 'nullable|in:Bank Transfer,Card Payments,Cheque,bKash,Nagad,Rocket,Upay',
+            'paid_amount' => 'nullable|numeric|min:0',
             'payment_note' => 'nullable|string',
         ];
         
         // Make payment_date required if payment_status is not Unpaid
         if ($request->payment_status && $request->payment_status != 'Unpaid') {
             $rules['payment_date'] = 'required|date';
+            // Make payment_method required if payment_status is Paid or Partial
+            $rules['payment_method'] = 'required|in:Bank Transfer,Card Payments,Cheque,bKash,Nagad,Rocket,Upay';
         } else {
             $rules['payment_date'] = 'nullable|date';
+        }
+        
+        // Validate paid_amount for Partial status
+        if ($request->payment_status == 'Partial') {
+            $rules['paid_amount'] = 'required|numeric|min:0';
         }
         
         $request->validate($rules);
@@ -212,6 +237,31 @@ class SalaryController extends Controller
         // Calculate net salary
         $netSalary = $baseSalary - $deductions + $bonus;
         
+        // Handle paid_amount based on payment_status
+        $paidAmount = 0;
+        if ($request->payment_status == 'Paid') {
+            $paidAmount = $netSalary; // Full payment
+        } elseif ($request->payment_status == 'Partial') {
+            $paidAmount = $request->paid_amount ?? 0;
+            // Ensure paid_amount doesn't exceed net_salary
+            if ($paidAmount > $netSalary) {
+                $currency = Auth::user()->company_data->currency->short_name ?? '';
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Paid amount cannot exceed net salary (' . number_format($netSalary, 2) . ' ' . $currency . ')',
+                ], 422);
+            }
+            // Ensure paid_amount is greater than 0
+            if ($paidAmount <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Paid amount must be greater than 0 for partial payment.',
+                ], 422);
+            }
+        } else {
+            $paidAmount = 0; // Unpaid
+        }
+        
         $salary->update([
             'base_salary' => $baseSalary,
             'deductions' => $deductions,
@@ -219,7 +269,9 @@ class SalaryController extends Controller
             'bonus' => $bonus,
             'bonus_note' => $request->bonus_note,
             'net_salary' => $netSalary,
+            'paid_amount' => $paidAmount,
             'payment_status' => $request->payment_status ?? $salary->payment_status,
+            'payment_method' => $request->payment_method,
             'payment_date' => $request->payment_date,
             'payment_note' => $request->payment_note,
             'updated_by' => $user->id,
@@ -353,8 +405,12 @@ class SalaryController extends Controller
         
         $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         
-        // Handle month: if not set, default to current month; if 'all', show all months
-        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        // Handle months: can be array or single value
+        $months = $request->has('month') ? (array)$request->month : [Carbon::now()->month];
+        $months = array_filter($months, function($m) { return $m !== '' && $m !== null; });
+        if (empty($months)) {
+            $months = [Carbon::now()->month];
+        }
         // Handle year: if not set, default to current year; if 'all', show all years
         $year = $request->has('year') ? $request->year : Carbon::now()->year;
         $employeeId = $request->employee_id;
@@ -364,8 +420,8 @@ class SalaryController extends Controller
             ->when($year && $year !== 'all', function($query) use ($year) {
                 return $query->where('year', $year);
             })
-            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
-                return $query->where('month', $month);
+            ->when(!empty($months), function($query) use ($months) {
+                return $query->whereIn('month', $months);
             })
             ->when($employeeId && $employeeId !== 'all' && $employeeId !== '', function($query) use ($employeeId) {
                 return $query->where('employee_id', $employeeId);
@@ -383,9 +439,16 @@ class SalaryController extends Controller
         $totalDeductions = $salaries->sum('deductions');
         $totalBonus = $salaries->sum('bonus');
         $totalNetSalary = $salaries->sum('net_salary');
-        $totalPaid = $salaries->where('payment_status', 'Paid')->sum('net_salary');
-        $totalUnpaid = $salaries->where('payment_status', 'Unpaid')->sum('net_salary');
-        $totalPartial = $salaries->where('payment_status', 'Partial')->sum('net_salary');
+        // Total paid = sum of paid_amount (for Paid and Partial statuses)
+        $totalPaid = $salaries->sum('paid_amount');
+        // Total unpaid = sum of (net_salary - paid_amount) for all records
+        $totalUnpaid = $salaries->sum(function($salary) {
+            return $salary->net_salary - ($salary->paid_amount ?? 0);
+        });
+        // Total partial amount (remaining unpaid for partial payments)
+        $totalPartial = $salaries->where('payment_status', 'Partial')->sum(function($salary) {
+            return $salary->net_salary - ($salary->paid_amount ?? 0);
+        });
         
         // Get all active users (both staff and non-staff) for dropdown
         $employees = User::where('status', 'Active')
@@ -393,7 +456,7 @@ class SalaryController extends Controller
             ->orderBy('name')
             ->get();
         
-        return view('admin.report.salary', compact('salaries', 'month', 'year', 'employeeId', 'employees', 'monthNames', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial'));
+        return view('admin.report.salary', compact('salaries', 'months', 'year', 'employeeId', 'employees', 'monthNames', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial'));
     }
 
     /**
@@ -408,7 +471,12 @@ class SalaryController extends Controller
         
         $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         
-        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        // Handle months: can be array or single value
+        $months = $request->has('month') ? (array)$request->month : [Carbon::now()->month];
+        $months = array_filter($months, function($m) { return $m !== '' && $m !== null; });
+        if (empty($months)) {
+            $months = [Carbon::now()->month];
+        }
         $year = $request->has('year') ? $request->year : Carbon::now()->year;
         $employeeId = $request->employee_id;
         $paymentStatus = $request->payment_status;
@@ -417,8 +485,8 @@ class SalaryController extends Controller
             ->when($year && $year !== 'all', function($query) use ($year) {
                 return $query->where('year', $year);
             })
-            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
-                return $query->where('month', $month);
+            ->when(!empty($months), function($query) use ($months) {
+                return $query->whereIn('month', $months);
             })
             ->when($employeeId && $employeeId !== 'all' && $employeeId !== '', function($query) use ($employeeId) {
                 return $query->where('employee_id', $employeeId);
@@ -435,15 +503,37 @@ class SalaryController extends Controller
         $totalDeductions = $salaries->sum('deductions');
         $totalBonus = $salaries->sum('bonus');
         $totalNetSalary = $salaries->sum('net_salary');
-        $totalPaid = $salaries->where('payment_status', 'Paid')->sum('net_salary');
-        $totalUnpaid = $salaries->where('payment_status', 'Unpaid')->sum('net_salary');
-        $totalPartial = $salaries->where('payment_status', 'Partial')->sum('net_salary');
+        // Total paid = sum of paid_amount (for Paid and Partial statuses)
+        $totalPaid = $salaries->sum('paid_amount');
+        // Total unpaid = sum of (net_salary - paid_amount) for all records
+        $totalUnpaid = $salaries->sum(function($salary) {
+            return $salary->net_salary - ($salary->paid_amount ?? 0);
+        });
+        // Total partial amount (remaining unpaid for partial payments)
+        $totalPartial = $salaries->where('payment_status', 'Partial')->sum(function($salary) {
+            return $salary->net_salary - ($salary->paid_amount ?? 0);
+        });
         
         $getCurrentTranslation = getCurrentTranslation();
-        $monthStr = ($month && $month !== 'all') ? $monthNames[$month] : 'All Months';
+        // Build month string from months array
+        if (!empty($months)) {
+            $selectedMonthNames = [];
+            foreach ($months as $monthNum) {
+                if (isset($monthNames[$monthNum])) {
+                    $selectedMonthNames[] = $monthNames[$monthNum];
+                }
+            }
+            if (!empty($selectedMonthNames)) {
+                $monthStr = implode(', ', $selectedMonthNames);
+            } else {
+                $monthStr = 'All Months';
+            }
+        } else {
+            $monthStr = 'All Months';
+        }
         $yearStr = ($year && $year !== 'all') ? $year : 'All Years';
         
-        $html = view('admin.report.salary-pdf', compact('salaries', 'month', 'year', 'monthNames', 'monthStr', 'yearStr', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial', 'getCurrentTranslation'))->render();
+        $html = view('admin.report.salary-pdf', compact('salaries', 'months', 'year', 'monthNames', 'monthStr', 'yearStr', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial', 'getCurrentTranslation'))->render();
         
         $filename = 'Salary_Report_' . $yearStr . '_' . $monthStr . '.pdf';
         
@@ -469,8 +559,12 @@ class SalaryController extends Controller
         
         $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         
-        // Handle month: if not set, default to current month; if 'all', show all months
-        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        // Handle months: can be array or single value
+        $months = $request->has('month') ? (array)$request->month : [Carbon::now()->month];
+        $months = array_filter($months, function($m) { return $m !== '' && $m !== null; });
+        if (empty($months)) {
+            $months = [Carbon::now()->month];
+        }
         // Handle year: if not set, default to current year; if 'all', show all years
         $year = $request->has('year') ? $request->year : Carbon::now()->year;
         $paymentStatus = $request->payment_status;
@@ -480,8 +574,8 @@ class SalaryController extends Controller
             ->when($year && $year !== 'all', function($query) use ($year) {
                 return $query->where('year', $year);
             })
-            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
-                return $query->where('month', $month);
+            ->when(!empty($months), function($query) use ($months) {
+                return $query->whereIn('month', $months);
             })
             ->when($paymentStatus && $paymentStatus !== 'all' && $paymentStatus !== '', function($query) use ($paymentStatus) {
                 return $query->where('payment_status', $paymentStatus);
@@ -496,11 +590,18 @@ class SalaryController extends Controller
         $totalDeductions = $salaries->sum('deductions');
         $totalBonus = $salaries->sum('bonus');
         $totalNetSalary = $salaries->sum('net_salary');
-        $totalPaid = $salaries->where('payment_status', 'Paid')->sum('net_salary');
-        $totalUnpaid = $salaries->where('payment_status', 'Unpaid')->sum('net_salary');
-        $totalPartial = $salaries->where('payment_status', 'Partial')->sum('net_salary');
+        // Total paid = sum of paid_amount (for Paid and Partial statuses)
+        $totalPaid = $salaries->sum('paid_amount');
+        // Total unpaid = sum of (net_salary - paid_amount) for all records
+        $totalUnpaid = $salaries->sum(function($salary) {
+            return $salary->net_salary - ($salary->paid_amount ?? 0);
+        });
+        // Total partial amount (remaining unpaid for partial payments)
+        $totalPartial = $salaries->where('payment_status', 'Partial')->sum(function($salary) {
+            return $salary->net_salary - ($salary->paid_amount ?? 0);
+        });
         
-        return view('admin.salary.staff-report', compact('salaries', 'month', 'year', 'employee', 'monthNames', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial'));
+        return view('admin.salary.staff-report', compact('salaries', 'months', 'year', 'employee', 'monthNames', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial'));
     }
 
     /**
@@ -522,7 +623,12 @@ class SalaryController extends Controller
         
         $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         
-        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        // Handle months: can be array or single value
+        $months = $request->has('month') ? (array)$request->month : [Carbon::now()->month];
+        $months = array_filter($months, function($m) { return $m !== '' && $m !== null; });
+        if (empty($months)) {
+            $months = [Carbon::now()->month];
+        }
         $year = $request->has('year') ? $request->year : Carbon::now()->year;
         $paymentStatus = $request->payment_status;
         
@@ -531,8 +637,8 @@ class SalaryController extends Controller
             ->when($year && $year !== 'all', function($query) use ($year) {
                 return $query->where('year', $year);
             })
-            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
-                return $query->where('month', $month);
+            ->when(!empty($months), function($query) use ($months) {
+                return $query->whereIn('month', $months);
             })
             ->when($paymentStatus && $paymentStatus !== 'all' && $paymentStatus !== '', function($query) use ($paymentStatus) {
                 return $query->where('payment_status', $paymentStatus);
@@ -546,15 +652,37 @@ class SalaryController extends Controller
         $totalDeductions = $salaries->sum('deductions');
         $totalBonus = $salaries->sum('bonus');
         $totalNetSalary = $salaries->sum('net_salary');
-        $totalPaid = $salaries->where('payment_status', 'Paid')->sum('net_salary');
-        $totalUnpaid = $salaries->where('payment_status', 'Unpaid')->sum('net_salary');
-        $totalPartial = $salaries->where('payment_status', 'Partial')->sum('net_salary');
+        // Total paid = sum of paid_amount (for Paid and Partial statuses)
+        $totalPaid = $salaries->sum('paid_amount');
+        // Total unpaid = sum of (net_salary - paid_amount) for all records
+        $totalUnpaid = $salaries->sum(function($salary) {
+            return $salary->net_salary - ($salary->paid_amount ?? 0);
+        });
+        // Total partial amount (remaining unpaid for partial payments)
+        $totalPartial = $salaries->where('payment_status', 'Partial')->sum(function($salary) {
+            return $salary->net_salary - ($salary->paid_amount ?? 0);
+        });
         
         $getCurrentTranslation = getCurrentTranslation();
-        $monthStr = ($month && $month !== 'all') ? $monthNames[$month] : 'All Months';
+        // Build month string from months array
+        if (!empty($months)) {
+            $selectedMonthNames = [];
+            foreach ($months as $monthNum) {
+                if (isset($monthNames[$monthNum])) {
+                    $selectedMonthNames[] = $monthNames[$monthNum];
+                }
+            }
+            if (!empty($selectedMonthNames)) {
+                $monthStr = implode(', ', $selectedMonthNames);
+            } else {
+                $monthStr = 'All Months';
+            }
+        } else {
+            $monthStr = 'All Months';
+        }
         $yearStr = ($year && $year !== 'all') ? $year : 'All Years';
         
-        $html = view('admin.salary.staff-report-pdf', compact('salaries', 'month', 'year', 'monthNames', 'monthStr', 'yearStr', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial', 'getCurrentTranslation', 'employee'))->render();
+        $html = view('admin.salary.staff-report-pdf', compact('salaries', 'months', 'year', 'monthNames', 'monthStr', 'yearStr', 'paymentStatus', 'totalBaseSalary', 'totalDeductions', 'totalBonus', 'totalNetSalary', 'totalPaid', 'totalUnpaid', 'totalPartial', 'getCurrentTranslation', 'employee'))->render();
         
         $filename = 'Salary_Report_' . str_replace(' ', '_', $employee->name) . '_' . $yearStr . '_' . $monthStr . '.pdf';
         
@@ -580,7 +708,12 @@ class SalaryController extends Controller
         
         $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         
-        $month = $request->has('month') ? $request->month : Carbon::now()->month;
+        // Handle months: can be array or single value
+        $months = $request->has('month') ? (array)$request->month : [Carbon::now()->month];
+        $months = array_filter($months, function($m) { return $m !== '' && $m !== null; });
+        if (empty($months)) {
+            $months = [Carbon::now()->month];
+        }
         $year = $request->has('year') ? $request->year : Carbon::now()->year;
         $paymentStatus = $request->payment_status;
         
@@ -589,8 +722,8 @@ class SalaryController extends Controller
             ->when($year && $year !== 'all', function($query) use ($year) {
                 return $query->where('year', $year);
             })
-            ->when($month && $month !== 'all' && $month !== '', function($query) use ($month) {
-                return $query->where('month', $month);
+            ->when(!empty($months), function($query) use ($months) {
+                return $query->whereIn('month', $months);
             })
             ->when($paymentStatus && $paymentStatus !== 'all' && $paymentStatus !== '', function($query) use ($paymentStatus) {
                 return $query->where('payment_status', $paymentStatus);
@@ -644,7 +777,7 @@ class SalaryController extends Controller
     {
         $user = Auth::user();
         
-        $salary = Salary::with(['employee.designation', 'creator'])->findOrFail($id);
+        $salary = Salary::with(['employee.designation', 'employee.department', 'creator'])->findOrFail($id);
         
         // Allow staff to export their own payslip, or admin with permission
         if ($user->is_staff == 1 && $user->id != $salary->employee_id) {

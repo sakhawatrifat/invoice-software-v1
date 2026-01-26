@@ -279,7 +279,7 @@
 												$selected = $item->airline_id;
 											@endphp
 											<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
-											<select class="form-select select2-with-images parent-ip" data-name="airline_id" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="ticket_flight_info[0][airline_id]">
+											<select class="form-select select2-with-images parent-ip" data-control="select2" data-name="airline_id" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="ticket_flight_info[0][airline_id]">
 												<option value="">----</option>
 												@foreach($options as $option)
 													<option value="{{ $option->id }}" data-image="{{ $option->logo_url ?? defaultImage('s') }}" {{ $option->id == $selected ? 'selected' : '' }}>
@@ -373,7 +373,7 @@
 																$selected = $transit->airline_id;
 															@endphp
 															<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
-															<select class="form-select select2-with-images" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="ticket_flight_info[0]transit[0][airline_id]" data-name="airline_id">
+															<select class="form-select select2-with-images" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="ticket_flight_info[0]transit[0][airline_id]" data-name="airline_id">
 																<option value="">----</option>
 																@foreach($options as $option)
 																	<option value="{{ $option->id }}" data-image="{{ $option->logo_url ?? defaultImage('s') }}" {{ $option->id == $selected ? 'selected' : '' }}>
@@ -542,7 +542,7 @@
 											$selected = null;
 										@endphp
 										<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
-										<select class="form-select select2-with-images parent-ip" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="ticket_flight_info[0][airline_id]" data-name="airline_id">
+										<select class="form-select select2-with-images parent-ip" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="ticket_flight_info[0][airline_id]" data-name="airline_id">
 											<option value="">----</option>
 											@foreach($options as $option)
 												<option value="{{ $option->id }}" data-image="{{ $option->logo_url ?? defaultImage('s') }}" {{ $option->id == $selected ? 'selected' : '' }}>

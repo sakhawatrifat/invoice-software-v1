@@ -587,21 +587,69 @@
 		});
 
 
-		// Reinitialize select2 with image
-		container.find('select[data-control="select2"]').select2({
-			placeholder: "Select an option",
-			width: '100%'
+		// Reinitialize select2 for all selects with data-control="select2"
+		container.find('select[data-control="select2"]').each(function() {
+			var $select = $(this);
+			var placeholder = $select.data('placeholder') || "Select an option";
+			if (!$select.hasClass('select2-hidden-accessible')) {
+				var isMultiple = $select.prop('multiple');
+				$select.select2({
+					placeholder: placeholder,
+					width: '100%',
+					allowClear: isMultiple ? false : true
+				});
+			}
+		});
+		
+		// Add data-control="select2" and data-placeholder to all form-select that don't have them
+		container.find('select.form-select:not([data-control="select2"])').each(function() {
+			var $select = $(this);
+			if (!$select.attr('data-control')) {
+				$select.attr('data-control', 'select2');
+			}
+			if (!$select.attr('data-placeholder')) {
+				var defaultPlaceholder = typeof getCurrentTranslation !== 'undefined' && getCurrentTranslation.select_an_option 
+					? getCurrentTranslation.select_an_option 
+					: 'select_an_option';
+				$select.attr('data-placeholder', defaultPlaceholder);
+			}
+		});
+		
+		// Initialize select2 for all form-select that don't have it yet
+		container.find('select.form-select:not(.select2-hidden-accessible)').each(function() {
+			var $select = $(this);
+			var placeholder = $select.data('placeholder') || "Select an option";
+			if ($select.hasClass('select2-with-images')) {
+				$select.select2({
+					templateResult: formatOption,
+					templateSelection: formatOption,
+					escapeMarkup: function (m) { return m; },
+					placeholder: placeholder,
+					width: '100%'
+				});
+			} else {
+				$select.select2({
+					placeholder: placeholder,
+					width: '100%'
+				});
+			}
 		});
 
-		// Reinitialize select2 with image
-		if (container.find('.select2-with-images').length > 0) {
-			const $select = container.find('.select2-with-images');
+		// Reinitialize select2 with images (already handled above, but keep for compatibility)
+		container.find('.select2-with-images:not(.select2-hidden-accessible)').each(function() {
+			var $select = $(this);
+			if (!$select.attr('data-control')) {
+				$select.attr('data-control', 'select2');
+			}
+			var placeholder = $select.data('placeholder') || "Select an option";
 			$select.select2({
 				templateResult: formatOption,
 				templateSelection: formatOption,
-				escapeMarkup: function (m) { return m; }
+				escapeMarkup: function (m) { return m; },
+				placeholder: placeholder,
+				width: '100%'
 			});
-		}
+		});
 
 
 		// Reset preview containers but don't remove them - just clear and hide

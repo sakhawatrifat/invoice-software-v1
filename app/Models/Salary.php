@@ -19,7 +19,9 @@ class Salary extends Model
         'bonus',
         'bonus_note',
         'net_salary',
+        'paid_amount',
         'payment_status',
+        'payment_method',
         'payment_date',
         'payment_note',
         'created_by',
@@ -33,6 +35,7 @@ class Salary extends Model
         'deductions' => 'decimal:2',
         'bonus' => 'decimal:2',
         'net_salary' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
         'payment_date' => 'date',
     ];
 

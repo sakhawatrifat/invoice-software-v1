@@ -54,7 +54,7 @@
 									<div class="col-md-4">
 										<div class="input-item">
 											<label class="form-label">{{ $getCurrentTranslation['month'] ?? 'Month' }}:</label>
-											<select class="form-select" name="month">
+											<select class="form-select" name="month" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 												<option value="">-- {{ $getCurrentTranslation['select_month'] ?? 'Select Month' }} --</option>
 												@for($i = 1; $i <= 12; $i++)
 													<option value="{{ $i }}" {{ $i == $month ? 'selected' : '' }}>
@@ -67,7 +67,7 @@
 									<div class="col-md-4">
 										<div class="input-item">
 											<label class="form-label">{{ $getCurrentTranslation['year'] ?? 'Year' }}:</label>
-											<select class="form-select" name="year">
+											<select class="form-select" name="year" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 												<option value="">-- {{ $getCurrentTranslation['select_year'] ?? 'Select Year' }} --</option>
 												@for($i = Carbon\Carbon::now()->year; $i >= Carbon\Carbon::now()->year - 5; $i--)
 													<option value="{{ $i }}" {{ $i == $year ? 'selected' : '' }}>
@@ -98,6 +98,8 @@
 									<th class="fw-semibold">{{ $getCurrentTranslation['deductions'] ?? 'Deductions' }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['bonus'] ?? 'Bonus' }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</th>
+									<th class="fw-semibold">{{ $getCurrentTranslation['paid_amount'] ?? 'Paid Amount' }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</th>
+									<th class="fw-semibold">{{ $getCurrentTranslation['due_amount'] ?? 'Due Amount' }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_date'] ?? 'Payment Date' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['action'] ?? 'Action' }}</th>
@@ -136,6 +138,19 @@
 										</td>
 										<td class="fw-bold text-primary">{{ number_format($salary->net_salary, 2) }}</td>
 										<td>
+											<span class="text-success fw-bold">{{ number_format($salary->paid_amount ?? 0, 2) }}</span>
+										</td>
+										<td>
+											@php
+												$dueAmount = $salary->net_salary - ($salary->paid_amount ?? 0);
+											@endphp
+											@if($dueAmount > 0)
+												<span class="text-danger fw-bold">{{ number_format($dueAmount, 2) }}</span>
+											@else
+												<span class="text-muted">{{ number_format(0, 2) }}</span>
+											@endif
+										</td>
+										<td>
 											<span class="badge 
 												@if($salary->payment_status == 'Paid') badge-success
 												@elseif($salary->payment_status == 'Partial') badge-warning
@@ -153,12 +168,62 @@
 									</tr>
 								@empty
 									<tr>
-										<td colspan="9" class="text-center p-10">
+										<td colspan="11" class="text-center p-10">
 											{{ $getCurrentTranslation['no_data_found_for_selected_filter'] ?? 'No data found for selected filter.' }}
 										</td>
 									</tr>
 								@endforelse
 							</tbody>
+							@if($salaries->count() > 0)
+							@php
+								$totalBaseSalary = $salaries->sum('base_salary');
+								$totalDeductions = $salaries->sum('deductions');
+								$totalBonus = $salaries->sum('bonus');
+								$totalNetSalary = $salaries->sum('net_salary');
+								$totalPaid = $salaries->sum('paid_amount');
+								$totalDue = $salaries->sum(function($salary) {
+									return $salary->net_salary - ($salary->paid_amount ?? 0);
+								});
+							@endphp
+							<tfoot class="table-secondary">
+								<tr>
+									<td colspan="3" class="fw-bold text-end ps-3">
+										<strong>{{ $getCurrentTranslation['total'] ?? 'Total' }}:</strong>
+									</td>
+									<td class="fw-bold">
+										<strong>{{ number_format($totalBaseSalary, 2) }}</strong>
+									</td>
+									<td class="fw-bold">
+										@if($totalDeductions > 0)
+											<strong class="text-danger">-{{ number_format($totalDeductions, 2) }}</strong>
+										@else
+											<strong class="text-muted">{{ number_format($totalDeductions, 2) }}</strong>
+										@endif
+									</td>
+									<td class="fw-bold">
+										@if($totalBonus > 0)
+											<strong class="text-success">+{{ number_format($totalBonus, 2) }}</strong>
+										@else
+											<strong class="text-muted">{{ number_format($totalBonus, 2) }}</strong>
+										@endif
+									</td>
+									<td class="fw-bold">
+										<strong class="text-primary">{{ number_format($totalNetSalary, 2) }}</strong>
+									</td>
+									<td class="fw-bold">
+										<strong class="text-success">{{ number_format($totalPaid, 2) }}</strong>
+									</td>
+									<td class="fw-bold">
+										@if($totalDue > 0)
+											<strong class="text-danger">{{ number_format($totalDue, 2) }}</strong>
+										@else
+											<strong class="text-muted">{{ number_format($totalDue, 2) }}</strong>
+										@endif
+									</td>
+									<td colspan="3"></td>
+								</tr>
+							</tfoot>
+							@endif
 						</table>
 					</div>
 				</div>

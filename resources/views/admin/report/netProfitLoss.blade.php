@@ -142,9 +142,16 @@
 						// --- SALARY CALCULATIONS ---
 						$total_salary_amount = $salaryData->sum('net_salary');
 						$total_salary_count = $salaryData->count();
-						$total_partial_salary = $salaryData->where('payment_status', 'Partial')->sum('net_salary');
-						$total_paid_salary = $salaryData->where('payment_status', 'Paid')->sum('net_salary');
-						$total_unpaid_salary = $salaryData->where('payment_status', 'Unpaid')->sum('net_salary');
+						// Total paid salary = sum of paid_amount (for Paid and Partial statuses)
+						$total_paid_salary = $salaryData->sum('paid_amount');
+						// Total unpaid salary = sum of (net_salary - paid_amount) for all records
+						$total_unpaid_salary = $salaryData->sum(function($salary) {
+							return $salary->net_salary - ($salary->paid_amount ?? 0);
+						});
+						// Total partial amount (remaining unpaid for partial payments)
+						$total_partial_salary = $salaryData->where('payment_status', 'Partial')->sum(function($salary) {
+							return $salary->net_salary - ($salary->paid_amount ?? 0);
+						});
 
 						// --- EXPENSE CALCULATIONS ---
 						$total_expense_amount = $expenseData->sum('amount');
@@ -153,7 +160,8 @@
 						$total_unpaid_expense = $expenseData->where('payment_status', 'Unpaid')->sum('amount');
 
 						// --- NET PROFIT/LOSS CALCULATION ---
-						$net_profit_loss = $total_profit_after_refund - $total_salary_amount - $total_expense_amount;
+						// Use paid_amount for actual cash flow calculation
+						$net_profit_loss = $total_profit_after_refund - $total_paid_salary - $total_paid_expense;
 					@endphp
 
 					{{-- ================= GROSS PROFIT LOSS SUMMARY ================= --}}

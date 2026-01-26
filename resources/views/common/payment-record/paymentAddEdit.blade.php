@@ -164,7 +164,7 @@
 										$selected = $editData->customer_country_id ?? '';
 									@endphp
 									<label class="form-label">{{ $getCurrentTranslation['customer_country_label'] ?? 'customer_country_label' }}:</label>
-									<select class="form-select select2-with-images" data-class="flag" data-placeholder="{{ $getCurrentTranslation['customer_country_placeholder'] ?? 'customer_country_placeholder' }}" name="customer_country_id" >
+									<select class="form-select select2-with-images" data-control="select2" data-class="flag" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="customer_country_id" >
 										<option value="">----</option>
 										@foreach($options as $option)
 											<option value="{{ $option->id }}" data-image="{{ getStaticFile('flags', strtolower($option->short_name))}}" {{ $option->id == $selected ? 'selected' : '' }}>{{ $option->name }}</option>

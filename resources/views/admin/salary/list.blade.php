@@ -64,7 +64,7 @@
 									<div class="col-md-4">
 										<div class="input-item">
 											<label class="form-label">{{ $getCurrentTranslation['employee'] ?? 'Employee' }}:</label>
-											<select class="form-select" name="employee_id">
+											<select class="form-select" name="employee_id" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 												<option value="all" {{ (isset($employeeId) && $employeeId === 'all') ? 'selected' : '' }}>
 													{{ $getCurrentTranslation['all_employee'] ?? 'All Employee' }}
 												</option>
@@ -85,12 +85,9 @@
 									<div class="col-md-4">
 										<div class="input-item">
 											<label class="form-label">{{ $getCurrentTranslation['month'] ?? 'Month' }}:</label>
-											<select class="form-select" name="month">
-												<option value="all" {{ (isset($month) && $month === 'all') ? 'selected' : '' }}>
-													{{ $getCurrentTranslation['all_month'] ?? 'All Month' }}
-												</option>
+											<select class="form-select" name="month[]" multiple data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 												@for($i = 1; $i <= 12; $i++)
-													<option value="{{ $i }}" {{ (isset($month) && $month == $i) ? 'selected' : '' }}>
+													<option value="{{ $i }}" {{ (isset($months) && is_array($months) && in_array($i, $months)) ? 'selected' : '' }}>
 														{{ $monthNames[$i] }}
 													</option>
 												@endfor
@@ -133,6 +130,8 @@
 									<th class="fw-semibold">{{ $getCurrentTranslation['deductions'] ?? 'Deductions' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['bonus'] ?? 'Bonus' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }}</th>
+									<th class="fw-semibold">{{ $getCurrentTranslation['paid_amount'] ?? 'Paid Amount' }}</th>
+									<th class="fw-semibold">{{ $getCurrentTranslation['due_amount'] ?? 'Due Amount' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['payment_date'] ?? 'Payment Date' }}</th>
 									<th class="fw-semibold">{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
@@ -181,6 +180,19 @@
 										</td>
 										<td class="fw-bold">{{ number_format($salary->net_salary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
 										<td>
+											<span class="text-success fw-bold">{{ number_format($salary->paid_amount ?? 0, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+										</td>
+										<td>
+											@php
+												$dueAmount = $salary->net_salary - ($salary->paid_amount ?? 0);
+											@endphp
+											@if($dueAmount > 0)
+												<span class="text-danger fw-bold">{{ number_format($dueAmount, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+											@else
+												<span class="text-muted">0.00 ({{Auth::user()->company_data->currency->short_name ?? ''}})</span>
+											@endif
+										</td>
+										<td>
 											<span class="badge 
 												@if($salary->payment_status == 'Paid') badge-success
 												@elseif($salary->payment_status == 'Partial') badge-warning
@@ -213,23 +225,17 @@
 									</tr>
 								@empty
 									<tr>
-										<td colspan="10" class="p-10 text-center">
+										<td colspan="12" class="p-10 text-center">
 											{{ $getCurrentTranslation['no_data_found'] ?? 'No data found' }}
 										</td>
 									</tr>
 								@endforelse
 							</tbody>
 							@if($salaries->count() > 0)
-							@php
-								$totalBaseSalary = $salaries->sum('base_salary');
-								$totalDeductions = $salaries->sum('deductions');
-								$totalBonus = $salaries->sum('bonus');
-								$totalNetSalary = $salaries->sum('net_salary');
-							@endphp
 							<tfoot class="table-secondary">
 								<tr>
 									<td colspan="3" class="fw-bold bg-secondary text-end ps-3">
-										{{ $getCurrentTranslation['total'] ?? 'Total' }}:
+										<strong>{{ $getCurrentTranslation['total'] ?? 'Total' }}:</strong>
 									</td>
 									<td class="fw-bold bg-secondary">
 										<strong>{{ number_format($totalBaseSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
@@ -250,6 +256,16 @@
 									</td>
 									<td class="fw-bold bg-secondary">
 										<strong>{{ number_format($totalNetSalary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+									</td>
+									<td class="fw-bold bg-secondary">
+										<strong class="text-success">{{ number_format($totalPaid, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+									</td>
+									<td class="fw-bold bg-secondary">
+										@if($totalDue > 0)
+											<strong class="text-danger">{{ number_format($totalDue, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+										@else
+											<strong class="text-muted">{{ number_format($totalDue, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</strong>
+										@endif
 									</td>
 									<td colspan="3" class="bg-secondary"></td>
 								</tr>
@@ -365,11 +381,29 @@ $(document).ready(function() {
 								</div>
 								<div class="col-md-6 mb-3">
 									<label class="form-label">{{ $getCurrentTranslation['payment_status'] ?? 'Payment Status' }}:</label>
-									<select class="form-select" name="payment_status">
+									<select class="form-select" name="payment_status" id="paymentStatusSelect" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
 										<option value="Unpaid" ${salary.payment_status == 'Unpaid' ? 'selected' : ''}>Unpaid</option>
 										<option value="Partial" ${salary.payment_status == 'Partial' ? 'selected' : ''}>Partial</option>
 										<option value="Paid" ${salary.payment_status == 'Paid' ? 'selected' : ''}>Paid</option>
 									</select>
+								</div>
+								<div class="col-md-6 mb-3" id="paymentMethodContainer" style="display: none;">
+									<label class="form-label">{{ $getCurrentTranslation['payment_method'] ?? 'Payment Method' }}: <span class="text-danger">*</span></label>
+									<select class="form-select" name="payment_method" id="paymentMethodSelect" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}">
+										<option value="">-- {{ $getCurrentTranslation['select_payment_method'] ?? 'Select Payment Method' }} --</option>
+										<option value="Bank Transfer" ${salary.payment_method == 'Bank Transfer' ? 'selected' : ''}>Bank Transfer</option>
+										<option value="Card Payments" ${salary.payment_method == 'Card Payments' ? 'selected' : ''}>Card Payments</option>
+										<option value="Cheque" ${salary.payment_method == 'Cheque' ? 'selected' : ''}>Cheque</option>
+										<option value="bKash" ${salary.payment_method == 'bKash' ? 'selected' : ''}>bKash</option>
+										<option value="Nagad" ${salary.payment_method == 'Nagad' ? 'selected' : ''}>Nagad</option>
+										<option value="Rocket" ${salary.payment_method == 'Rocket' ? 'selected' : ''}>Rocket</option>
+										<option value="Upay" ${salary.payment_method == 'Upay' ? 'selected' : ''}>Upay</option>
+									</select>
+								</div>
+								<div class="col-md-6 mb-3" id="paidAmountContainer" style="display: none;">
+									<label class="form-label">{{ $getCurrentTranslation['paid_amount'] ?? 'Paid Amount' }} (${currency}): <span class="text-danger">*</span></label>
+									<input type="text" class="form-control number-validate" name="paid_amount" id="paidAmountInput" value="${salary.paid_amount || 0}" placeholder="0.00">
+									<small class="text-muted">{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }}: <span id="netSalaryDisplay">${(parseFloat(salary.base_salary || 0) - parseFloat(salary.deductions || 0) + parseFloat(salary.bonus || 0)).toFixed(2)}</span> ${currency}</small>
 								</div>
 								<div class="col-md-6 mb-3">
 									<label class="form-label">{{ $getCurrentTranslation['payment_date'] ?? 'Payment Date' }}: <span id="paymentDateRequired" class="text-danger d-none">*</span></label>
@@ -401,12 +435,29 @@ $(document).ready(function() {
 						const bonus = parseFloat($('#editSalaryContent').find('input[name="bonus"]').val()) || 0;
 						const totalSalary = baseSalary - deductions + bonus;
 						$('#totalSalaryDisplay').text(totalSalary.toFixed(2));
+						// Update net salary display in both places
+						$('#netSalaryDisplay').text(totalSalary.toFixed(2));
+						// Also update in the small tag under paid amount input if it exists
+						const paidAmountSmall = $('#editSalaryContent').find('#paidAmountInput').next('small');
+						if (paidAmountSmall.length) {
+							const currency = '{{Auth::user()->company_data->currency->short_name ?? ''}}';
+							paidAmountSmall.html(`{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }}: <span id="netSalaryDisplay">${totalSalary.toFixed(2)}</span> ${currency}`);
+						}
 					}
 					
-					// Bind input events to calculate total salary
-					$('#editSalaryContent').on('input', 'input[name="base_salary"], input[name="deductions"], input[name="bonus"]', function() {
-						calculateTotalSalary();
-					});
+					// Initialize Select2 for select dropdowns
+					setTimeout(function() {
+						$('#editSalaryContent').find('select[data-control="select2"]').each(function() {
+							var $select = $(this);
+							if (!$select.hasClass('select2-hidden-accessible')) {
+								var placeholder = $select.data('placeholder') || "Select an option";
+								$select.select2({
+									placeholder: placeholder,
+									width: '100%'
+								});
+							}
+						});
+					}, 50);
 					
 					// Initialize flatpickr for date input
 					setTimeout(function() {
@@ -418,38 +469,146 @@ $(document).ready(function() {
 						});
 					}, 100);
 					
-					// Function to toggle payment date requirement
-					function togglePaymentDateRequirement() {
+					// Function to toggle payment fields visibility
+					function togglePaymentFields() {
 						const paymentStatus = $('#editSalaryContent').find('select[name="payment_status"]').val();
 						const paymentDateInput = $('#editSalaryContent').find('#paymentDateInput');
 						const paymentDateRequired = $('#editSalaryContent').find('#paymentDateRequired');
+						const paymentMethodContainer = $('#editSalaryContent').find('#paymentMethodContainer');
+						const paymentMethodSelect = $('#editSalaryContent').find('#paymentMethodSelect');
+						const paidAmountContainer = $('#editSalaryContent').find('#paidAmountContainer');
+						const paidAmountInput = $('#editSalaryContent').find('#paidAmountInput');
+						const netSalary = calculateNetSalaryFromForm();
 						
 						if (paymentStatus && paymentStatus !== 'Unpaid') {
+							// Show payment date and payment method
 							paymentDateInput.prop('required', true);
 							paymentDateRequired.removeClass('d-none');
+							paymentMethodContainer.show();
+							paymentMethodSelect.prop('required', true);
+							
+							// Initialize Select2 for payment method if not already initialized
+							if (paymentMethodSelect.length && !paymentMethodSelect.hasClass('select2-hidden-accessible')) {
+								var placeholder = paymentMethodSelect.data('placeholder') || "Select an option";
+								paymentMethodSelect.select2({
+									placeholder: placeholder,
+									width: '100%'
+								});
+							}
+							
 							if (!paymentDateInput.val()) {
 								paymentDateInput.addClass('is-invalid');
 							} else {
 								paymentDateInput.removeClass('is-invalid');
 							}
+							
+							// Show paid amount only for Partial
+							if (paymentStatus === 'Partial') {
+								paidAmountContainer.show();
+								paidAmountInput.prop('required', true);
+								// Set max value to net salary
+								paidAmountInput.attr('max', netSalary);
+							} else {
+								paidAmountContainer.hide();
+								paidAmountInput.prop('required', false);
+								// For Paid, set paid_amount to net_salary
+								if (paymentStatus === 'Paid') {
+									paidAmountInput.val(netSalary.toFixed(2));
+								}
+							}
 						} else {
+							// Hide all payment fields for Unpaid
 							paymentDateInput.prop('required', false);
 							paymentDateRequired.addClass('d-none');
 							paymentDateInput.removeClass('is-invalid');
+							paymentMethodContainer.hide();
+							paymentMethodSelect.prop('required', false);
+							paidAmountContainer.hide();
+							paidAmountInput.prop('required', false);
+							paidAmountInput.val(0);
 						}
 					}
 					
+					// Function to calculate net salary from form inputs
+					function calculateNetSalaryFromForm() {
+						const baseSalary = parseFloat($('#editSalaryContent').find('input[name="base_salary"]').val()) || 0;
+						const deductions = parseFloat($('#editSalaryContent').find('input[name="deductions"]').val()) || 0;
+						const bonus = parseFloat($('#editSalaryContent').find('input[name="bonus"]').val()) || 0;
+						return baseSalary - deductions + bonus;
+					}
+					
+					// Function to validate paid amount
+					function validatePaidAmount() {
+						const paidAmountInput = $('#editSalaryContent').find('#paidAmountInput');
+						if (paidAmountInput.length && paidAmountInput.is(':visible')) {
+							const paidAmount = parseFloat(paidAmountInput.val()) || 0;
+							const netSalary = calculateNetSalaryFromForm();
+							const currency = '{{Auth::user()->company_data->currency->short_name ?? ''}}';
+							
+							// Update the net salary display
+							$('#netSalaryDisplay').text(netSalary.toFixed(2));
+							
+							// Show error only if netSalary > 0 and paidAmount > netSalary
+							if (netSalary > 0 && paidAmount > netSalary) {
+								paidAmountInput.addClass('is-invalid');
+								paidAmountInput.next('small').html(`<span class="text-danger">Paid amount cannot exceed net salary (${netSalary.toFixed(2)} ${currency})</span>`);
+							} else if (paidAmount > 0 && netSalary <= 0) {
+								// If net salary is 0 or negative, show warning
+								paidAmountInput.addClass('is-invalid');
+								paidAmountInput.next('small').html(`<span class="text-danger">Net salary must be greater than 0</span>`);
+							} else {
+								paidAmountInput.removeClass('is-invalid');
+								paidAmountInput.next('small').html(`{{ $getCurrentTranslation['net_salary'] ?? 'Net Salary' }}: <span id="netSalaryDisplay">${netSalary.toFixed(2)}</span> ${currency}`);
+							}
+						}
+					}
+					
+					// Update net salary display when base_salary, deductions, or bonus changes
+					$('#editSalaryContent').on('input', 'input[name="base_salary"], input[name="deductions"], input[name="bonus"]', function() {
+						calculateTotalSalary();
+						const netSalary = calculateNetSalaryFromForm();
+						$('#netSalaryDisplay').text(netSalary.toFixed(2));
+						// Update max for paid_amount if Partial
+						if ($('#editSalaryContent').find('select[name="payment_status"]').val() === 'Partial') {
+							$('#paidAmountInput').attr('max', netSalary);
+						}
+						// Validate paid amount when net salary changes
+						validatePaidAmount();
+					});
+					
+					// Validate paid amount doesn't exceed net salary
+					$('#editSalaryContent').on('input', '#paidAmountInput', function() {
+						validatePaidAmount();
+					});
+					
+					// Calculate initial net salary immediately after form loads
+					calculateTotalSalary();
+					
 					// Check on load
-					togglePaymentDateRequirement();
+					setTimeout(function() {
+						// Recalculate to ensure values are correct
+						calculateTotalSalary();
+						togglePaymentFields();
+						// Validate paid amount on initial load
+						validatePaidAmount();
+					}, 100);
 					
 					// Bind change event to payment status
 					$('#editSalaryContent').on('change', 'select[name="payment_status"]', function() {
-						togglePaymentDateRequirement();
+						togglePaymentFields();
 					});
 					
 					// Validate payment date on change
 					$('#editSalaryContent').on('change', '#paymentDateInput', function() {
-						togglePaymentDateRequirement();
+						const paymentDateInput = $(this);
+						if (paymentDateInput.val()) {
+							paymentDateInput.removeClass('is-invalid');
+						} else {
+							const paymentStatus = $('#editSalaryContent').find('select[name="payment_status"]').val();
+							if (paymentStatus && paymentStatus !== 'Unpaid') {
+								paymentDateInput.addClass('is-invalid');
+							}
+						}
 					});
 				}
 			},

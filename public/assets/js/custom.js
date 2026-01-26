@@ -287,10 +287,40 @@ function formatOption(option) {
 
 
 $(document).ready(function () {
-    $('.select2-with-images').select2({
-        templateResult: formatOption,
-        templateSelection: formatOption,
-        escapeMarkup: function(m) { return m; } // allows HTML rendering
+    // Add data-control="select2" and data-placeholder to all form-select that don't have them
+    $('select.form-select:not([data-control="select2"])').each(function() {
+        var $select = $(this);
+        if (!$select.attr('data-control')) {
+            $select.attr('data-control', 'select2');
+        }
+        if (!$select.attr('data-placeholder')) {
+            var defaultPlaceholder = typeof getCurrentTranslation !== 'undefined' && getCurrentTranslation.select_an_option 
+                ? getCurrentTranslation.select_an_option 
+                : 'select_an_option';
+            $select.attr('data-placeholder', defaultPlaceholder);
+        }
+    });
+    
+    // Initialize all selects with data-control="select2"
+    $('select[data-control="select2"]').each(function() {
+        var $select = $(this);
+        var placeholder = $select.data('placeholder') || "Select an option";
+        if ($select.hasClass('select2-with-images')) {
+            if (!$select.hasClass('select2-hidden-accessible')) {
+                $select.select2({
+                    templateResult: formatOption,
+                    templateSelection: formatOption,
+                    escapeMarkup: function(m) { return m; },
+                    placeholder: placeholder,
+                    width: '100%'
+                });
+            }
+        } else if (!$select.hasClass('select2-hidden-accessible')) {
+            $select.select2({
+                placeholder: placeholder,
+                width: '100%'
+            });
+        }
     });
 
     $('.select-2-tag').select2({
