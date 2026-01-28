@@ -324,9 +324,7 @@ If you have questions, feel free to contact us. Have a safe and pleasant trip!
 <p>
 Best regards,<br>
 {{ Auth::user()->name }} <br>
-@if(!empty(Auth::user()->designation))
-{{ Auth::user()->designation }} <br>
-@endif
+{{ Auth::user()->designation?->name ?? 'N/A' }} <br>
 @if(!empty($globalData->company_data) && !empty($globalData->company_data->company_name))
 <b>{{ $globalData->company_data->company_name }}</b><br>
 @endif

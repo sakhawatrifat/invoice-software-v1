@@ -79,9 +79,7 @@
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>
 															{{ $option->name }}
-															@if($option->designation)
-																({{ $option->designation->name }})
-															@endif
+															({{ $option->designation?->name ?? 'N/A' }})
 															@if($option->is_staff == 0)
 																- {{ $getCurrentTranslation['non_staff'] ?? 'Non Staff' }}
 															@endif
@@ -401,7 +399,7 @@
 													<tr class="{{ $isRunning ? 'table-warning' : '' }}">
 														<td>{{ $loop->iteration }}</td>
 														<td><strong>{{ $attendance->employee->name ?? 'N/A' }}</strong></td>
-														<td>{{ $attendance->employee->designation->name ?? 'N/A' }}</td>
+														<td>{{ $attendance->employee->designation?->name ?? 'N/A' }}</td>
 														<td>{{ $attendance->date ? $attendance->date->format('Y-m-d') : 'N/A' }}</td>
 														<td>
 															@if($isRunning)
@@ -537,7 +535,7 @@
 													<tr class="table-danger">
 														<td>{{ $loop->iteration }}</td>
 														<td><strong>{{ $employee->name ?? 'N/A' }}</strong></td>
-														<td>{{ $employee->designation->name ?? 'N/A' }}</td>
+														<td>{{ $employee->designation?->name ?? 'N/A' }}</td>
 														<td><small>{{ $employee->email ?? 'N/A' }}</small></td>
 														<td>
 															<span class="badge badge-danger">

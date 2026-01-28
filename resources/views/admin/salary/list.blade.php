@@ -71,9 +71,7 @@
 												@foreach($employees as $employee)
 													<option value="{{ $employee->id }}" {{ (isset($employeeId) && $employeeId == $employee->id) ? 'selected' : '' }}>
 														{{ $employee->name }}
-														@if($employee->designation)
-															({{ $employee->designation->name }})
-														@endif
+														({{ $employee->designation?->name ?? 'N/A' }})
 														@if($employee->is_staff == 0)
 															- {{ $getCurrentTranslation['non_staff'] ?? 'Non Staff' }}
 														@endif
@@ -142,7 +140,7 @@
 									<tr>
 										<td class="ps-3">{{ $loop->iteration }}</td>
 										<td><strong>{{ $salary->employee->name ?? 'N/A' }}</strong></td>
-										<td>{{ $salary->employee->designation->name ?? 'N/A' }}</td>
+										<td>{{ $salary->employee->designation?->name ?? 'N/A' }}</td>
 										<td>{{ number_format($salary->base_salary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>
 										<td>
 											@if($salary->deductions > 0)
@@ -357,7 +355,7 @@ $(document).ready(function() {
 							<div class="row">
 								<div class="col-md-12 mb-3">
 									<strong>{{ $getCurrentTranslation['employee'] ?? 'employee' }}:</strong> ${salary.employee.name}
-									${salary.employee.designation ? '<br><small class="text-muted">(' + salary.employee.designation.name + ')</small>' : ''}
+									<br><small class="text-muted">(${salary.employee.designation ? salary.employee.designation.name : 'N/A'})</small>
 								</div>
 								<div class="col-md-12 mb-3">
 									<label class="form-label">{{ $getCurrentTranslation['base_salary'] ?? 'Base Salary' }} (${currency}):</label>
@@ -417,6 +415,9 @@ $(document).ready(function() {
 									<div class="alert alert-info mb-0" style="background-color: #e7f3ff; border-left: 4px solid #0d6efd;">
 										<strong>{{ $getCurrentTranslation['total_salary'] ?? 'Total Salary' }} (${currency}):</strong>
 										<span id="totalSalaryDisplay" class="fw-bold fs-4 text-primary ms-2">${(parseFloat(salary.base_salary || 0) - parseFloat(salary.deductions || 0) + parseFloat(salary.bonus || 0)).toFixed(2)}</span>
+										<br>
+										<strong>{{ $getCurrentTranslation['remaining_due'] ?? 'Remaining Due' }} (${currency}):</strong>
+										<span id="remainingDueDisplay" class="fw-bold ms-2">${(Math.max(0, (parseFloat(salary.base_salary || 0) - parseFloat(salary.deductions || 0) + parseFloat(salary.bonus || 0)) - parseFloat(salary.paid_amount || 0))).toFixed(2)}</span>
 									</div>
 								</div>
 							</div>
@@ -428,13 +429,16 @@ $(document).ready(function() {
 					`;
 					$('#editSalaryContent').html(formHtml);
 					
-					// Calculate total salary function
+					// Calculate total salary and remaining due
 					function calculateTotalSalary() {
 						const baseSalary = parseFloat($('#editSalaryContent').find('input[name="base_salary"]').val()) || 0;
 						const deductions = parseFloat($('#editSalaryContent').find('input[name="deductions"]').val()) || 0;
 						const bonus = parseFloat($('#editSalaryContent').find('input[name="bonus"]').val()) || 0;
+						const paidAmount = parseFloat($('#editSalaryContent').find('#paidAmountInput').val()) || 0;
 						const totalSalary = baseSalary - deductions + bonus;
+						const remainingDue = Math.max(0, totalSalary - paidAmount);
 						$('#totalSalaryDisplay').text(totalSalary.toFixed(2));
+						$('#remainingDueDisplay').text(remainingDue.toFixed(2));
 						// Update net salary display in both places
 						$('#netSalaryDisplay').text(totalSalary.toFixed(2));
 						// Also update in the small tag under paid amount input if it exists
@@ -576,8 +580,9 @@ $(document).ready(function() {
 						validatePaidAmount();
 					});
 					
-					// Validate paid amount doesn't exceed net salary
+					// Validate paid amount doesn't exceed net salary and update remaining due
 					$('#editSalaryContent').on('input', '#paidAmountInput', function() {
+						calculateTotalSalary();
 						validatePaidAmount();
 					});
 					

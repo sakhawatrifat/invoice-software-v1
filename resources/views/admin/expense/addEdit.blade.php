@@ -103,9 +103,7 @@
 											@foreach($users as $user)
 												<option value="{{ $user->id }}" {{ (string)$user->id === (string)$selectedUser ? 'selected' : '' }}>
 													{{ $user->name }}
-													@if($user->designation)
-														({{ $user->designation->name }})
-													@endif
+													({{ $user->designation?->name ?? 'N/A' }})
 													@if($user->is_staff == 0)
 														- {{ $getCurrentTranslation['non_staff'] ?? 'Non Staff' }}
 													@endif

@@ -150,7 +150,8 @@
 						{{ $getCurrentTranslation['salary_report'] ?? 'Salary Report' }} - {{ $employee->name }}
 					</h3>
 					<p class="text-muted mb-0">
-						<strong>{{ $getCurrentTranslation['designation'] ?? 'Designation' }}:</strong> {{ $employee->designation->name ?? 'N/A' }} | 
+						<strong>{{ $getCurrentTranslation['designation'] ?? 'Designation' }}:</strong> {{ $employee->designation?->name ?? 'N/A' }} |
+						<strong>{{ $getCurrentTranslation['department'] ?? 'Department' }}:</strong> {{ $employee->department?->name ?? 'N/A' }} | 
 						<strong>{{ $getCurrentTranslation['email'] ?? 'Email' }}:</strong> {{ $employee->email ?? 'N/A' }}
 					</p>
 				</div>

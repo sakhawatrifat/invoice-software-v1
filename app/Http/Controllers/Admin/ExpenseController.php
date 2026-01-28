@@ -80,9 +80,7 @@ class ExpenseController extends Controller
             ->addColumn('for_user_name', function ($row) {
                 if ($row->forUser) {
                     $name = $row->forUser->name;
-                    if ($row->forUser->designation) {
-                        $name .= ' (' . $row->forUser->designation->name . ')';
-                    }
+                    $name .= ' (' . ($row->forUser->designation?->name ?? 'N/A') . ')';
                     if ($row->forUser->is_staff == 0) {
                         $name .= ' - ' . (getCurrentTranslation()['non_staff'] ?? 'Non Staff');
                     }
@@ -302,6 +300,11 @@ class ExpenseController extends Controller
     public function saveData(Request $request, $id = null)
     {
         $messages = getCurrentTranslation();
+
+        // Normalize "None" (0) to null so validation and save handle it correctly
+        if ($request->has('for_user_id') && ($request->for_user_id === '0' || $request->for_user_id === 0 || $request->for_user_id === '')) {
+            $request->merge(['for_user_id' => null]);
+        }
 
         $rules = [
             'expense_category_id' => 'required|exists:expense_categories,id',

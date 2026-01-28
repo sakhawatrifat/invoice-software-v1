@@ -130,9 +130,7 @@
 											@foreach($options as $option)
 												<option value="{{ $option->id }}" {{ $option->id == $selected ? 'selected' : '' }}>
 													{{ $option->name }}
-													@if($option->designation)
-														({{ $option->designation->name }})
-													@endif
+													({{ $option->designation?->name ?? 'N/A' }})
 													{{ $option->company && $option->company->name ? ' - ' . $option->company->name : '' }}
 												</option>
 											@endforeach

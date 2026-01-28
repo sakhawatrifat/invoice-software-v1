@@ -190,7 +190,11 @@
                 </tr>
                 <tr>
                     <td style="font-family: {{ language_font(strip_tags($getCurrentTranslation['designation'] ?? 'Designation')) }};">{{ $getCurrentTranslation['designation'] ?? 'Designation' }}</td>
-                    <td style="font-family: {{ language_font(strip_tags($employee->designation->name ?? 'N/A')) }};">{{ $employee->designation->name ?? 'N/A' }}</td>
+                    <td style="font-family: {{ language_font(strip_tags($employee->designation?->name ?? 'N/A')) }};">{{ $employee->designation?->name ?? 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td style="font-family: {{ language_font(strip_tags($getCurrentTranslation['department'] ?? 'Department')) }};">{{ $getCurrentTranslation['department'] ?? 'Department' }}</td>
+                    <td style="font-family: {{ language_font(strip_tags($employee->department?->name ?? 'N/A')) }};">{{ $employee->department?->name ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td style="font-family: {{ language_font(strip_tags($getCurrentTranslation['email'] ?? 'Email')) }};">{{ $getCurrentTranslation['email'] ?? 'Email' }}</td>

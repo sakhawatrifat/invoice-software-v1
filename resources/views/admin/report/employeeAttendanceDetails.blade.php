@@ -42,7 +42,8 @@
 						{{ $getCurrentTranslation['employee_attendance_details'] ?? 'Employee Attendance Details' }} - {{ $employee->name ?? 'N/A' }}
 					</h3>
 					<p class="text-muted mb-0">
-						<strong>{{ $getCurrentTranslation['designation'] ?? 'designation' }}:</strong> {{ $employee->designation->name ?? 'N/A' }} | 
+						<strong>{{ $getCurrentTranslation['designation'] ?? 'designation' }}:</strong> {{ $employee->designation?->name ?? 'N/A' }} |
+						<strong>{{ $getCurrentTranslation['department'] ?? 'department' }}:</strong> {{ $employee->department?->name ?? 'N/A' }} | 
 						<strong>{{ $getCurrentTranslation['email'] ?? 'email' }}:</strong> {{ $employee->email ?? 'N/A' }}
 					</p>
 				</div>

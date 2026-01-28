@@ -56,7 +56,7 @@
             text-align: center;
         }
         .section-title {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #185786 0%, #2298d4 100%);
             padding: 10px 15px;
             font-weight: bold;
             font-size: 14px;
@@ -101,7 +101,7 @@
             height: 100%;
         }
         .company-info-table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #185786 0%, #2298d4 100%);
             padding: 10px 15px;
             font-weight: bold;
             font-size: 14px;
@@ -109,7 +109,7 @@
             text-align: left;
         }
         .employee-info-table th {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            background: linear-gradient(135deg, #185786 0%, #2298d4 100%);
             padding: 10px 15px;
             font-weight: bold;
             font-size: 14px;
@@ -141,7 +141,7 @@
         }
         .info-line strong {
             font-weight: bold;
-            color: #667eea;
+            color: #185786;
             display: inline-block;
             min-width: 120px;
         }
@@ -182,13 +182,13 @@
             font-size: 11px;
         }
         .earnings-table th {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            background: linear-gradient(135deg, #185786 0%, #2298d4 100%);
             font-weight: bold;
             color: #ffffff;
             text-align: left;
         }
         .deductions-table th {
-            background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+            background: linear-gradient(135deg, #185786 0%, #2298d4 100%);
             font-weight: bold;
             color: #ffffff;
             text-align: left;
@@ -208,12 +208,12 @@
             font-weight: 600;
         }
         .earnings-table .total-row {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            background: linear-gradient(135deg, #185786 0%, #2298d4 100%);
             color: white;
             font-weight: bold;
         }
         .deductions-table .total-row {
-            background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+            background: linear-gradient(135deg, #185786 0%, #2298d4 100%);
             color: white;
             font-weight: bold;
         }
@@ -262,7 +262,7 @@
             font-size: 11px;
         }
         .net-salary-table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #185786 0%, #2298d4 100%);
             font-weight: bold;
             color: #ffffff;
             font-size: 14px;
@@ -273,11 +273,11 @@
         .net-salary-table tbody tr:first-child td {
             font-weight: bold;
             font-size: 16px;
-            color: #667eea;
+            color: #185786;
         }
         .net-salary-table tbody tr td:first-child {
             font-weight: 600;
-            color: #667eea;
+            color: #185786;
         }
         .net-salary-table tbody tr td:last-child {
             text-align: right;
@@ -299,7 +299,7 @@
             font-size: 11px;
         }
         .payment-info-table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #185786 0%, #2298d4 100%);
             font-weight: bold;
             color: #ffffff;
             font-size: 14px;
@@ -309,7 +309,7 @@
         }
         .payment-info-table td:first-child {
             font-weight: 600;
-            color: #667eea;
+            color: #185786;
         }
         .payment-info-table td:last-child {
             text-align: right;
@@ -346,7 +346,7 @@
             overflow: hidden;
         }
         .notes-table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #185786 0%, #2298d4 100%);
             padding: 10px 15px;
             font-weight: bold;
             color: #ffffff;
@@ -373,13 +373,13 @@
         }
         .notes-list li::before {
             content: "• ";
-            color: #667eea;
+            color: #185786;
             font-weight: bold;
             margin-right: 5px;
         }
         .seal-container {
             position: relative;
-            text-align: right;
+            text-align: left;
             margin-top: 20px;
         }
         .seal-container img {
@@ -431,15 +431,18 @@
                             @endif
                         </td>
                     </tr>
-                    @if($address || $email || $phone)
+                    @if($address)
                     <tr>
-                        <td style="text-align: center; margin: 0; padding: 0; border: none; font-size: 10px; line-height: 1;">
-                            @if($address)
+                        <td style="text-align: center; margin: 0; padding: 0; padding-top: 5px; border: none; font-size: 10px; line-height: 1;">
                             <div style="font-family: {{ language_font(strip_tags($address)) }}; margin: 0; padding: 0; line-height: 1.2;">
                                 {!! $address !!}
                             </div>
-                            @endif
-                            @if($email || $phone)
+                        </td>
+                    </tr>
+                    @endif
+                    @if($email || $phone)
+                    <tr>
+                        <td style="text-align: center; margin: 0; padding: 0; padding-top: 5px; border: none; font-size: 10px; line-height: 1;">
                             <div style="margin: 0; padding: 0; line-height: 1.2;">
                                 @if($email)
                                 <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['email'] ?? 'Email')) }};">{{ $getCurrentTranslation['email'] ?? 'Email' }}:</span> <span style="font-family: arial;">{{ $email }}</span>
@@ -449,7 +452,6 @@
                                 <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['phone'] ?? 'Phone')) }};">{{ $getCurrentTranslation['phone'] ?? 'Phone' }}:</span> <span style="font-family: arial;">{{ $phone }}</span>
                                 @endif
                             </div>
-                            @endif
                         </td>
                     </tr>
                     @endif
@@ -463,9 +465,9 @@
         </div>
 
         {{-- Company Information and Employee Information Tables --}}
-        <table class="info-tables-container" style="width: 100%; table-layout: fixed;">
+        <table class="info-tables-container" style="width: 100%; table-layout: fixed; padding:0">
             <tr>
-                <td style="width: 50%;">
+                <td style="width: 50%; padding-left:0">
                     <table class="company-info-table" style="width: 100%; table-layout: fixed;">
                         <thead>
                             <tr>
@@ -502,7 +504,7 @@
                         </tbody>
                     </table>
                 </td>
-                <td style="width: 50%;">
+                <td style="width: 50%; padding-right:0">
                     <table class="employee-info-table" style="width: 100%; table-layout: fixed;">
                         <thead>
                             <tr>
@@ -516,18 +518,14 @@
                                         <strong style="font-family: {{ language_font(strip_tags($getCurrentTranslation['employee_name'] ?? 'Employee Name')) }};">{{ $getCurrentTranslation['employee_name'] ?? 'Employee Name' }}:</strong> 
                                         <span style="font-family: {{ language_font(strip_tags($salary->employee->name ?? 'N/A')) }};">{{ $salary->employee->name ?? 'N/A' }}</span>
                                     </div>
-                                    @if($salary->employee->designation && $salary->employee->designation->name)
                                     <div class="info-line" style="padding-top: 0; padding-bottom: 12px;">
                                         <strong style="font-family: {{ language_font(strip_tags($getCurrentTranslation['designation'] ?? 'Designation')) }};">{{ $getCurrentTranslation['designation'] ?? 'Designation' }}:</strong> 
-                                        <span style="font-family: {{ language_font(strip_tags($salary->employee->designation->name ?? 'N/A')) }};">{{ $salary->employee->designation->name ?? 'N/A' }}</span>
+                                        <span style="font-family: {{ language_font(strip_tags($salary->employee->designation?->name ?? 'N/A')) }};">{{ $salary->employee->designation?->name ?? 'N/A' }}</span>
                                     </div>
-                                    @endif
-                                    @if($salary->employee->department && $salary->employee->department->name)
                                     <div class="info-line" style="padding-top: 0; padding-bottom: 12px;">
                                         <strong style="font-family: {{ language_font(strip_tags($getCurrentTranslation['department'] ?? 'Department')) }};">{{ $getCurrentTranslation['department'] ?? 'Department' }}:</strong> 
-                                        <span style="font-family: {{ language_font(strip_tags($salary->employee->department->name)) }};">{{ $salary->employee->department->name }}</span>
+                                        <span style="font-family: {{ language_font(strip_tags($salary->employee->department?->name ?? 'N/A')) }};">{{ $salary->employee->department?->name ?? 'N/A' }}</span>
                                     </div>
-                                    @endif
                                     <div class="info-line" style="padding-top: 0; padding-bottom: 12px;">
                                         <strong style="font-family: {{ language_font(strip_tags($getCurrentTranslation['pay_month'] ?? 'Pay Month')) }};">{{ $getCurrentTranslation['pay_month'] ?? 'Pay Month' }}:</strong> 
                                         <span style="font-family: {{ language_font(strip_tags(($monthNames[$salary->month] ?? $salary->month) . ' ' . $salary->year)) }};">{{ $monthNames[$salary->month] ?? $salary->month }} {{ $salary->year }}</span>
@@ -549,7 +547,7 @@
         {{-- Earnings and Deductions Tables --}}
         <table class="tables-section-table">
             <tr>
-                <td>
+                <td style="padding-left:0">
                     <table class="earnings-table">
                         <thead>
                             <tr>
@@ -564,13 +562,17 @@
                             </tr>
                             @if($salary->bonus > 0)
                             <tr>
-                                <td>
+                                <td style="vertical-align: middle">
                                     <div style="font-family: {{ language_font(strip_tags($getCurrentTranslation['incentive_bonus'] ?? 'Incentive / Bonus')) }};">{{ $getCurrentTranslation['incentive_bonus'] ?? 'Incentive / Bonus' }}</div>
                                     @if($salary->bonus_note)
-                                    <div class="reason-text" style="font-family: {{ language_font(strip_tags($salary->bonus_note)) }};">{{ $salary->bonus_note }}</div>
+                                    @php
+                                        $bonusNoteText = strip_tags($salary->bonus_note);
+                                        $bonusNoteDisplay = strlen($bonusNoteText) > 55 ? \Str::limit($bonusNoteText, 55) : $bonusNoteText;
+                                    @endphp
+                                    <div class="reason-text" style="font-family: {{ language_font($bonusNoteText) }};">{{ $bonusNoteDisplay }}</div>
                                     @endif
                                 </td>
-                                <td class="text-right" style="font-family: arial;">{{ number_format($salary->bonus, 2) }}</td>
+                                <td class="text-right" style="font-family: arial; vertical-align: middle;">{{ number_format($salary->bonus, 2) }}</td>
                             </tr>
                             @else
                             <tr>
@@ -585,7 +587,7 @@
                         </tbody>
                     </table>
                 </td>
-                <td>
+                <td style="padding-right:0">
                     <table class="deductions-table">
                         <thead>
                             <tr>
@@ -595,13 +597,17 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td>
+                                <td style="vertical-align: middle">
                                     <div style="font-family: {{ language_font(strip_tags($getCurrentTranslation['deductions'] ?? 'Deductions')) }};">{{ $getCurrentTranslation['deductions'] ?? 'Deductions' }}</div>
                                     @if($salary->deduction_note)
-                                    <div class="reason-text" style="font-family: {{ language_font(strip_tags($salary->deduction_note)) }};">{{ $salary->deduction_note }}</div>
+                                    @php
+                                        $deductionNoteText = strip_tags($salary->deduction_note);
+                                        $deductionNoteDisplay = strlen($deductionNoteText) > 55 ? \Str::limit($deductionNoteText, 55) : $deductionNoteText;
+                                    @endphp
+                                    <div class="reason-text" style="font-family: {{ language_font($deductionNoteText) }};">{{ $deductionNoteDisplay }}</div>
                                     @endif
                                 </td>
-                                <td class="text-right" style="font-family: arial;">{{ number_format($salary->deductions, 2) }}</td>
+                                <td class="text-right" style="font-family: arial; vertical-align: middle;">{{ number_format($salary->deductions, 2) }}</td>
                             </tr>
                             <tr>
                                 <td style="font-family: {{ language_font(strip_tags($getCurrentTranslation['other_deductions'] ?? 'Other Deductions')) }};">{{ $getCurrentTranslation['other_deductions'] ?? 'Other Deductions' }}</td>
@@ -620,7 +626,7 @@
         {{-- Net Salary and Payment Info Tables --}}
         <table class="net-payment-table" style="width: 100%; table-layout: fixed;">
             <tr>
-                <td style="width: 50%;">
+                <td style="width: 50%; padding-left:0">
                     <table class="net-salary-table" style="width: 100%; table-layout: fixed; min-height: 250px; height: 250px;">
                         <thead>
                             <tr>
@@ -644,7 +650,7 @@
                         </tbody>
                     </table>
                 </td>
-                <td style="width: 50%;">
+                <td style="width: 50%; padding-right:0">
                     <table class="payment-info-table" style="width: 100%; table-layout: fixed; min-height: 250px; height: 250px;">
                         <thead>
                             <tr>
@@ -709,6 +715,8 @@
         <div class="seal-container">
             <img src="{{ $globalData->company_data->dark_seal }}" alt="Company Seal" />
         </div>
+        @else
+            <span>Company Seal Here</span>
         @endif
 
     </div>

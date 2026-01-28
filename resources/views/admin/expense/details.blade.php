@@ -77,9 +77,7 @@
                                                 <p>
                                                     @if($editData->forUser)
                                                         {{ $editData->forUser->name }}
-                                                        @if($editData->forUser->designation)
-                                                            ({{ $editData->forUser->designation->name }})
-                                                        @endif
+                                                        ({{ $editData->forUser->designation?->name ?? 'N/A' }})
                                                         @if($editData->forUser->is_staff == 0)
                                                             - <span class="badge bg-warning text-dark">{{ $getCurrentTranslation['non_staff'] ?? 'Non Staff' }}</span>
                                                         @endif

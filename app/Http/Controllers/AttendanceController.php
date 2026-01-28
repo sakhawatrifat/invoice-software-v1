@@ -900,7 +900,7 @@ class AttendanceController extends Controller
             $userSummary[] = [
                 'user_id' => $user->id,
                 'name' => $user->name,
-                'designation' => $user->designation->name ?? 'N/A',
+                'designation' => $user->designation?->name ?? 'N/A',
                 'total_present_days' => $totalPresentDays,
                 'total_absent_days' => $totalAbsentDays,
                 'total_work_hours' => $totalWorkHoursWithRunning, // Includes running hours
@@ -1123,7 +1123,7 @@ class AttendanceController extends Controller
         $employeeSummary = [
             'user_id' => $user->id,
             'name' => $user->name,
-            'designation' => $user->designation,
+            'designation' => $user->designation?->name ?? 'N/A',
             'total_present_days' => $totalPresentDays,
             'total_absent_days' => $totalAbsentDays,
             'total_work_hours' => $totalWorkHours + $totalRunningHours,
@@ -1259,7 +1259,7 @@ class AttendanceController extends Controller
             $userSummary[] = [
                 'user_id' => $user->id,
                 'name' => $user->name,
-                'designation' => $user->designation->name ?? 'N/A',
+                'designation' => $user->designation?->name ?? 'N/A',
                 'total_present_days' => $totalPresentDays,
                 'total_absent_days' => $totalAbsentDays,
                 'total_work_hours' => $totalWorkHoursWithRunning,
@@ -1356,7 +1356,7 @@ class AttendanceController extends Controller
         $employeeSummary = [
             'user_id' => $user->id,
             'name' => $user->name,
-            'designation' => $user->designation,
+            'designation' => $user->designation?->name ?? 'N/A',
             'total_present_days' => $totalPresentDays,
             'total_absent_days' => $totalAbsentDays,
             'total_work_hours' => $totalWorkHours + $totalRunningHours,

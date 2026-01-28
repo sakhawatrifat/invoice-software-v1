@@ -105,15 +105,9 @@
 															{{ ($employee->is_staff == 1 || $employee->id == 1) ? 'checked' : '' }}>
 														<label class="form-check-label" for="employee_{{ $employee->id }}">
 															<strong>{{ $employee->name }}</strong>
-															@if($employee->designation)
-																<br><small class="text-muted">({{ $employee->designation->name }})</small>
-															@endif
+															<br><small class="text-muted">({{ $employee->designation?->name ?? 'N/A' }})</small>
 															@if($employee->is_staff == 0)
-																@if($employee->designation)
-																	<span class="badge badge-warning ms-2">{{ $getCurrentTranslation['non_staff'] ?? 'Non Staff' }}</span>
-																@else
-																	<br><span class="badge badge-warning">{{ $getCurrentTranslation['non_staff'] ?? 'Non Staff' }}</span>
-																@endif
+																<span class="badge badge-warning ms-2">{{ $getCurrentTranslation['non_staff'] ?? 'Non Staff' }}</span>
 															@endif
 															<span class="duplicate-badge badge badge-danger d-none ms-2" id="badge_{{ $employee->id }}">
 																{{ $getCurrentTranslation['duplicate'] ?? 'Duplicate' }}

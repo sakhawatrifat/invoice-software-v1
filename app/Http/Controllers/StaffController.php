@@ -46,48 +46,74 @@ class StaffController extends Controller
     {
         $user = Auth::user();
 
-        $query = User::with(['parent', 'company', 'creator', 'designation'])->where('is_staff', 1)->latest();
-
-        if($user->user_type != 'admin'){
-            $query->where('parent_id', $user->business_id);
-        }
-
-        // Properly grouped global search
-        if (request()->has('search') && $search = request('search')['value']) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-
-            // Search users by company and filter by their IDs
-            $companyUserIds = UserCompany::where(function ($q2) use ($search) {
-                $q2->where('company_name', 'like', "%{$search}%")
-                    ->orWhere('tagline', 'like', "%{$search}%")
-                    ->orWhere('address', 'like', "%{$search}%")
-                    ->orWhere('phone_1', 'like', "%{$search}%")
-                    ->orWhere('phone_2', 'like', "%{$search}%")
-                    ->orWhere('email_1', 'like', "%{$search}%")
-                    ->orWhere('email_2', 'like', "%{$search}%");
-            })->pluck('user_id')->toArray();
-            //dd($companyUserIds);
-            if (!empty($companyUserIds)) {
-                $query->orWhereIn('id', $companyUserIds);
-            }
-
-            // Similarly for creator, if needed
-            $creatorIds = User::where('name', 'like', "%{$search}%")->pluck('id')->toArray();
-            if (!empty($creatorIds)) {
-                $query->orWhereIn('created_by', $creatorIds);
-            }
-        }
+        $query = User::with(['parent', 'company', 'creator', 'designation', 'department'])->where('is_staff', 1)->latest();
 
         return DataTables::of($query)
+            ->filter(function ($query) use ($user) {
+                // Restrict by user (non-admin sees only their staff)
+                if ($user->user_type != 'admin') {
+                    $query->where('parent_id', $user->business_id);
+                }
+
+                // Global search: users table + designation, department, parent, company, creator
+                if (request()->has('search') && $search = request('search')['value']) {
+                    $searchTerm = '%' . $search . '%';
+                    $query->where(function ($q) use ($searchTerm) {
+                        $q->where('users.name', 'like', $searchTerm)
+                            ->orWhere('users.email', 'like', $searchTerm)
+                            ->orWhere('users.phone', 'like', $searchTerm)
+                            ->orWhereHas('designation', function ($sub) use ($searchTerm) {
+                                $sub->where('name', 'like', $searchTerm);
+                            })
+                            ->orWhereHas('department', function ($sub) use ($searchTerm) {
+                                $sub->where('name', 'like', $searchTerm);
+                            })
+                            ->orWhereHas('parent', function ($sub) use ($searchTerm) {
+                                $sub->where('name', 'like', $searchTerm);
+                            })
+                            ->orWhereHas('company', function ($sub) use ($searchTerm) {
+                                $sub->where('company_name', 'like', $searchTerm)
+                                    ->orWhere('tagline', 'like', $searchTerm)
+                                    ->orWhere('address', 'like', $searchTerm)
+                                    ->orWhere('phone_1', 'like', $searchTerm)
+                                    ->orWhere('phone_2', 'like', $searchTerm)
+                                    ->orWhere('email_1', 'like', $searchTerm)
+                                    ->orWhere('email_2', 'like', $searchTerm);
+                            });
+                        // Creator name search
+                        $creatorIds = User::where('name', 'like', $searchTerm)->pluck('id')->toArray();
+                        if (!empty($creatorIds)) {
+                            $q->orWhereIn('users.created_by', $creatorIds);
+                        }
+                        // Company (user_id) search for staff linked to that company
+                        $companyUserIds = UserCompany::where(function ($q2) use ($searchTerm) {
+                            $q2->where('company_name', 'like', $searchTerm)
+                                ->orWhere('tagline', 'like', $searchTerm)
+                                ->orWhere('address', 'like', $searchTerm)
+                                ->orWhere('phone_1', 'like', $searchTerm)
+                                ->orWhere('phone_2', 'like', $searchTerm)
+                                ->orWhere('email_1', 'like', $searchTerm)
+                                ->orWhere('email_2', 'like', $searchTerm);
+                        })->pluck('user_id')->toArray();
+                        if (!empty($companyUserIds)) {
+                            $q->orWhereIn('users.id', $companyUserIds);
+                        }
+                    });
+                }
+            })
             ->addIndexColumn()
-            // ->addColumn('name', function ($row) {
-            //     return $row->name . '<br><small>' . $row->email . '</small>';
-            // })
+            ->editColumn('name', function ($row) {
+                $designation = is_object($row->designation) && isset($row->designation->name) ? $row->designation->name : (is_string($row->designation) ? $row->designation : 'N/A');
+                $department = is_object($row->department) && isset($row->department->name) ? $row->department->name : (is_string($row->department) ? $row->department : 'N/A');
+                $sub = trim($designation . ' · ' . $department);
+                if ($sub === 'N/A · N/A') {
+                    $sub = 'N/A';
+                }
+                return '<strong>' . e($row->name) . '</strong><br><small class="text-muted">' . e($sub) . '</small>';
+            })
             ->addColumn('parent_id', function ($row) {
-                return $row->parent ? $row->parent->name : 'N/A';
+                $p = $row->parent;
+                return (is_object($p) && isset($p->name)) ? $p->name : 'N/A';
             })
             ->addColumn('user_type', function ($row) {
                 $badgeClass = $row->user_type === 'admin'
@@ -157,10 +183,8 @@ class StaffController extends Controller
             //     return $row->user ? $row->user->name : 'N/A';
             // })
             ->addColumn('created_by', function ($row) {
-                return $row->creator ? $row->creator->name : 'N/A';
-            })
-            ->addColumn('designation', function ($row) {
-                return $row->designation ? $row->designation->name : 'N/A';
+                $c = $row->creator;
+                return (is_object($c) && isset($c->name)) ? $c->name : 'N/A';
             })
             ->addColumn('action', function ($row) {
                 $showUrl   = route('staff.show', $row->id);

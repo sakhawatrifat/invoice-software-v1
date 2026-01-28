@@ -29,19 +29,23 @@
 			</div>
 			<div class="card-body">
 				<div class="row">
-					<div class="col-md-3">
+					<div class="col-md-2 col-6 mb-2">
 						<strong>{{ $getCurrentTranslation['employee'] ?? 'employee' }}:</strong><br>
 						{{ $attendance->employee->name ?? 'N/A' }}
 					</div>
-					<div class="col-md-3">
+					<div class="col-md-2 col-6 mb-2">
 						<strong>{{ $getCurrentTranslation['designation'] ?? 'designation' }}:</strong><br>
-						{{ $attendance->employee->designation->name ?? 'N/A' }}
+						{{ $attendance->employee->designation?->name ?? 'N/A' }}
 					</div>
-					<div class="col-md-3">
+					<div class="col-md-2 col-6 mb-2">
+						<strong>{{ $getCurrentTranslation['department'] ?? 'department' }}:</strong><br>
+						{{ $attendance->employee->department?->name ?? 'N/A' }}
+					</div>
+					<div class="col-md-2 col-6 mb-2">
 						<strong>{{ $getCurrentTranslation['date'] ?? 'date' }}:</strong><br>
 						{{ $attendance->date ? $attendance->date->format('Y-m-d') : 'N/A' }}
 					</div>
-					<div class="col-md-3">
+					<div class="col-md-2 col-6 mb-2">
 						<strong>{{ $getCurrentTranslation['status'] ?? 'status' }}:</strong><br>
 						<span class="badge 
 							@if($attendance->status == 'Present') badge-success

@@ -64,9 +64,7 @@
 													@foreach($employees as $employee)
 														<option value="{{ $employee->id }}" {{ (isset($employeeId) && $employeeId == $employee->id) ? 'selected' : '' }}>
 															{{ $employee->name }}
-															@if($employee->designation)
-																({{ $employee->designation->name }})
-															@endif
+															({{ $employee->designation?->name ?? 'N/A' }})
 															@if($employee->is_staff == 0)
 																- {{ $getCurrentTranslation['non_staff'] ?? 'Non Staff' }}
 															@endif
@@ -270,7 +268,7 @@
 									<tr>
 										<td class="ps-3">{{ $loop->iteration }}</td>
 										<td><strong>{{ $salary->employee->name ?? 'N/A' }}</strong></td>
-										<td>{{ $salary->employee->designation->name ?? 'N/A' }}</td>
+										<td>{{ $salary->employee->designation?->name ?? 'N/A' }}</td>
 										<td>{{ $monthNames[$salary->month] ?? $salary->month }}</td>
 										<td>{{ $salary->year }}</td>
 										<td>{{ number_format($salary->base_salary, 2) }} ({{Auth::user()->company_data->currency->short_name ?? ''}})</td>

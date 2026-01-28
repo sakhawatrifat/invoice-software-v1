@@ -95,9 +95,7 @@
 													@foreach($users as $user)
 														<option value="{{ $user->id }}" {{ (isset($forUserId) && $forUserId == $user->id) ? 'selected' : '' }}>
 															{{ $user->name }}
-															@if($user->designation)
-																({{ $user->designation->name }})
-															@endif
+															({{ $user->designation?->name ?? 'N/A' }})
 														</option>
 													@endforeach
 												</select>
@@ -226,9 +224,7 @@
 										<td>
 											@if($expense->forUser)
 												{{ $expense->forUser->name }}
-												@if($expense->forUser->designation)
-													<br><small class="text-muted">({{ $expense->forUser->designation->name }})</small>
-												@endif
+												<br><small class="text-muted">({{ $expense->forUser->designation?->name ?? 'N/A' }})</small>
 											@else
 												<span class="text-muted">N/A</span>
 											@endif

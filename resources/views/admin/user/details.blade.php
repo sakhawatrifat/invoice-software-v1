@@ -94,7 +94,11 @@
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <strong>{{ $getCurrentTranslation['designation_label'] ?? 'designation_label' }}:</strong>
-                                                <p>{{ $editData->designation ?? 'N/A' }}</p>
+                                                <p>{{ $editData->designation?->name ?? 'N/A' }}</p>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <strong>{{ $getCurrentTranslation['department_label'] ?? 'department_label' }}:</strong>
+                                                <p>{{ $editData->department?->name ?? 'N/A' }}</p>
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <strong>{{ $getCurrentTranslation['status'] ?? 'status' }}:</strong>
