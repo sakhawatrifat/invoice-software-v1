@@ -485,9 +485,10 @@
 	}
 
 	function resetAppendToolbar() {
-		$('.append-item').not(':first-child').find('.form-control').removeClass('main-datetime');
-		$('.append-item').not(':first-child').find('.form-control').removeClass('parent-ip');
-		$('.append-item').not(':first-child').find('select').removeClass('parent-ip');
+		// Do not remove parent-ip/main-datetime from trip-flight items (each flight item is independent; 2nd+ flight need parent-ip for select/inputs)
+		$('.append-item').not(':first-child').not($('.trip-flight .append-item')).find('.form-control').removeClass('main-datetime');
+		$('.append-item').not(':first-child').not($('.trip-flight .append-item')).find('.form-control').removeClass('parent-ip');
+		$('.append-item').not(':first-child').not($('.trip-flight .append-item')).find('select').removeClass('parent-ip');
 		resetFlightTransit();
 		calculateFare();
 		$('.append-item-container').each(function () {
@@ -615,6 +616,14 @@
 			}
 		});
 		
+		// Destroy existing select2 before reinit (fixes cloned flight item dropdowns)
+		container.find('select.form-select').each(function() {
+			var $select = $(this);
+			if ($select.hasClass('select2-hidden-accessible') && $select.data('select2')) {
+				$select.select2('destroy');
+				$select.removeClass('select2-hidden-accessible').removeAttr('data-select2-id aria-hidden tabindex');
+			}
+		});
 		// Initialize select2 for all form-select that don't have it yet
 		container.find('select.form-select:not(.select2-hidden-accessible)').each(function() {
 			var $select = $(this);
@@ -852,6 +861,93 @@
 		$('.form-check-input[type="checkbox"][data-name]').each(function () {
 			handleCheckboxValidation($(this));
 		});
+	});
+
+	// --- Trip-flight: parent-ip -> child-ip cascade (Flight 1 -> 1.1 -> 1.2, each flight item independent) ---
+	// going_to and arrival_date_time are not cascaded to same field; they only copy to next segment's leaving_from and departure_date_time via dedicated handlers below
+	var FLIGHT_PARENT_DATA_NAMES = ['airline_id', 'flight_number', 'leaving_from', 'departure_date_time', 'total_fly_time'];
+
+	function getElValue($el) {
+		if ($el.is('select')) return $el.val();
+		if ($el.is(':checkbox')) return $el.prop('checked');
+		return $el.val();
+	}
+	function setElValue($el, value) {
+		if ($el.is('select')) { $el.val(value).trigger('change'); }
+		else if ($el.is(':checkbox')) { $el.prop('checked', !!value); }
+		else { $el.val(value); }
+	}
+
+	$(document).on('input change', '.trip-flight .append-item .parent-ip', function () {
+		if (window.flightTransitCascadeEnabled === false) return;
+		if ($(this).closest('.flight-transit-child-wrap').length) return;
+		var dataName = $(this).attr('data-name');
+		if (!dataName || dataName === 'is_transit' || FLIGHT_PARENT_DATA_NAMES.indexOf(dataName) === -1) return;
+		var $flightItem = $(this).closest('.append-item');
+		var $transits = $flightItem.find('.flight-transit-child-wrap .append-child-item');
+		if (!$transits.length) return;
+		var value = getElValue($(this));
+		for (var i = 0; i < $transits.length; i++) {
+			var $target = $transits.eq(i).find('[data-name="' + dataName + '"]');
+			if (!$target.length) continue;
+			setElValue($target, value);
+			value = getElValue($target);
+		}
+	});
+
+	$(document).on('input change', '.trip-flight .append-child-item .child-ip', function () {
+		if (window.flightTransitCascadeEnabled === false) return;
+		var $transit = $(this).closest('.append-child-item');
+		var $next = $transit.next('.append-child-item');
+		if (!$next.length) return;
+		var dataName = $(this).attr('data-name');
+		if (!dataName) return;
+		// going_to and arrival_date_time only update next segment's leaving_from and departure_date_time (dedicated handlers), not same field in next transit
+		if (dataName === 'going_to' || dataName === 'arrival_date_time') return;
+		var value = getElValue($(this));
+		var $target = $next.find('[data-name="' + dataName + '"]');
+		if ($target.length) setElValue($target, value);
+	});
+
+	// Parent (flight) going_to → first transit leaving_from; current transit going_to → next transit leaving_from
+	$(document).on('input change', '.trip-flight [data-name="going_to"]', function () {
+		if (window.flightTransitCascadeEnabled === false) return;
+		var $from = $(this).closest('.append-item, .append-child-item');
+		var $nextLeavingFrom = null;
+		if ($from.hasClass('append-item') && !$from.hasClass('append-child-item')) {
+			$nextLeavingFrom = $from.find('.flight-transit-child-wrap .append-child-item').first().find('[data-name="leaving_from"]');
+		} else {
+			var $nextTransit = $from.next('.append-child-item');
+			if ($nextTransit.length) $nextLeavingFrom = $nextTransit.find('[data-name="leaving_from"]');
+		}
+		if ($nextLeavingFrom && $nextLeavingFrom.length) {
+			var v = $(this).val();
+			if (v) $nextLeavingFrom.val(v);
+		}
+	});
+
+	// Parent (flight) arrival_date_time → first transit departure_date_time; current transit arrival_date_time → next transit departure_date_time
+	$(document).on('input change', '.trip-flight [data-name="arrival_date_time"]', function () {
+		if (window.flightTransitCascadeEnabled === false) return;
+		var $from = $(this).closest('.append-item, .append-child-item');
+		var $nextDeparture = null;
+		if ($from.hasClass('append-item') && !$from.hasClass('append-child-item')) {
+			$nextDeparture = $from.find('.flight-transit-child-wrap .append-child-item').first().find('[data-name="departure_date_time"]');
+		} else {
+			var $nextTransit = $from.next('.append-child-item');
+			if ($nextTransit.length) $nextDeparture = $nextTransit.find('[data-name="departure_date_time"]');
+		}
+		if ($nextDeparture && $nextDeparture.length) {
+			var v = $(this).val();
+			if (v) {
+				var el = $nextDeparture[0];
+				if (el && el._flatpickr) {
+					el._flatpickr.setDate(v, true);
+				} else {
+					$nextDeparture.val(v).trigger('change');
+				}
+			}
+		}
 	});
 
 

@@ -1196,6 +1196,7 @@ class TranslationSeeder extends Seeder
                 'yes' => 'Yes',
                 'no' => 'No',
                 'close' => 'Close',
+                'enter_description' => 'Enter Description',
             ],
 
 
@@ -2409,6 +2410,7 @@ class TranslationSeeder extends Seeder
                 'export_pdf' => 'PDFをエクスポート',
                 'generated_at' => '生成日時',
                 'report_generated_by' => 'レポート生成者',
+                'enter_description' => '説明を入力してください',
             ],
         ];
 

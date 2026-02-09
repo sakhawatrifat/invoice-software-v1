@@ -370,17 +370,17 @@
 														<div class="col-md-4">
 															<div class="form-item mb-5">
 																<label class="form-label">{{ $getCurrentTranslation['total_transit_time_label'] ?? 'total_transit_time_label' }}:</label>
-																<input type="text" class="form-control mb-2" placeholder="{{ $getCurrentTranslation['total_transit_time_placeholder'] ?? 'total_transit_time_placeholder' }}"  name="ticket_flight_info[0]transit[0][total_transit_time]" data-name="total_transit_time" value="{{ $transit->total_transit_time ?? '' }}"/>
+																<input type="text" class="form-control mb-2 child-ip" placeholder="{{ $getCurrentTranslation['total_transit_time_placeholder'] ?? 'total_transit_time_placeholder' }}"  name="ticket_flight_info[0]transit[0][total_transit_time]" data-name="total_transit_time" value="{{ $transit->total_transit_time ?? '' }}"/>
 															</div>
 														</div>
 														<div class="col-md-4">
-															<input type="hidden" name="ticket_flight_info[0]transit[0][flight_id]" data-name="flight_id" value="{{ $transit->id }}">
+															<input type="hidden" class="child-ip" name="ticket_flight_info[0]transit[0][flight_id]" data-name="flight_id" value="{{ $transit->id }}">
 															@php
 																$options = $airlines;
 																$selected = $transit->airline_id;
 															@endphp
 															<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
-															<select class="form-select select2-with-images" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="ticket_flight_info[0]transit[0][airline_id]" data-name="airline_id">
+															<select class="form-select select2-with-images child-ip" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="ticket_flight_info[0]transit[0][airline_id]" data-name="airline_id">
 																<option value="">----</option>
 																@foreach($options as $option)
 																	<option value="{{ $option->id }}" data-image="{{ $option->logo_url ?? defaultImage('s') }}" {{ $option->id == $selected ? 'selected' : '' }}>
@@ -392,40 +392,40 @@
 														<div class="col-md-4">
 															<div class="form-item mb-5">
 																<label class="form-label">{{ $getCurrentTranslation['flight_number_label'] ?? 'flight_number_label' }}:</label>
-																<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['flight_number_placeholder'] ?? 'flight_number_placeholder' }}" name="ticket_flight_info[0]transit[0][flight_number]" data-name="flight_number" value="{{ $transit->flight_number ?? '' }}"/>
+																<input type="text" class="form-control child-ip" placeholder="{{ $getCurrentTranslation['flight_number_placeholder'] ?? 'flight_number_placeholder' }}" name="ticket_flight_info[0]transit[0][flight_number]" data-name="flight_number" value="{{ $transit->flight_number ?? '' }}"/>
 															</div>
 														</div>
 														<div class="col-md-4">
 															<div class="form-item mb-5">
 																<label class="form-label">{{ $getCurrentTranslation['leaving_from_label'] ?? 'leaving_from_label' }}:</label>
-																<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['leaving_from_placeholder'] ?? 'leaving_from_placeholder' }}" name="ticket_flight_info[0]transit[0][leaving_from]" data-name="leaving_from" value="{{ $transit->leaving_from ?? '' }}"/>
+																<input type="text" class="form-control child-ip" placeholder="{{ $getCurrentTranslation['leaving_from_placeholder'] ?? 'leaving_from_placeholder' }}" name="ticket_flight_info[0]transit[0][leaving_from]" data-name="leaving_from" value="{{ $transit->leaving_from ?? '' }}"/>
 															</div>
 														</div>
 
 														<div class="col-md-4">
 															<div class="form-item mb-5">
 																<label class="form-label">{{ $getCurrentTranslation['departure_date_time_label'] ?? 'departure_date_time_label' }}:</label>
-																<input type="text" placeholder="{{ $getCurrentTranslation['departure_date_time_placeholder'] ?? 'departure_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour" name="ticket_flight_info[0]transit[0][departure_date_time]" data-name="departure_date_time" value="{{ $transit->departure_date_time ?? '' }}"/>
+																<input type="text" placeholder="{{ $getCurrentTranslation['departure_date_time_placeholder'] ?? 'departure_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour child-ip" name="ticket_flight_info[0]transit[0][departure_date_time]" data-name="departure_date_time" value="{{ $transit->departure_date_time ?? '' }}"/>
 															</div>
 														</div>
 
 														<div class="col-md-4">
 															<div class="form-item mb-5">
 																<label class="form-label">{{ $getCurrentTranslation['going_to_label'] ?? 'going_to_label' }}:</label>
-																<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['going_to_placeholder'] ?? 'going_to_placeholder' }}" name="ticket_flight_info[0]transit[0][going_to]" data-name="going_to" value="{{ $transit->going_to ?? '' }}"/>
+																<input type="text" class="form-control child-ip" placeholder="{{ $getCurrentTranslation['going_to_placeholder'] ?? 'going_to_placeholder' }}" name="ticket_flight_info[0]transit[0][going_to]" data-name="going_to" value="{{ $transit->going_to ?? '' }}"/>
 															</div>
 														</div>
 
 														<div class="col-md-4">
 															<div class="form-item mb-5">
 																<label class="form-label">{{ $getCurrentTranslation['arrival_date_time_label'] ?? 'arrival_date_time_label' }}:</label>
-																<input type="text" placeholder="{{ $getCurrentTranslation['arrival_date_time_placeholder'] ?? 'arrival_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour" name="ticket_flight_info[0]transit[0][arrival_date_time]" data-name="arrival_date_time" value="{{ $transit->arrival_date_time ?? '' }}"/>
+																<input type="text" placeholder="{{ $getCurrentTranslation['arrival_date_time_placeholder'] ?? 'arrival_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour child-ip" name="ticket_flight_info[0]transit[0][arrival_date_time]" data-name="arrival_date_time" value="{{ $transit->arrival_date_time ?? '' }}"/>
 															</div>
 														</div>
 														<div class="col-md-4">
 															<div class="form-item mb-5">
 																<label class="form-label">{{ $getCurrentTranslation['total_fly_time_label'] ?? 'total_fly_time_label' }}:</label>
-																<input type="text" class="form-control mb-2" placeholder="{{ $getCurrentTranslation['total_fly_time_placeholder'] ?? 'total_fly_time_placeholder' }}"  name="ticket_flight_info[0]transit[0][total_fly_time]" data-name="total_fly_time" value="{{ $transit->total_fly_time ?? '' }}"/>
+																<input type="text" class="form-control mb-2 child-ip" placeholder="{{ $getCurrentTranslation['total_fly_time_placeholder'] ?? 'total_fly_time_placeholder' }}"  name="ticket_flight_info[0]transit[0][total_fly_time]" data-name="total_fly_time" value="{{ $transit->total_fly_time ?? '' }}"/>
 															</div>
 														</div>
 													</div>
@@ -449,17 +449,17 @@
 													<div class="col-md-4">
 														<div class="form-item mb-5">
 															<label class="form-label">{{ $getCurrentTranslation['total_transit_time_label'] ?? 'total_transit_time_label' }}:</label>
-															<input type="text" class="form-control mb-2" placeholder="{{ $getCurrentTranslation['total_transit_time_placeholder'] ?? 'total_transit_time_placeholder' }}" name="ticket_flight_info[0]transit[0][total_transit_time]" data-name="total_transit_time"/>
+															<input type="text" class="form-control mb-2 child-ip" placeholder="{{ $getCurrentTranslation['total_transit_time_placeholder'] ?? 'total_transit_time_placeholder' }}" name="ticket_flight_info[0]transit[0][total_transit_time]" data-name="total_transit_time"/>
 														</div>
 													</div>
 													<div class="col-md-4">
-														<input type="hidden" name="ticket_flight_info[0]transit[0][flight_id]" data-name="flight_id" value="">
+														<input type="hidden" class="child-ip" name="ticket_flight_info[0]transit[0][flight_id]" data-name="flight_id" value="">
 														@php
 															$options = $airlines;
 															$selected = null;
 														@endphp
 														<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
-														<select class="form-select select2-with-images" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="ticket_flight_info[0]transit[0][airline_id]" data-name="airline_id">
+														<select class="form-select select2-with-images child-ip" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="ticket_flight_info[0]transit[0][airline_id]" data-name="airline_id">
 															<option value="">----</option>
 															@foreach($options as $option)
 																<option value="{{ $option->id }}" data-image="{{ $option->logo_url ?? defaultImage('s') }}" {{ $option->id == $selected ? 'selected' : '' }}>
@@ -471,40 +471,40 @@
 													<div class="col-md-4">
 														<div class="form-item mb-5">
 															<label class="form-label">{{ $getCurrentTranslation['flight_number_label'] ?? 'flight_number_label' }}:</label>
-															<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['flight_number_placeholder'] ?? 'flight_number_placeholder' }}" name="ticket_flight_info[0]transit[0][flight_number]" data-name="flight_number" value="{{ $editData->flight_number ?? '' }}"/>
+															<input type="text" class="form-control child-ip" placeholder="{{ $getCurrentTranslation['flight_number_placeholder'] ?? 'flight_number_placeholder' }}" name="ticket_flight_info[0]transit[0][flight_number]" data-name="flight_number" value="{{ $editData->flight_number ?? '' }}"/>
 														</div>
 													</div>
 													<div class="col-md-4">
 														<div class="form-item mb-5">
 															<label class="form-label">{{ $getCurrentTranslation['leaving_from_label'] ?? 'leaving_from_label' }}:</label>
-															<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['leaving_from_placeholder'] ?? 'leaving_from_placeholder' }}" name="ticket_flight_info[0]transit[0][leaving_from]" data-name="leaving_from"/>
+															<input type="text" class="form-control child-ip" placeholder="{{ $getCurrentTranslation['leaving_from_placeholder'] ?? 'leaving_from_placeholder' }}" name="ticket_flight_info[0]transit[0][leaving_from]" data-name="leaving_from"/>
 														</div>
 													</div>
 
 													<div class="col-md-4">
 														<div class="form-item mb-5">
 															<label class="form-label">{{ $getCurrentTranslation['departure_date_time_label'] ?? 'departure_date_time_label' }}:</label>
-															<input type="text" placeholder="{{ $getCurrentTranslation['departure_date_time_placeholder'] ?? 'departure_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour" name="ticket_flight_info[0]transit[0][departure_date_time]" data-name="departure_date_time"/>
+															<input type="text" placeholder="{{ $getCurrentTranslation['departure_date_time_placeholder'] ?? 'departure_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour child-ip" name="ticket_flight_info[0]transit[0][departure_date_time]" data-name="departure_date_time"/>
 														</div>
 													</div>
 
 													<div class="col-md-4">
 														<div class="form-item mb-5">
 															<label class="form-label">{{ $getCurrentTranslation['going_to_label'] ?? 'going_to_label' }}:</label>
-															<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['going_to_placeholder'] ?? 'going_to_placeholder' }}" name="ticket_flight_info[0]transit[0][going_to]" data-name="going_to"/>
+															<input type="text" class="form-control child-ip" placeholder="{{ $getCurrentTranslation['going_to_placeholder'] ?? 'going_to_placeholder' }}" name="ticket_flight_info[0]transit[0][going_to]" data-name="going_to"/>
 														</div>
 													</div>
 
 													<div class="col-md-4">
 														<div class="form-item mb-5">
 															<label class="form-label">{{ $getCurrentTranslation['arrival_date_time_label'] ?? 'arrival_date_time_label' }}:</label>
-															<input type="text" placeholder="{{ $getCurrentTranslation['arrival_date_time_placeholder'] ?? 'arrival_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour" name="ticket_flight_info[0]transit[0][arrival_date_time]" data-name="arrival_date_time"/>
+															<input type="text" placeholder="{{ $getCurrentTranslation['arrival_date_time_placeholder'] ?? 'arrival_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour child-ip" name="ticket_flight_info[0]transit[0][arrival_date_time]" data-name="arrival_date_time"/>
 														</div>
 													</div>
 													<div class="col-md-4">
 														<div class="form-item mb-5">
 															<label class="form-label">{{ $getCurrentTranslation['total_fly_time_label'] ?? 'total_fly_time_label' }}:</label>
-															<input type="text" class="form-control mb-2" placeholder="{{ $getCurrentTranslation['total_fly_time_placeholder'] ?? 'total_fly_time_placeholder' }}" name="ticket_flight_info[0]transit[0][total_fly_time]" data-name="total_fly_time"/>
+															<input type="text" class="form-control mb-2 child-ip" placeholder="{{ $getCurrentTranslation['total_fly_time_placeholder'] ?? 'total_fly_time_placeholder' }}" name="ticket_flight_info[0]transit[0][total_fly_time]" data-name="total_fly_time"/>
 														</div>
 													</div>
 												</div>
@@ -631,18 +631,18 @@
 											<div class="col-md-4">
 												<div class="form-item mb-5">
 													<label class="form-label">{{ $getCurrentTranslation['total_transit_time_label'] ?? 'total_transit_time_label' }}:</label>
-													<input type="text" class="form-control mb-2" placeholder="{{ $getCurrentTranslation['total_transit_time_placeholder'] ?? 'total_transit_time_placeholder' }}" name="ticket_flight_info[0]transit[0][total_transit_time]" data-name="total_transit_time"/>
+													<input type="text" class="form-control mb-2 child-ip" placeholder="{{ $getCurrentTranslation['total_transit_time_placeholder'] ?? 'total_transit_time_placeholder' }}" name="ticket_flight_info[0]transit[0][total_transit_time]" data-name="total_transit_time"/>
 												</div>
 											</div>
 											
 											<div class="col-md-4">
-												<input type="hidden" name="ticket_flight_info[0]transit[0][flight_id]" data-name="flight_id" value="">
+												<input type="hidden" class="child-ip" name="ticket_flight_info[0]transit[0][flight_id]" data-name="flight_id" value="">
 												@php
 													$options = $airlines;
 													$selected = null;
 												@endphp
 												<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
-												<select class="form-select select2-with-images" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="ticket_flight_info[0]transit[0][airline_id]" data-name="airline_id">
+												<select class="form-select select2-with-images child-ip" data-placeholder="{{ $getCurrentTranslation['airline_placeholder'] ?? 'airline_placeholder' }}" name="ticket_flight_info[0]transit[0][airline_id]" data-name="airline_id">
 													<option value="">----</option>
 													@foreach($options as $option)
 														<option value="{{ $option->id }}" data-image="{{ $option->logo_url ?? defaultImage('s') }}" {{ $option->id == $selected ? 'selected' : '' }}>
@@ -654,41 +654,41 @@
 											<div class="col-md-4">
 												<div class="form-item mb-5">
 													<label class="form-label">{{ $getCurrentTranslation['flight_number_label'] ?? 'flight_number_label' }}:</label>
-													<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['flight_number_placeholder'] ?? 'flight_number_placeholder' }}" name="ticket_flight_info[0]transit[0][flight_number]" data-name="flight_number" value="{{ $editData->flight_number ?? '' }}"/>
+													<input type="text" class="form-control child-ip" placeholder="{{ $getCurrentTranslation['flight_number_placeholder'] ?? 'flight_number_placeholder' }}" name="ticket_flight_info[0]transit[0][flight_number]" data-name="flight_number" value="{{ $editData->flight_number ?? '' }}"/>
 												</div>
 											</div>
 											<div class="col-md-4">
 												<div class="form-item mb-5">
 													<label class="form-label">{{ $getCurrentTranslation['leaving_from_label'] ?? 'leaving_from_label' }}:</label>
-													<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['leaving_from_placeholder'] ?? 'leaving_from_placeholder' }}" name="ticket_flight_info[0]transit[0][leaving_from]" data-name="leaving_from"/>
+													<input type="text" class="form-control child-ip" placeholder="{{ $getCurrentTranslation['leaving_from_placeholder'] ?? 'leaving_from_placeholder' }}" name="ticket_flight_info[0]transit[0][leaving_from]" data-name="leaving_from"/>
 												</div>
 											</div>
 
 											<div class="col-md-4">
 												<div class="form-item mb-5">
 													<label class="form-label">{{ $getCurrentTranslation['departure_date_time_label'] ?? 'departure_date_time_label' }}:</label>
-													<input type="text" placeholder="{{ $getCurrentTranslation['departure_date_time_placeholder'] ?? 'departure_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour" name="ticket_flight_info[0]transit[0][departure_date_time]" data-name="departure_date_time"/>
+													<input type="text" placeholder="{{ $getCurrentTranslation['departure_date_time_placeholder'] ?? 'departure_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour child-ip" name="ticket_flight_info[0]transit[0][departure_date_time]" data-name="departure_date_time"/>
 												</div>
 											</div>
 
 											<div class="col-md-4">
 												<div class="form-item mb-5">
 													<label class="form-label">{{ $getCurrentTranslation['going_to_label'] ?? 'going_to_label' }}:</label>
-													<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['going_to_placeholder'] ?? 'going_to_placeholder' }}" name="ticket_flight_info[0]transit[0][going_to]" data-name="going_to"/>
+													<input type="text" class="form-control child-ip" placeholder="{{ $getCurrentTranslation['going_to_placeholder'] ?? 'going_to_placeholder' }}" name="ticket_flight_info[0]transit[0][going_to]" data-name="going_to"/>
 												</div>
 											</div>
 
 											<div class="col-md-4">
 												<div class="form-item mb-5">
 													<label class="form-label">{{ $getCurrentTranslation['arrival_date_time_label'] ?? 'arrival_date_time_label' }}:</label>
-													<input type="text" placeholder="{{ $getCurrentTranslation['arrival_date_time_placeholder'] ?? 'arrival_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour" name="ticket_flight_info[0]transit[0][arrival_date_time]" data-name="arrival_date_time"/>
+													<input type="text" placeholder="{{ $getCurrentTranslation['arrival_date_time_placeholder'] ?? 'arrival_date_time_placeholder' }}" class="form-control mb-2 append-datepicker flatpickr-input datetime 12-hour child-ip" name="ticket_flight_info[0]transit[0][arrival_date_time]" data-name="arrival_date_time"/>
 												</div>
 											</div>
 
 											<div class="col-md-4">
 												<div class="form-item mb-5">
 													<label class="form-label">{{ $getCurrentTranslation['total_fly_time_label'] ?? 'total_fly_time_label' }}:</label>
-													<input type="text" class="form-control mb-2" placeholder="{{ $getCurrentTranslation['total_fly_time_placeholder'] ?? 'total_fly_time_placeholder' }}" name="ticket_flight_info[0]transit[0][total_fly_time]" data-name="total_fly_time" value="{{ $item->total_fly_time ?? '' }}"/>
+													<input type="text" class="form-control mb-2 child-ip" placeholder="{{ $getCurrentTranslation['total_fly_time_placeholder'] ?? 'total_fly_time_placeholder' }}" name="ticket_flight_info[0]transit[0][total_fly_time]" data-name="total_fly_time" value="{{ $item->total_fly_time ?? '' }}"/>
 												</div>
 											</div>
 										</div>
@@ -1272,6 +1272,7 @@
 @include('common._partials.appendJs')
 @include('common._partials.formScripts')
 <script>
+	window.flightTransitCascadeEnabled = {{ isset($editData) ? 'false' : 'true' }};
 	$(document).on('click', '.flight-transit', function(){
 		resetFlightTransit();
 	});
@@ -1322,6 +1323,7 @@
 
 	@if(!isset($editData))
 		$(document).on('input change', '.parent-ip', function () {
+			if ($(this).closest('.trip-flight').length) return;
 			var thisName = $(this).attr('data-name');
 			var thisValue = $(this).val();
 
@@ -1364,6 +1366,7 @@
 		});
 
 		$(document).on('input change', '[data-name="going_to"]', function () {
+			if ($(this).closest('.trip-flight').length) return;
 			let currentInput = $(this);
 			let goingToInputs = $('[data-name="going_to"]');
 			let leavingFromInputs = $('[data-name="leaving_from"]');
