@@ -18,6 +18,7 @@
         previousTotalHours: 0,
         forgotClockOut: false,
         fixedNetWorkMinutes: null, // Store net work time when paused
+        lastStatusFetchedAt: null, // When we last received server status (for live tick)
         timerInterval: null,
         pauseTimerInterval: null,
         modalClockInterval: null // Real-time clock for modal
@@ -83,59 +84,42 @@
         }
     }
 
-    // Update timer display
+    // Update timer display using server-provided work minutes (avoids timezone issues; matches modal/report)
     function updateTimer() {
-        if (!attendanceStatus.isCheckedIn || !attendanceStatus.checkInTime) {
+        if (!attendanceStatus.isCheckedIn) {
             return;
         }
 
-        const now = new Date();
-        const checkInTime = new Date(attendanceStatus.checkInTime);
-        let netWorkMinutes;
+        const now = Date.now();
+        let currentSessionMinutes;
         let totalPauseMinutes;
 
         if (attendanceStatus.isPaused && attendanceStatus.currentPauseStart) {
-            // When paused: keep work timer fixed, only update break timer
-            if (attendanceStatus.fixedNetWorkMinutes === null) {
-                // Calculate and store the net work time at the moment of pause
-                const pauseStart = new Date(attendanceStatus.currentPauseStart);
-                const pauseStartMinutes = (pauseStart - checkInTime) / 1000 / 60;
-                const completedPauseMinutes = attendanceStatus.totalPauseMinutes || 0;
-                attendanceStatus.fixedNetWorkMinutes = pauseStartMinutes - completedPauseMinutes;
-            }
-            
-            // Use the fixed net work time
-            netWorkMinutes = attendanceStatus.fixedNetWorkMinutes;
-            
-            // Calculate current pause duration
-            const pauseStart = new Date(attendanceStatus.currentPauseStart);
-            const currentPauseMinutes = (now - pauseStart) / 1000 / 60;
-            totalPauseMinutes = attendanceStatus.totalPauseMinutes + currentPauseMinutes;
+            // When paused: use server net work (fixed at pause), break = server pauses + current pause duration
+            const baseNet = (parseFloat(attendanceStatus.totalWorkMinutes) || 0) - (parseFloat(attendanceStatus.totalPauseMinutes) || 0);
+            currentSessionMinutes = Math.max(0, baseNet);
+            const pauseStart = new Date(attendanceStatus.currentPauseStart).getTime();
+            totalPauseMinutes = (attendanceStatus.totalPauseMinutes || 0) + (now - pauseStart) / 60000;
         } else {
-            // When not paused: calculate normally
-            attendanceStatus.fixedNetWorkMinutes = null; // Reset fixed time
-            
-            const totalWorkMinutes = (now - checkInTime) / 1000 / 60;
-            totalPauseMinutes = attendanceStatus.totalPauseMinutes || 0;
-            netWorkMinutes = totalWorkMinutes - totalPauseMinutes;
+            // When not paused: base = server total_work_minutes - total_pause_minutes, add elapsed since last fetch (user's local time)
+            const baseWork = parseFloat(attendanceStatus.totalWorkMinutes) || 0;
+            const basePause = parseFloat(attendanceStatus.totalPauseMinutes) || 0;
+            const lastFetch = attendanceStatus.lastStatusFetchedAt || now;
+            const elapsedMinutes = (now - lastFetch) / 60000;
+            currentSessionMinutes = Math.max(0, (baseWork - basePause) + elapsedMinutes);
+            totalPauseMinutes = basePause;
         }
 
-        // Calculate accumulated total: total_hours from DB (completed sessions) + current session time
-        // previousTotalHours is the actual total_hours from database (all completed sessions)
+        // Accumulated total: DB previous_total_hours + current session (matches checkout modal / report)
         const previousTotalHours = parseFloat(attendanceStatus.previousTotalHours) || 0;
         const previousTotalMinutes = previousTotalHours * 60;
-        const currentSessionMinutes = Math.max(0, netWorkMinutes);
         const totalAccumulatedMinutes = previousTotalMinutes + currentSessionMinutes;
 
-        // Display timer: Always show total accumulated hours (DB total_hours + current session)
-        // This is the actual total time worked, not the time difference between first check_in and now
         let timerText;
         if (previousTotalHours > 0) {
-            // Show total accumulated hours as main display (DB total_hours + current session)
             timerText = '<strong>' + formatHoursMinutes(totalAccumulatedMinutes) + '</strong>';
             timerText += ' <small class="text-muted">(Session: ' + formatTime(currentSessionMinutes) + ')</small>';
         } else {
-            // Show current session time when no previous work (first session of the day)
             timerText = formatTime(currentSessionMinutes);
         }
         $('#timer-display').html(timerText);
@@ -172,6 +156,7 @@
                 attendanceStatus.totalPauseMinutes = parseFloat(response.total_pause_minutes) || 0;
                 attendanceStatus.previousTotalHours = parseFloat(response.previous_total_hours) || 0;
                 attendanceStatus.forgotClockOut = response.forgot_clock_out || false;
+                attendanceStatus.lastStatusFetchedAt = Date.now();
 
                 if (response.is_paused && response.current_pause_start) {
                     attendanceStatus.currentPauseStart = response.current_pause_start;
