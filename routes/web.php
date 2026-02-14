@@ -305,6 +305,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
     Route::controller(AttendanceController::class)->group(function () {
         Route::get('/staff/attendance/report', 'staffAttendanceReport')->name('staff.attendance.report');
         Route::get('/staff/attendance/export-pdf', 'staffExportPdf')->name('staff.attendance.exportPdf');
+        Route::get('/staff/attendance/get-details', 'staffGetAttendanceDetails')->name('staff.attendance.getDetails');
     });
 
     Route::controller(\App\Http\Controllers\Admin\SalaryController::class)->group(function () {

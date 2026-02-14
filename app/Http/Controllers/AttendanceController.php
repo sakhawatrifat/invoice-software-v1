@@ -1050,6 +1050,34 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Get attendance details for activity modal (staff panel – own records only)
+     */
+    public function staffGetAttendanceDetails(Request $request)
+    {
+        $user = Auth::user();
+        if ($user->is_staff != 1) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
+        }
+
+        $attendanceId = $request->attendance_id;
+        $attendance = Attendance::withTrashed()
+            ->where('employee_id', $user->id)
+            ->with(['employee.designation', 'pauses'])
+            ->findOrFail($attendanceId);
+
+        $dailyWorkTime = (float) env('DAILY_WORK_TIME', 8);
+        $timeline = $attendance->attendance_timeline ?? [];
+        $pauses = $attendance->pauses ?? collect();
+
+        $html = view('admin.report._partials.attendanceDetailsModal', compact('attendance', 'timeline', 'pauses', 'dailyWorkTime'))->render();
+
+        return response()->json([
+            'success' => true,
+            'html' => $html
+        ]);
+    }
+
+    /**
      * Staff attendance report (for is_staff == 1)
      */
     public function staffAttendanceReport(Request $request)

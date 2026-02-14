@@ -311,7 +311,25 @@
 	</div>
 </div>
 
-@include('admin.report._partials.attendanceDetailsModal', ['hasAttendanceData' => isset($attendances) && $attendances->count() > 0])
+{{-- Activity / Attendance Details Modal (wrapper; content loaded via AJAX) --}}
+<div class="modal fade" id="attendanceDetailsModal" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-xl">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">{{ $getCurrentTranslation['attendance_details'] ?? 'Attendance Details' }}</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body" id="attendanceDetailsModalContent">
+				<div class="alert alert-info mb-0 text-center">
+					{{ $getCurrentTranslation['please_select_an_attendance_record_to_view_details'] ?? 'Please select an attendance record to view details.' }}
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $getCurrentTranslation['close'] ?? 'Close' }}</button>
+			</div>
+		</div>
+	</div>
+</div>
 
 @endsection
 
@@ -325,7 +343,7 @@
 			$('.r-preloader').show();
 			
 			$.ajax({
-				url: '{{ route("admin.attendance.getDetails") }}',
+				url: '{{ route("staff.attendance.getDetails") }}',
 				method: 'GET',
 				data: { attendance_id: attendanceId },
 				headers: {

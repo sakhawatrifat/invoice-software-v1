@@ -84,24 +84,21 @@
         }
     }
 
-    // Update timer display using server-provided work minutes (avoids timezone issues; matches modal/report)
-    function updateTimer() {
+    // Compute current work/break totals (shared by header timer and checkout modal)
+    function getWorkTimeValues() {
         if (!attendanceStatus.isCheckedIn) {
-            return;
+            return null;
         }
-
         const now = Date.now();
         let currentSessionMinutes;
         let totalPauseMinutes;
 
         if (attendanceStatus.isPaused && attendanceStatus.currentPauseStart) {
-            // When paused: use server net work (fixed at pause), break = server pauses + current pause duration
             const baseNet = (parseFloat(attendanceStatus.totalWorkMinutes) || 0) - (parseFloat(attendanceStatus.totalPauseMinutes) || 0);
             currentSessionMinutes = Math.max(0, baseNet);
             const pauseStart = new Date(attendanceStatus.currentPauseStart).getTime();
             totalPauseMinutes = (attendanceStatus.totalPauseMinutes || 0) + (now - pauseStart) / 60000;
         } else {
-            // When not paused: base = server total_work_minutes - total_pause_minutes, add elapsed since last fetch (user's local time)
             const baseWork = parseFloat(attendanceStatus.totalWorkMinutes) || 0;
             const basePause = parseFloat(attendanceStatus.totalPauseMinutes) || 0;
             const lastFetch = attendanceStatus.lastStatusFetchedAt || now;
@@ -110,20 +107,43 @@
             totalPauseMinutes = basePause;
         }
 
-        // Accumulated total: DB previous_total_hours + current session (matches checkout modal / report)
         const previousTotalHours = parseFloat(attendanceStatus.previousTotalHours) || 0;
         const previousTotalMinutes = previousTotalHours * 60;
         const totalAccumulatedMinutes = previousTotalMinutes + currentSessionMinutes;
 
+        return {
+            currentSessionMinutes: currentSessionMinutes,
+            totalPauseMinutes: totalPauseMinutes,
+            previousTotalHours: previousTotalHours,
+            previousTotalMinutes: previousTotalMinutes,
+            totalAccumulatedMinutes: totalAccumulatedMinutes
+        };
+    }
+
+    // Update timer display and modal work time (real-time)
+    function updateTimer() {
+        const v = getWorkTimeValues();
+        if (!v) return;
+
         let timerText;
-        if (previousTotalHours > 0) {
-            timerText = '<strong>' + formatHoursMinutes(totalAccumulatedMinutes) + '</strong>';
-            timerText += ' <small class="text-muted">(Session: ' + formatTime(currentSessionMinutes) + ')</small>';
+        if (v.previousTotalHours > 0) {
+            timerText = '<strong>' + formatHoursMinutes(v.totalAccumulatedMinutes) + '</strong>';
+            timerText += ' <small class="text-muted">(Session: ' + formatTime(v.currentSessionMinutes) + ')</small>';
         } else {
-            timerText = formatTime(currentSessionMinutes);
+            timerText = formatTime(v.currentSessionMinutes);
         }
         $('#timer-display').html(timerText);
-        $('#break-display').text('Break: ' + formatTime(totalPauseMinutes));
+        $('#break-display').text('Break: ' + formatTime(v.totalPauseMinutes));
+
+        // Real-time update for checkout modal when visible
+        if ($('#attendanceModal').hasClass('show') && $('#confirm-attendance-action').data('action') === 'check-out') {
+            let workTimeText = formatTime(v.currentSessionMinutes) + ' <small class="text-muted">(Session: ' + formatHoursMinutes(v.currentSessionMinutes) + ')</small>';
+            if (v.previousTotalHours > 0) {
+                workTimeText += '<br><strong>Total Today: ' + formatHoursMinutes(v.totalAccumulatedMinutes) + '</strong> <small class="text-muted">(Previous: ' + formatHoursMinutes(v.previousTotalMinutes) + ' + Current: ' + formatHoursMinutes(v.currentSessionMinutes) + ')</small>';
+            }
+            $('#modal-work-time').html(workTimeText);
+            $('#modal-break-time').text(formatTime(v.totalPauseMinutes));
+        }
     }
 
     // Start timer
@@ -255,32 +275,21 @@
             $('#check-in-info').show();
         }
 
-        // Calculate work time for current session only
-        // Note: totalWorkMinutes is calculated from current session's check-in time (from timeline), not from first check-in
-        const totalWorkMinutes = parseFloat(attendanceStatus.totalWorkMinutes) || 0;
-        const totalPauseMinutes = parseFloat(attendanceStatus.totalPauseMinutes) || 0;
-        const netWorkMinutes = totalWorkMinutes - totalPauseMinutes;
-        const sessionHours = netWorkMinutes / 60;
-
-        // Calculate accumulated total: total_hours from DB (all completed sessions) + current session
-        // previousTotalHours is the actual total_hours from database, not a time difference calculation
-        const previousTotalHours = parseFloat(attendanceStatus.previousTotalHours) || 0;
-        const totalAccumulatedHours = previousTotalHours + sessionHours;
-        const totalAccumulatedMinutes = totalAccumulatedHours * 60;
-
-        // Display current session time and accumulated total
-        const previousTotalMinutes = previousTotalHours * 60;
-        const sessionMinutes = netWorkMinutes;
-        let workTimeText = formatTime(netWorkMinutes) + ' <small class="text-muted">(Session: ' + formatHoursMinutes(sessionMinutes) + ')</small>';
-        if (previousTotalHours > 0) {
-            workTimeText += '<br><strong>Total Today: ' + formatHoursMinutes(totalAccumulatedMinutes) + '</strong> <small class="text-muted">(Previous: ' + formatHoursMinutes(previousTotalMinutes) + ' + Current: ' + formatHoursMinutes(sessionMinutes) + ')</small>';
+        // Initial display (same logic as timer; updateTimer() will keep modal-work-time real-time)
+        const v = getWorkTimeValues();
+        if (v) {
+            let workTimeText = formatTime(v.currentSessionMinutes) + ' <small class="text-muted">(Session: ' + formatHoursMinutes(v.currentSessionMinutes) + ')</small>';
+            if (v.previousTotalHours > 0) {
+                workTimeText += '<br><strong>Total Today: ' + formatHoursMinutes(v.totalAccumulatedMinutes) + '</strong> <small class="text-muted">(Previous: ' + formatHoursMinutes(v.previousTotalMinutes) + ' + Current: ' + formatHoursMinutes(v.currentSessionMinutes) + ')</small>';
+            }
+            $('#modal-work-time').html(workTimeText);
+            $('#modal-break-time').text(formatTime(v.totalPauseMinutes));
         }
-        $('#modal-work-time').html(workTimeText);
-        $('#modal-break-time').text(formatTime(totalPauseMinutes));
         $('#work-time-info').show();
         $('#break-time-info').show();
 
         // Check for overtime based on accumulated total
+        const totalAccumulatedMinutes = v ? v.totalAccumulatedMinutes : 0;
         if (totalAccumulatedMinutes > dailyWorkTimeMinutes) {
             $('#overtime-section').show();
             
