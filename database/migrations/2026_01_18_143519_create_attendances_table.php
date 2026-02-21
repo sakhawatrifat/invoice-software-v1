@@ -22,6 +22,7 @@ return new class extends Migration
             $table->enum('status', ['Present', 'Late', 'Absent', 'Half-day', 'On Leave', 'Work From Home'])->default('Present');
             $table->string('ip_address')->nullable();
             $table->string('device_browser')->nullable();
+            $table->json('location')->nullable();
             $table->longText('overtime_task_description')->nullable();
             $table->boolean('forgot_clock_out')->default(false);
             $table->timestamps();

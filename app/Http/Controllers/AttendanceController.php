@@ -115,6 +115,12 @@ class AttendanceController extends Controller
             $previousTotalHours = $attendance->total_hours;
         }
 
+        $checkInLocation = $attendance ? $attendance->user_location : null;
+        $checkInLocationUrl = null;
+        if ($attendance && !empty($attendance->location) && isset($attendance->location['lat'], $attendance->location['lng'])) {
+            $checkInLocationUrl = 'https://www.google.com/maps?q=' . urlencode((string) $attendance->location['lat']) . ',' . urlencode((string) $attendance->location['lng']);
+        }
+
         return response()->json([
             'is_checked_in' => $isCheckedIn,
             'is_paused' => $isPaused,
@@ -126,14 +132,24 @@ class AttendanceController extends Controller
             'net_work_minutes' => $totalWorkMinutes - $totalPauseMinutes,
             'previous_total_hours' => $previousTotalHours, // This is the actual total_hours from DB (all completed sessions)
             'forgot_clock_out' => $attendance && $attendance->forgot_clock_out ? true : false,
+            'check_in_location' => $checkInLocation,
+            'check_in_location_url' => $checkInLocationUrl,
         ]);
     }
 
     /**
-     * Check-in
+     * Check-in. Requires location (lat/lng) from browser geolocation.
      */
     public function checkIn(Request $request)
     {
+        $request->validate([
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+        ], [
+            'latitude.required' => __('Location is required to check in. Please allow location access.'),
+            'longitude.required' => __('Location is required to check in. Please allow location access.'),
+        ]);
+
         $user = Auth::user();
         $today = Carbon::today();
         
@@ -168,6 +184,18 @@ class AttendanceController extends Controller
 
         DB::beginTransaction();
         try {
+            $now = Carbon::now();
+            $lat = (float) $request->latitude;
+            $lng = (float) $request->longitude;
+            $location = [
+                'lat' => $lat,
+                'lng' => $lng,
+            ];
+            $locationName = Attendance::getLocationNameFromCoordinates($lat, $lng);
+            if ($locationName !== null) {
+                $location['name'] = $locationName;
+            }
+
             // Get or create attendance for today
             $attendance = Attendance::firstOrCreate(
                 [
@@ -175,21 +203,18 @@ class AttendanceController extends Controller
                     'date' => $today,
                 ],
                 [
-                    'check_in' => Carbon::now(),
+                    'check_in' => $now,
                     'status' => 'Present',
                     'ip_address' => $request->ip(),
                     'device_browser' => $request->userAgent(),
+                    'location' => $location,
                 ]
             );
 
-            $now = Carbon::now();
-            
             // If attendance exists (from previous check-out on the same day), don't update check_in
             // Keep the first check_in time, just reset check_out for new session
             if ($attendance->check_out && $attendance->date->isSameDay($today)) {
                 // Continue from previous attendance on the same day
-                // Keep first check_in, reset check_out to allow new session
-                // Add new session start to timeline: ["clock_in" => "...", "clock_out" => null, "total_time" => null]
                 $timeline = $attendance->attendance_timeline ?? [];
                 $timeline[] = [
                     'clock_in' => $now->format('Y-m-d H:i:s'),
@@ -197,16 +222,18 @@ class AttendanceController extends Controller
                     'total_time' => null
                 ];
                 $attendance->attendance_timeline = $timeline;
-                $attendance->check_out = null; // Reset check-out to allow new session
+                $attendance->check_out = null;
                 $attendance->ip_address = $request->ip();
                 $attendance->device_browser = $request->userAgent();
+                $attendance->location = $location;
                 $attendance->status = 'Present';
                 $attendance->save();
             } elseif (empty($attendance->check_in)) {
-                // First time check-in for today - set check_in (this will be the first and only check_in)
+                // First time check-in for today
                 $attendance->check_in = $now;
                 $attendance->ip_address = $request->ip();
                 $attendance->device_browser = $request->userAgent();
+                $attendance->location = $location;
                 $attendance->save();
             }
 

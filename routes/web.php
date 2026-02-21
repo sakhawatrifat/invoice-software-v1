@@ -3,6 +3,7 @@
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
 
 
 // Common Controllers
@@ -15,6 +16,9 @@ use App\Http\Controllers\TicketReminderController as CommonTicketReminderControl
 use App\Http\Controllers\HotelInvoiceController as CommonHotelInvoiceController;
 use App\Http\Controllers\PaymentController as CommonPaymentController;
 use App\Http\Controllers\StaffController as CommonStaffController;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\EmailMarketingController;
+use App\Http\Controllers\WhatsAppMarketingController;
 
 use App\Http\Controllers\IntroductionSourceController as CommonIntroductionSourceController;
 use App\Http\Controllers\IssuedSupplierController as CommonIssuedSupplierController;
@@ -97,6 +101,18 @@ Route::get('/seed-country', function () {
     return 'Country seed done.';
 });
 
+Route::get('/update-users-uid', function () {
+    $updated = 0;
+    \App\Models\User::query()->chunkById(100, function ($users) use (&$updated) {
+        foreach ($users as $user) {
+            $user->uid = uniqid();
+            $user->save();
+            $updated++;
+        }
+    });
+    return response()->json(['message' => 'All users uid updated.', 'updated' => $updated]);
+});
+
 // Home Routes
 Route::controller(HomeController::class)->group(function () {
     Route::get('/', 'home')->name('home');
@@ -122,8 +138,28 @@ Route::controller(UserAuthController::class)->group(function () {
     Route::get('logout', 'logout')->name('logout');
 });
 
+// Public ticket view by ticket_uid (no auth; for QR code / share link)
+Route::get('/ticket/view/{ticket_uid}', [CommonTicketController::class, 'publicShow'])->name('ticket.public.show');
+
 
 Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], function () {
+
+    // Internal Chat (all users)
+    Route::controller(ChatController::class)->prefix('chat')->name('chat.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/activity', 'activity')->name('activity');
+        Route::get('/conversations', 'conversations')->name('conversations');
+        Route::get('/messages/{otherUserId}', 'messages')->name('messages');
+        Route::post('/send', 'send')->name('send');
+        Route::post('/send-file', 'sendFile')->name('sendFile');
+        Route::post('/mark-read', 'markRead')->name('markRead');
+        Route::post('/delete-for-me', 'deleteForMe')->name('deleteForMe');
+        Route::post('/delete-for-all', 'deleteForAll')->name('deleteForAll');
+        Route::post('/delete-conversation', 'deleteConversation')->name('deleteConversation');
+        Route::get('/history/{messageId}', 'history')->name('history');
+        Route::get('/last-seen', 'lastSeen')->name('lastSeen');
+        Route::get('/download/{messageId}', 'downloadFile')->name('download');
+    });
 
     // Admin Routes
     Route::group(['middleware' => ['admin']], function () {
@@ -331,6 +367,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
 
         Route::get('/ticket/edit/{id}', 'edit')->name('ticket.edit');
         Route::put('/ticket/update/{id}', 'update')->name('ticket.update');
+        Route::get('/ticket/update-missing-ticket-uid', 'updateMissingTicketUid')->name('ticket.updateMissingTicketUid');
         Route::delete('/ticket/delete/{id}', 'destroy')->name('ticket.destroy');
     });
 
@@ -370,6 +407,19 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::delete('/hotel-invoice/delete/{id}', 'destroy')->name('hotel.invoice.destroy');
     });
 
+    // Sticky Note Routes
+    Route::controller(\App\Http\Controllers\StickyNoteController::class)->group(function () {
+        Route::get('/sticky-note-list', 'index')->name('sticky_note.index');
+        Route::get('/sticky-note-datatable', 'datatable')->name('sticky_note.datatable');
+        Route::get('/sticky-note/create', 'create')->name('sticky_note.create');
+        Route::post('/sticky-note/store', 'store')->name('sticky_note.store');
+        Route::get('/sticky-note/show/{id}', 'show')->name('sticky_note.show');
+        Route::get('/sticky-note/edit/{id}', 'edit')->name('sticky_note.edit');
+        Route::put('/sticky-note/update/{id}', 'update')->name('sticky_note.update');
+        Route::put('/sticky-note/update-status/{id}', 'updateStatus')->name('sticky_note.updateStatus');
+        Route::get('/sticky-note/upcoming-drawer-data', 'upcomingDrawerData')->name('sticky_note.upcomingDrawerData');
+        Route::delete('/sticky-note/delete/{id}', 'destroy')->name('sticky_note.destroy');
+    });
 
     //Common Payment Routes
     Route::controller(CommonPaymentController::class)->group(function () {
@@ -529,6 +579,16 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::post('/ticket-reminder-mail-form', 'saveReminderInformation')->name('ticket.reminder.save');
 
         //Route::get('/reminder-mail', 'sendReminderMail');
+    });
+
+    // Marketing Routes
+    Route::controller(EmailMarketingController::class)->group(function () {
+        Route::get('/email-marketing', 'form')->name('marketing.email.form');
+        Route::post('/email-marketing/send', 'send')->name('marketing.email.send');
+    });
+    Route::controller(WhatsAppMarketingController::class)->group(function () {
+        Route::get('/whatsapp-marketing', 'form')->name('marketing.whatsapp.form');
+        Route::post('/whatsapp-marketing/send', 'send')->name('marketing.whatsapp.send');
     });
 
     //Common Notification Routes

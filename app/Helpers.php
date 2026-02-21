@@ -399,6 +399,9 @@ if (!function_exists('handleImageUpload')) {
                 $image = Image::make($uploadedFile->getPathname());
             }
 
+            // Apply EXIF orientation so rotated phone photos display correctly when sent/uploaded
+            $image->orientate();
+
             // Resize the image while maintaining the original aspect ratio
             if($resizeMaxWidth != null && $resizeMaxHeight != null){
                 $image->resize($resizeMaxWidth, $resizeMaxHeight, function ($constraint) {
@@ -419,6 +422,72 @@ if (!function_exists('handleImageUpload')) {
         } catch (\Exception $e) {
             \Log::error('Error on uploading image', ['error' => $e->getMessage()]);
             // Log or handle the error as needed
+            return null;
+        }
+    }
+}
+
+/**
+ * Convert/save video file. Saves to storage/app/public. Optionally converts to MP4 via FFmpeg if available.
+ *
+ * @param  \Illuminate\Http\UploadedFile  $uploadedFile
+ * @param  string  $folderName  Folder under storage/app/public (e.g. 'chat-files')
+ * @param  string|null  $fileName  Base name (without extension); null = use original name + uniqid
+ * @param  array  $options  ['convert_to_mp4' => true, 'max_width' => 1280, 'max_height' => 720]
+ * @return string|null  Relative path (e.g. 'chat-files/video-xxx.mp4') or null on failure
+ */
+if (!function_exists('convertVideo')) {
+    function convertVideo($uploadedFile, $folderName = 'chat-files', $fileName = null, $options = [])
+    {
+        $folderName = rtrim($folderName, '/') . '/';
+        $outputDir = storage_path('app/public/' . $folderName);
+
+        if (!file_exists($outputDir)) {
+            mkdir($outputDir, 0755, true);
+        }
+
+        $originalExtension = strtolower($uploadedFile->getClientOriginalExtension());
+        $baseName = $fileName !== null ? $fileName . '-' . uniqid() : pathinfo($uploadedFile->getClientOriginalName(), PATHINFO_FILENAME) . '-' . uniqid();
+        $videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'm4v', 'wmv'];
+        $isVideo = in_array($originalExtension, $videoExtensions);
+
+        $convertToMp4 = ($options['convert_to_mp4'] ?? true) && $isVideo;
+        $maxWidth = (int) ($options['max_width'] ?? 1280);
+        $maxHeight = (int) ($options['max_height'] ?? 720);
+
+        $tempPath = $uploadedFile->getRealPath();
+        $relativePath = $folderName . $baseName . '.' . $originalExtension;
+        $outputPath = $outputDir . $baseName . '.' . $originalExtension;
+
+        try {
+            if ($convertToMp4 && $isVideo && function_exists('exec')) {
+                $ffmpeg = 'ffmpeg';
+                if (strtoupper(substr(PHP_OS, 0, 3)) !== 'WIN') {
+                    $which = trim((string) exec('which ffmpeg 2>/dev/null'));
+                    if ($which !== '') {
+                        $ffmpeg = $which;
+                    }
+                }
+                $mp4Output = $outputDir . $baseName . '.mp4';
+                // Scale to fit within max dimensions (output at most max_width x max_height)
+                $scale = "scale={$maxWidth}:{$maxHeight}:force_original_aspect_ratio=decrease";
+                $cmd = sprintf(
+                    '%s -y -i %s -c:v libx264 -preset fast -crf 23 -vf %s -c:a aac -movflags +faststart %s 2>&1',
+                    escapeshellcmd($ffmpeg),
+                    escapeshellarg($tempPath),
+                    escapeshellarg($scale),
+                    escapeshellarg($mp4Output)
+                );
+                exec($cmd, $out, $code);
+                if ($code === 0 && file_exists($mp4Output)) {
+                    return $folderName . $baseName . '.mp4';
+                }
+            }
+
+            $uploadedFile->move($outputDir, $baseName . '.' . $originalExtension);
+            return $relativePath;
+        } catch (\Exception $e) {
+            \Log::error('Error on converting/saving video', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -1189,6 +1258,25 @@ if (!function_exists('getPermissionList')) {
                     ['title' => 'status', 'key' => 'hotel.invoice.status'],
                     ['title' => 'delete', 'key' => 'hotel.invoice.delete'],
                     ['title' => 'mail', 'key' => 'hotel.invoice.mail'],
+                ],
+            ],
+            [
+                'title' => 'manage_sticky_notes',
+                'for' => 'all_user',
+                'permissions' => [
+                    ['title' => 'list', 'key' => 'sticky_note.index'],
+                    ['title' => 'create', 'key' => 'sticky_note.create'],
+                    ['title' => 'show', 'key' => 'sticky_note.show'],
+                    ['title' => 'edit', 'key' => 'sticky_note.edit'],
+                    ['title' => 'delete', 'key' => 'sticky_note.delete'],
+                ],
+            ],
+            [
+                'title' => 'manage_marketing',
+                'for' => 'all_user',
+                'permissions' => [
+                    ['title' => 'email_marketing', 'key' => 'email_marketing'],
+                    ['title' => 'whatsapp_marketing', 'key' => 'whatsapp_marketing'],
                 ],
             ],
             [

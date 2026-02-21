@@ -44,7 +44,8 @@ class UserController extends Controller
         if (request()->has('search') && $search = request('search')['value']) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('employee_uid', 'like', "%{$search}%");
             });
 
             // Search users by company and filter by their IDs
@@ -71,6 +72,12 @@ class UserController extends Controller
 
         return DataTables::of($query)
             ->addIndexColumn()
+            ->addColumn('id', function ($row) {
+                return $row->id;
+            })
+            ->addColumn('employee_uid', function ($row) {
+                return $row->employee_uid ?? '—';
+            })
             ->addColumn('company_id', function ($row) {
                 if ($row->company_data) {
                     $logo = $row->company_data->dark_logo_url 
@@ -396,6 +403,7 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'admin' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
+            'employee_uid' => 'nullable|string|max:100',
             'image' => 'nullable|mimes:' . $logoMimes . '|max:' . $maxImageSize,
             'address' => 'nullable|string|max:255',
             'phone' => 'nullable|string',
@@ -514,6 +522,7 @@ class UserController extends Controller
         if (empty($user)) {
             $user = new User();
             $user->created_by = Auth::id();
+            $user->uid = uniqid();
         } else {
             $user->updated_by = Auth::id();
         }
@@ -529,6 +538,7 @@ class UserController extends Controller
 
             //$user->user_id = $userId;
             $user->name = $request->name ?? null;
+            $user->employee_uid = $request->employee_uid ? trim($request->employee_uid) : null;
             $user->image = $image;
             $user->address = $request->address;
             $user->phone = $request->phone;

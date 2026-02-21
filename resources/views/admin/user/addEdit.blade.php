@@ -99,6 +99,15 @@
 									</div>
 								</div>
 
+								<div class="col-md-6">
+									<div class="form-item mb-5">
+										<label class="form-label">{{ $getCurrentTranslation['employee_uid'] ?? 'Employee UID' }}:</label>
+										<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['employee_uid_placeholder'] ?? 'Employee / User ID' }}" name="employee_uid" value="{{ old('employee_uid') ?? $editData->employee_uid ?? '' }}"/>
+										@error('employee_uid')
+											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+										@enderror
+									</div>
+								</div>
 
 								{{-- <div class="col-md-6">
 									<div class="form-item mb-5">

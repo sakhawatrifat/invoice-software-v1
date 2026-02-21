@@ -176,6 +176,26 @@ textarea.ck-editor.ckeditor-initialized {
     align-items: center;
     justify-content: center;
 }
+
+.sticky-note-toggle {
+    position: relative;
+}
+
+.sticky-note-toggle .sticky-note-count {
+    position: absolute;
+    top: 0;
+    right: 0px;
+    width: 20px;
+    height: 20px;
+    border-radius: 100%;
+    font-size: 12px;
+    background: #009ef7;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .dashboard-card .card-header {
     transition: all 0.3s ease;
     position: relative;
@@ -312,10 +332,21 @@ td .mf-prev .image {
 td .mf-prev:before {
     display: none;
 }
+.mf-img-popup-img-wrap {
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
 .mf-img-popup img {
-    max-width: 90%;
-    max-height: 90%;
+    max-width: none;
+    max-height: none;
     width: auto;
+    height: auto;
+    object-fit: contain;
+    flex-shrink: 0;
     opacity: 0;
     transform: translateY(-100px);
     -webkit-transform: translateY(-100px);
@@ -323,6 +354,31 @@ td .mf-prev:before {
     -ms-transform: translateY(-100px);
     -o-transform: translateY(-100px);
 }
+
+.mf-img-popup-rotate-btn {
+    margin-right: 12px;
+    width: 35px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 20px;
+    right: 60px;
+    cursor: pointer;
+    color: #fff;
+    font-size: 16px;
+    transition: color 0.2s ease;
+}
+.mf-img-popup-rotate-btn i{
+    font-size: 32px;
+    color: #fff;
+    transition: color 0.2s ease;
+}
+.mf-img-popup-rotate-btn:hover i{
+    color: #009ef7;
+}
+
 
 .mf-img-popup-close-btn {
     width: 35px;
@@ -373,7 +429,8 @@ td .mf-prev:before {
 .mf-popup-visible .closed-sidebar .mf-img-popup {
     width: calc(100% - 80px);
 }
-.mf-popup-visible .mf-img-popup-close-btn {
+.mf-popup-visible .mf-img-popup-close-btn,
+.mf-popup-visible .mf-img-popup-rotate-btn {
     top: 20px;
 }
 @keyframes animatemfimgpopup {
@@ -723,4 +780,93 @@ a.brand-logo-min img {
 #kt_app_sidebar_menu_wrapper.hover-scroll-overlay-y {
     scrollbar-width: thin !important;
     scrollbar-color: rgba(0, 0, 0, 0.2) transparent !important;
+}
+#chat-widget-badge {
+    left: 80%!important;
+}
+#chat-thread-placeholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Chat: double green circle for read (seen) message */
+.chat-msg-seen-double-circle {
+    display: inline-flex;
+    align-items: center;
+}
+.chat-msg-seen-double-circle *{
+    color: #25D366;
+}
+.chat-msg-seen-double-circle .fa-circle {
+    font-size: 6px;
+}
+.chat-msg-seen-double-circle .fa-circle:last-child {
+    margin-left: -4px;
+}
+.chat-msg-status-icon {
+    display: inline-flex;
+    align-items: center;
+}
+.chat-msg-status-icon .fa-check,
+.chat-msg-status-icon .fa-check-double {
+    opacity: 0.9;
+}
+
+/* Bounce highlight when scrolling to a replied-to message (WhatsApp-style) */
+.chat-msg-row-reply-target .chat-msg-bubble {
+    position: relative;
+    animation: chat-reply-bounce 1.2s ease-out;
+    overflow: hidden;
+    isolation: isolate;
+}
+.chat-msg-row-reply-target .chat-msg-bubble::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 0.375rem;
+    background: linear-gradient(135deg, rgba(0, 158, 247, 0.7), rgba(114, 57, 234, 0.6), rgba(80, 205, 137, 0.5));
+    opacity: 0;
+    animation: chat-reply-bg-blink 1.2s ease-out forwards;
+    pointer-events: none;
+    z-index: 0;
+}
+.chat-msg-row-reply-target .chat-msg-bubble .chat-msg-body,
+.chat-msg-row-reply-target .chat-msg-bubble .d-flex {
+    position: relative;
+    z-index: 1;
+}
+@keyframes chat-reply-bounce {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(0, 158, 247, 0.35);
+    }
+    15% {
+        transform: scale(1.04);
+        box-shadow: 0 0 0 6px rgba(0, 158, 247, 0.25);
+    }
+    30% {
+        transform: scale(0.98);
+        box-shadow: 0 0 0 4px rgba(0, 158, 247, 0.15);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 2px rgba(0, 158, 247, 0.08);
+    }
+    70%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 transparent;
+    }
+}
+@keyframes chat-reply-bg-blink {
+    0% { opacity: 0; }
+    12% { opacity: 0.85; }
+    30% { opacity: 0.6; }
+    50% { opacity: 0.35; }
+    70% { opacity: 0.15; }
+    85%, 100% { opacity: 0; }
 }

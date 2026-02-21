@@ -78,8 +78,25 @@
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <strong>{{ $getCurrentTranslation['ticket_label'] ?? 'ticket_label' }}:</strong>
-                                                <p>{{ $editData->ticket?->invoice_id ?? 'N/A' }} ({{ $editData->ticket?->reservation_number ?? '' }})</p>
+                                                <p>
+                                                    {{ $editData->ticket?->invoice_id ?? 'N/A' }} ({{ $editData->ticket?->reservation_number ?? '' }})
+                                                </p>
                                             </div>
+                                            <div class="col-md-4 mb-3">
+                                                <strong>{{ $getCurrentTranslation['total_mail_sent_count'] ?? 'Total Mail Sent' }}:</strong>
+                                                <p>{{ $editData->ticket?->mail_sent_count ?? 0 }}</p>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <strong>{{ $getCurrentTranslation['ticket_created'] ?? 'Ticket created' }}:</strong>
+                                                <p class="mb-0"><strong>{{ $getCurrentTranslation['at_label'] ?? 'At' }}</strong>: {{ $editData->ticket && $editData->ticket->created_at ? date('Y-m-d H:i', strtotime($editData->ticket->created_at)) : 'N/A' }}</p>
+                                                <p class="mb-0"><strong>{{ $getCurrentTranslation['by_label'] ?? 'By' }}</strong>: {{ $editData->ticket?->creator?->name ?? $editData->ticket?->created_by ?? 'N/A' }}</p>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <strong>{{ $getCurrentTranslation['ticket_updated'] ?? 'Ticket updated' }}:</strong>
+                                                <p class="mb-0"><strong>{{ $getCurrentTranslation['at_label'] ?? 'At' }}</strong>: {{ $editData->ticket && $editData->ticket->updated_at ? date('Y-m-d H:i', strtotime($editData->ticket->updated_at)) : 'N/A' }}</p>
+                                                <p class="mb-0"><strong>{{ $getCurrentTranslation['by_label'] ?? 'By' }}</strong>: {{ $editData->ticket?->updater?->name ?? $editData->ticket?->updated_by ?? 'N/A' }}</p>
+                                            </div>
+                                            
                                             <div class="col-md-4 mb-3">
                                                 <strong>{{ $getCurrentTranslation['client_name_label'] ?? 'client_name_label' }}:</strong>
                                                 <p>{{ $editData->client_name ?? 'N/A' }}</p>
@@ -484,6 +501,32 @@
                                     </div>
                                 @endif
 
+                                <!-- Record Audit (Created/Updated) -->
+                                <div class="card mb-4">
+                                    <div class="card-header align-items-center bg-dark text-white">
+                                        <h5 class="mb-0 text-white">{{ $getCurrentTranslation['record_audit'] ?? 'Record Audit' }}</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-3 mb-3">
+                                                <strong>{{ $getCurrentTranslation['created_at_label'] ?? 'Created At' }}:</strong>
+                                                <p class="mb-0">{{ $editData->created_at ? date('Y-m-d H:i', strtotime($editData->created_at)) : 'N/A' }}</p>
+                                            </div>
+                                            <div class="col-md-3 mb-3">
+                                                <strong>{{ $getCurrentTranslation['created_by_label'] ?? 'Created By' }}:</strong>
+                                                <p class="mb-0">{{ $editData->creator?->name ?? $editData->created_by ?? 'N/A' }}</p>
+                                            </div>
+                                            <div class="col-md-3 mb-3">
+                                                <strong>{{ $getCurrentTranslation['updated_at_label'] ?? 'Updated At' }}:</strong>
+                                                <p class="mb-0">{{ $editData->updated_at ? date('Y-m-d H:i', strtotime($editData->updated_at)) : 'N/A' }}</p>
+                                            </div>
+                                            <div class="col-md-3 mb-3">
+                                                <strong>{{ $getCurrentTranslation['updated_by_label'] ?? 'Updated By' }}:</strong>
+                                                <p class="mb-0">{{ $editData->updater?->name ?? $editData->updated_by ?? 'N/A' }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
                             </div>
                         </div>

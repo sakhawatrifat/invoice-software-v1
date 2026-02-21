@@ -156,6 +156,17 @@
 			        <!--end::Drawer toggle-->
 			    </div>
 
+				@if(function_exists('hasPermission') && hasPermission('sticky_note.index'))
+				<div class="app-navbar-item me-2">
+			        <!--begin::Drawer toggle-->
+			        <div class="menu-link px-3 py-2 cursor-pointer sticky-note-toggle" id="kt_sticky_note_toggle" title="{{ $getCurrentTranslation['upcoming_sticky_notes'] ?? 'upcoming_sticky_notes' }}">
+			            <i class="fa-solid fa-note-sticky fa-2x"></i>
+			            <span class="sticky-note-count">{{ isset($upcomingStickyNotes) ? $upcomingStickyNotes->where('read_status', 0)->count() : 0 }}</span>
+			        </div>
+			        <!--end::Drawer toggle-->
+			    </div>
+			    @endif
+
 				<div class="app-navbar-item me-3">
 			        <!--begin::Drawer toggle-->
 			        <div class="menu-link px-3 py-2 cursor-pointer notification-toggle" id="kt_notification_toggle">
@@ -549,6 +560,14 @@
     </div>
 </div>
 <!--end::notification drawer-->
+
+@if(function_exists('hasPermission') && hasPermission('sticky_note.index'))
+@include('common._partials.sticky-notes-drawer')
+@if(isset($reminderDueStickyNotes) && $reminderDueStickyNotes->isNotEmpty())
+@include('common._partials.sticky-note-reminder-modal')
+@endif
+@endif
+
 <!--end::Drawers-->
 
 <!--begin::Attendance Modal-->
@@ -572,6 +591,10 @@
 					</div>
 					<div class="mb-3" id="check-in-info" style="display: none;">
 						<strong>{{ $getCurrentTranslation['check_in_time'] ?? 'Check In Time' }}:</strong> <span id="modal-check-in-time"></span>
+					</div>
+					<div class="mb-3" id="check-in-location-info" style="display: none;">
+						<strong>{{ $getCurrentTranslation['location'] ?? 'Location' }}:</strong> <span id="modal-check-in-location"></span>
+						<span id="modal-check-in-location-link-wrap"></span>
 					</div>
 					<div class="mb-3" id="work-time-info" style="display: none;">
 						<strong>{{ $getCurrentTranslation['total_work_time'] ?? 'Total Work Time' }}:</strong> <span id="modal-work-time"></span>

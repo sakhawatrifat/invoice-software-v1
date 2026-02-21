@@ -81,6 +81,19 @@
 						{{ $attendance->device_browser ?? 'N/A' }}
 					</div>
 					<div class="col-md-3">
+						<strong>{{ $getCurrentTranslation['location'] ?? 'Location' }}:</strong><br>
+						@if($attendance->user_location)
+							{{ $attendance->user_location }}
+							@if(!empty($attendance->location) && isset($attendance->location['lat'], $attendance->location['lng']))
+								<br><a href="https://www.google.com/maps?q={{ $attendance->location['lat'] }},{{ $attendance->location['lng'] }}" target="_blank" rel="noopener" class="small">{{ $getCurrentTranslation['view_on_map'] ?? 'View on map' }}</a>
+							@endif
+						@else
+							<span class="text-muted">{{ $getCurrentTranslation['no_location_recorded'] ?? '—' }}</span>
+						@endif
+					</div>
+				</div>
+				<div class="row mt-3">
+					<div class="col-md-3">
 						<strong>{{ $getCurrentTranslation['forgot_clock_out'] ?? 'Forgot Clock Out' }}:</strong><br>
 						@if($attendance->forgot_clock_out)
 							<span class="badge badge-danger">{{ $getCurrentTranslation['yes'] ?? 'Yes' }}</span>

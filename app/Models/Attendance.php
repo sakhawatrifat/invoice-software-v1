@@ -5,6 +5,8 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 class Attendance extends Model
 {
@@ -20,6 +22,7 @@ class Attendance extends Model
         'status',
         'ip_address',
         'device_browser',
+        'location',
         'overtime_task_description',
         'forgot_clock_out',
     ];
@@ -30,10 +33,11 @@ class Attendance extends Model
         'check_out' => 'datetime',
         'total_hours' => 'decimal:2',
         'attendance_timeline' => 'array',
+        'location' => 'array',
         'forgot_clock_out' => 'boolean',
     ];
 
-    protected $appends = ['running_total_hour'];
+    protected $appends = ['running_total_hour', 'user_location'];
 
     /**
      * Get running total hours (for active clock-ins)
@@ -107,6 +111,68 @@ class Attendance extends Model
         }
 
         return round($totalHours, 2);
+    }
+
+    /**
+     * Reverse geocode lat/lng to a place name (Nominatim). Result is cached for 30 days.
+     * Used at check-in to store the name and for legacy records that don't have name stored.
+     */
+    public static function getLocationNameFromCoordinates(float $lat, float $lng): ?string
+    {
+        $cacheKey = 'attendance_location_name_' . number_format($lat, 4) . '_' . number_format($lng, 4);
+
+        return Cache::remember($cacheKey, now()->addDays(30), function () use ($lat, $lng) {
+            try {
+                $response = Http::withHeaders([
+                    'User-Agent' => config('app.name', 'Laravel') . ' Attendance/1.0',
+                ])->get('https://nominatim.openstreetmap.org/reverse', [
+                    'lat' => $lat,
+                    'lon' => $lng,
+                    'format' => 'json',
+                ]);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+                    return $data['display_name'] ?? null;
+                }
+            } catch (\Throwable $e) {
+                return number_format($lat, 5) . ', ' . number_format($lng, 5);
+            }
+
+            return number_format($lat, 5) . ', ' . number_format($lng, 5);
+        });
+    }
+
+    /**
+     * Human-readable location name. Uses stored name when present (set at check-in),
+     * otherwise reverse geocodes for legacy records (cached).
+     */
+    public function getUserLocationAttribute(): ?string
+    {
+        $location = $this->location;
+        if (empty($location) || !isset($location['lat'], $location['lng'])) {
+            return null;
+        }
+
+        if (!empty($location['name'])) {
+            return $location['name'];
+        }
+
+        $lat = (float) $location['lat'];
+        $lng = (float) $location['lng'];
+        return self::getLocationNameFromCoordinates($lat, $lng);
+    }
+
+    /**
+     * Google Maps URL for this attendance's check-in location (for use in views).
+     */
+    public function getLocationMapUrlAttribute(): ?string
+    {
+        $location = $this->location;
+        if (empty($location) || !isset($location['lat'], $location['lng'])) {
+            return null;
+        }
+        return 'https://www.google.com/maps?q=' . urlencode((string) $location['lat']) . ',' . urlencode((string) $location['lng']);
     }
 
     public function employee()

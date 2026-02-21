@@ -47,5 +47,6 @@ class DatabaseSeeder extends Seeder
         $this->call(HRMSeeder::class);
         $this->call(ExpenseSeeder::class);
         $this->call(CRMSeeder::class);
+        $this->call(TranslationSeeder::class);
     }
 }

@@ -1,0 +1,47 @@
+ALTER TABLE users
+ADD COLUMN department_id BIGINT NULL AFTER name,
+ADD COLUMN designation_id BIGINT NULL AFTER department_id,
+ADD COLUMN salary_amount DECIMAL(20,2) NULL DEFAULT 0 AFTER designation_id,
+ADD COLUMN joining_date DATE NULL AFTER designation_id,
+ADD COLUMN employment_type ENUM('Full-time', 'Part-time', 'Contract') NULL AFTER joining_date;
+
+ALTER TABLE ticket_passengers
+ADD COLUMN gender ENUM(
+    'Male',
+    'Female',
+    'Transgender',
+    'Non-binary',
+    'Genderqueer',
+    'Genderfluid',
+    'Agender',
+    'Bigender',
+    'Two-Spirit',
+    'Other',
+    'Prefer not to say'
+) NULL AFTER date_of_birth;
+
+===========================
+
+
+ALTER TABLE `users`
+    ADD COLUMN `employee_uid` VARCHAR(255) NULL AFTER `uid`,
+    ADD COLUMN `last_seen_at` TIMESTAMP NULL AFTER `remember_token`;
+
+ALTER TABLE `tickets`
+    ADD COLUMN `ticket_uid` VARCHAR(255) NULL AFTER `user_id`;
+
+ALTER TABLE `ticket_passengers`
+    ADD COLUMN `nationality` LONGTEXT NULL AFTER `gender`;
+
+ALTER TABLE `attendances`
+    ADD COLUMN `location` JSON NULL AFTER `device_browser`;
+
+
+
+#New Tables:
+chat_messages
+chat_message_hidden
+chat_message_reads
+sticky_notes
+sticky_note_user
+sticky_note_activities

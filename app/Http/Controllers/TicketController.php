@@ -30,6 +30,7 @@ use App\Models\TicketFlight;
 use App\Models\TicketPassenger;
 use App\Models\TicketPassengerFlight;
 use App\Models\TicketFareSummary;
+use App\Models\Translation;
 
 use App\Models\Payment;
 use App\Models\PaymentDocument;
@@ -627,6 +628,34 @@ class TicketController extends Controller
         return view('common.ticket.details', get_defined_vars());
     }
 
+    /**
+     * Public ticket view by ticket_uid (no auth). Used for QR code / share link.
+     */
+    public function publicShow($ticket_uid)
+    {
+        if (empty($ticket_uid)) {
+            abort(404);
+        }
+
+        $ticket = Ticket::with([
+            'allFlights',
+            'allFlights.transits',
+            'allFlights.airline',
+            'passengers',
+            'passengers.flights',
+            'fareSummary',
+            'user',
+            'user.company',
+        ])->where('ticket_uid', $ticket_uid)->first();
+
+        if (!$ticket) {
+            abort(404);
+        }
+
+        $translations = Translation::where('lang', 'en')->pluck('lang_value', 'lang_key')->toArray();
+        return view('common.ticket.public-details', compact('ticket', 'translations'));
+    }
+
     // public function downloadPdf(Request $request, $id){
     //     $user = Auth::user();
     //     $editData = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'user.company', 'creator')->where('id', $id)->first();
@@ -756,6 +785,7 @@ class TicketController extends Controller
             $newTicket->reservation_number = $original->reservation_number . '-' . strtoupper(Str::random(4));
             $newTicket->invoice_id = generateInvoiceId();
             $newTicket->booking_status = 'On Hold';
+            $newTicket->mail_sent_count = 0;
             $newTicket->created_by = $user->id;
             $newTicket->updated_by = $user->id;
             $newTicket->created_at = now();
@@ -1296,6 +1326,7 @@ class TicketController extends Controller
                 $ticket = new Ticket();
                 $ticket->created_by = Auth::id();
                 $ticket->document_type = $request->document_type ?? 'ticket';
+                $ticket->ticket_uid = bcrypt(uniqid((string) mt_rand(), true));
             }else{
                 $ticket->updated_by = Auth::id();
             }
@@ -2051,6 +2082,40 @@ class TicketController extends Controller
         ];
 
        
+    }
+
+    /**
+     * Backfill missing ticket_uid for existing tickets (admin only).
+     */
+    public function updateMissingTicketUid(Request $request)
+    {
+        $user = Auth::user();
+        $isAdmin = $user && $user->user_type === 'admin' && $user->is_staff != 1;
+        if (!$isAdmin) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
+            ]);
+        }
+
+        $updated = 0;
+
+        Ticket::orderBy('id')
+            ->chunkById(200, function ($tickets) use (&$updated) {
+                foreach ($tickets as $ticket) {
+                    $ticket->ticket_uid = uniqid();
+                    $ticket->save();
+                    $updated++;
+                }
+            });
+
+        return response()->json([
+            'is_success' => 1,
+            'icon' => 'success',
+            'message' => 'Updated ticket_uid: ' . $updated,
+            'updated' => $updated,
+        ]);
     }
     
 }

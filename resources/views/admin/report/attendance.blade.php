@@ -473,7 +473,7 @@
 													</tr>
 												@empty
 													<tr>
-														<td colspan="12" class="p-10 text-center">
+														<td colspan="13" class="p-10 text-center">
 															{{ $getCurrentTranslation['no_data_found_for_selected_filter'] ?? 'no_data_found_for_selected_filter' }}
 														</td>
 													</tr>

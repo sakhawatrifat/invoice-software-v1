@@ -12,6 +12,8 @@
         isCheckedIn: false,
         isPaused: false,
         checkInTime: null,
+        checkInLocation: null,
+        checkInLocationUrl: null,
         totalWorkMinutes: 0,
         totalPauseMinutes: 0,
         currentPauseStart: null,
@@ -24,16 +26,31 @@
         modalClockInterval: null // Real-time clock for modal
     };
 
+    // Location for check-in (set after user allows geolocation)
+    let pendingCheckInLocation = null;
+
     const dailyWorkTimeHours = {{ env('DAILY_WORK_TIME', 8) }};
     const dailyWorkTimeMinutes = dailyWorkTimeHours * 60;
 
-    // Format time helper (HH:MM:SS)
+    // Format time helper (HH:MM:SS). Clamp to non-negative so break/work never show minus.
     function formatTime(minutes) {
-        const hours = Math.floor(minutes / 60);
-        const mins = Math.floor(minutes % 60);
-        const secs = Math.floor((minutes % 1) * 60);
-        return String(hours).padStart(2, '0') + ':' + 
-               String(mins).padStart(2, '0') + ':' + 
+        const m = Math.max(0, Number(minutes) || 0);
+        const hours = Math.floor(m / 60);
+        const mins = Math.floor(m % 60);
+        const secs = Math.floor((m % 1) * 60);
+        return String(hours).padStart(2, '0') + ':' +
+               String(mins).padStart(2, '0') + ':' +
+               String(secs).padStart(2, '0');
+    }
+
+    // Format total seconds as HH:MM:SS (for live break timer that ticks every second)
+    function formatTimeFromSeconds(totalSeconds) {
+        const s = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+        const hours = Math.floor(s / 3600);
+        const mins = Math.floor((s % 3600) / 60);
+        const secs = s % 60;
+        return String(hours).padStart(2, '0') + ':' +
+               String(mins).padStart(2, '0') + ':' +
                String(secs).padStart(2, '0');
     }
 
@@ -96,31 +113,37 @@
         if (attendanceStatus.isPaused && attendanceStatus.currentPauseStart) {
             const baseNet = (parseFloat(attendanceStatus.totalWorkMinutes) || 0) - (parseFloat(attendanceStatus.totalPauseMinutes) || 0);
             currentSessionMinutes = Math.max(0, baseNet);
-            const pauseStart = new Date(attendanceStatus.currentPauseStart).getTime();
-            totalPauseMinutes = (attendanceStatus.totalPauseMinutes || 0) + (now - pauseStart) / 60000;
+            // Live break: server already included current pause up to fetch time; add only elapsed since fetch
+            const lastFetch = attendanceStatus.lastStatusFetchedAt || now;
+            const addedSinceFetchMinutes = (now - lastFetch) / 60000;
+            totalPauseMinutes = Math.max(0, (parseFloat(attendanceStatus.totalPauseMinutes) || 0) + addedSinceFetchMinutes);
         } else {
             const baseWork = parseFloat(attendanceStatus.totalWorkMinutes) || 0;
             const basePause = parseFloat(attendanceStatus.totalPauseMinutes) || 0;
             const lastFetch = attendanceStatus.lastStatusFetchedAt || now;
             const elapsedMinutes = (now - lastFetch) / 60000;
             currentSessionMinutes = Math.max(0, (baseWork - basePause) + elapsedMinutes);
-            totalPauseMinutes = basePause;
+            totalPauseMinutes = Math.max(0, basePause);
         }
 
         const previousTotalHours = parseFloat(attendanceStatus.previousTotalHours) || 0;
         const previousTotalMinutes = previousTotalHours * 60;
         const totalAccumulatedMinutes = previousTotalMinutes + currentSessionMinutes;
 
+        // Break time in seconds for live HH:MM:SS (from same totalPauseMinutes so header and modal stay in sync)
+        const totalPauseSeconds = Math.max(0, Math.floor((totalPauseMinutes || 0) * 60));
+
         return {
             currentSessionMinutes: currentSessionMinutes,
             totalPauseMinutes: totalPauseMinutes,
+            totalPauseSeconds: totalPauseSeconds,
             previousTotalHours: previousTotalHours,
             previousTotalMinutes: previousTotalMinutes,
             totalAccumulatedMinutes: totalAccumulatedMinutes
         };
     }
 
-    // Update timer display and modal work time (real-time)
+    // Update timer display and modal work time (real-time, every second via setInterval)
     function updateTimer() {
         const v = getWorkTimeValues();
         if (!v) return;
@@ -133,16 +156,19 @@
             timerText = formatTime(v.currentSessionMinutes);
         }
         $('#timer-display').html(timerText);
-        $('#break-display').text('Break: ' + formatTime(v.totalPauseMinutes));
 
-        // Real-time update for checkout modal when visible
+        // Break time: live seconds so it ticks every second
+        var breakTimeStr = formatTimeFromSeconds(v.totalPauseSeconds);
+        $('#break-display').text('Break: ' + breakTimeStr);
+
+        // Real-time update for checkout modal when visible (work time + break time tick every second)
         if ($('#attendanceModal').hasClass('show') && $('#confirm-attendance-action').data('action') === 'check-out') {
             let workTimeText = formatTime(v.currentSessionMinutes) + ' <small class="text-muted">(Session: ' + formatHoursMinutes(v.currentSessionMinutes) + ')</small>';
             if (v.previousTotalHours > 0) {
                 workTimeText += '<br><strong>Total Today: ' + formatHoursMinutes(v.totalAccumulatedMinutes) + '</strong> <small class="text-muted">(Previous: ' + formatHoursMinutes(v.previousTotalMinutes) + ' + Current: ' + formatHoursMinutes(v.currentSessionMinutes) + ')</small>';
             }
             $('#modal-work-time').html(workTimeText);
-            $('#modal-break-time').text(formatTime(v.totalPauseMinutes));
+            $('#modal-break-time').text(breakTimeStr);
         }
     }
 
@@ -164,26 +190,30 @@
     }
 
     // Fetch current status (background update - no preloader to avoid disturbing user)
+    // Uses combined activity URL so one request can serve both attendance and chat refresh
     function fetchStatus() {
         $.ajax({
-            url: '{{ route("attendance.status") }}',
+            url: '{{ route("chat.activity") }}',
             method: 'GET',
             success: function(response) {
-                attendanceStatus.isCheckedIn = response.is_checked_in;
-                attendanceStatus.isPaused = response.is_paused;
-                attendanceStatus.checkInTime = response.check_in_time;
-                attendanceStatus.totalWorkMinutes = parseFloat(response.total_work_minutes) || 0;
-                attendanceStatus.totalPauseMinutes = parseFloat(response.total_pause_minutes) || 0;
-                attendanceStatus.previousTotalHours = parseFloat(response.previous_total_hours) || 0;
-                attendanceStatus.forgotClockOut = response.forgot_clock_out || false;
+                var data = (response && response.attendance) ? response.attendance : response;
+                attendanceStatus.isCheckedIn = data.is_checked_in;
+                attendanceStatus.isPaused = data.is_paused;
+                attendanceStatus.checkInTime = data.check_in_time;
+                attendanceStatus.checkInLocation = data.check_in_location || null;
+                attendanceStatus.checkInLocationUrl = data.check_in_location_url || null;
+                attendanceStatus.totalWorkMinutes = parseFloat(data.total_work_minutes) || 0;
+                attendanceStatus.totalPauseMinutes = parseFloat(data.total_pause_minutes) || 0;
+                attendanceStatus.previousTotalHours = parseFloat(data.previous_total_hours) || 0;
+                attendanceStatus.forgotClockOut = data.forgot_clock_out || false;
                 attendanceStatus.lastStatusFetchedAt = Date.now();
 
-                if (response.is_paused && response.current_pause_start) {
-                    attendanceStatus.currentPauseStart = response.current_pause_start;
+                if (data.is_paused && data.current_pause_start) {
+                    attendanceStatus.currentPauseStart = data.current_pause_start;
                     // Calculate and store fixed net work time when paused
                     if (attendanceStatus.checkInTime) {
                         const checkInTime = new Date(attendanceStatus.checkInTime);
-                        const pauseStart = new Date(response.current_pause_start);
+                        const pauseStart = new Date(data.current_pause_start);
                         const pauseStartMinutes = (pauseStart - checkInTime) / 1000 / 60;
                         const completedPauseMinutes = attendanceStatus.totalPauseMinutes || 0;
                         attendanceStatus.fixedNetWorkMinutes = pauseStartMinutes - completedPauseMinutes;
@@ -241,6 +271,7 @@
     // Show check-in modal
     function showCheckInModal() {
         $('#check-in-info').hide();
+        $('#check-in-location-info').hide();
         $('#break-time-info').hide();
         $('#overtime-section').hide();
         // Clear any error messages
@@ -274,8 +305,20 @@
             $('#modal-check-in-time').text(checkInTime.toLocaleString());
             $('#check-in-info').show();
         }
+        $('#check-in-location-info').show();
+        if (attendanceStatus.checkInLocation) {
+            $('#modal-check-in-location').text(attendanceStatus.checkInLocation);
+            if (attendanceStatus.checkInLocationUrl) {
+                $('#modal-check-in-location-link-wrap').html(' <a href="' + attendanceStatus.checkInLocationUrl + '" target="_blank" rel="noopener" class="small">({{ $getCurrentTranslation["view_on_map"] ?? "View on map" }})</a>');
+            } else {
+                $('#modal-check-in-location-link-wrap').empty();
+            }
+        } else {
+            $('#modal-check-in-location').text('—');
+            $('#modal-check-in-location-link-wrap').empty();
+        }
 
-        // Initial display (same logic as timer; updateTimer() will keep modal-work-time real-time)
+        // Initial display (updateTimer() runs every 1s and keeps modal-work-time + modal-break-time live)
         const v = getWorkTimeValues();
         if (v) {
             let workTimeText = formatTime(v.currentSessionMinutes) + ' <small class="text-muted">(Session: ' + formatHoursMinutes(v.currentSessionMinutes) + ')</small>';
@@ -283,7 +326,7 @@
                 workTimeText += '<br><strong>Total Today: ' + formatHoursMinutes(v.totalAccumulatedMinutes) + '</strong> <small class="text-muted">(Previous: ' + formatHoursMinutes(v.previousTotalMinutes) + ' + Current: ' + formatHoursMinutes(v.currentSessionMinutes) + ')</small>';
             }
             $('#modal-work-time').html(workTimeText);
-            $('#modal-break-time').text(formatTime(v.totalPauseMinutes));
+            $('#modal-break-time').text(formatTimeFromSeconds(v.totalPauseSeconds));
         }
         $('#work-time-info').show();
         $('#break-time-info').show();
@@ -359,9 +402,44 @@
         }
     });
 
-    // Check-in button click
+    // Request location and show check-in modal only if user allows
+    function requestLocationAndShowCheckInModal() {
+        if (!navigator.geolocation) {
+            toastr.error('{{ $getCurrentTranslation["location_not_supported_by_browser"] ?? "Location is not supported by your browser. You cannot check in." }}');
+            return;
+        }
+        const locationRequiredMsg = '{{ $getCurrentTranslation["please_allow_location_to_check_in"] ?? "Please allow location access to check in." }}';
+        const locationUnavailableMsg = '{{ $getCurrentTranslation["location_unavailable"] ?? "Location is unavailable. Please enable location and try again." }}';
+        const locationTimeoutMsg = '{{ $getCurrentTranslation["location_request_timed_out"] ?? "Location request timed out. Please try again." }}';
+        const $btn = $('#btn-check-in');
+        $btn.prop('disabled', true);
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                pendingCheckInLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                $btn.prop('disabled', false);
+                if (typeof toastr !== 'undefined' && toastr.clear) toastr.clear();
+                showCheckInModal();
+            },
+            function(err) {
+                $btn.prop('disabled', false);
+                if (err.code === 1 || err.code === err.PERMISSION_DENIED) {
+                    toastr.error(locationRequiredMsg);
+                } else if (err.code === 2 || err.code === err.POSITION_UNAVAILABLE) {
+                    toastr.error(locationUnavailableMsg);
+                } else {
+                    toastr.error(locationTimeoutMsg);
+                }
+            },
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 }
+        );
+    }
+
+    // Check-in button click (requires location first)
     $('#btn-check-in').on('click', function() {
-        showCheckInModal();
+        requestLocationAndShowCheckInModal();
     });
 
     // Check-out button click
@@ -392,6 +470,14 @@
                     success: function(response) {
                         $('.r-preloader').hide();
                         if (response.success) {
+                            attendanceStatus.isPaused = true;
+                            if (response.data && response.data.pause_start) {
+                                attendanceStatus.currentPauseStart = response.data.pause_start;
+                            } else {
+                                attendanceStatus.currentPauseStart = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                            }
+                            updateUI();
+                            updateTimer();
                             toastr.success(response.message);
                             fetchStatus();
                         } else {
@@ -469,6 +555,10 @@
                 cancelButtonText: '{{ $getCurrentTranslation["cancel"] ?? "Cancel" }}',
             }).then((result) => {
                 if (result.isConfirmed) {
+                    if (!pendingCheckInLocation) {
+                        toastr.error('{{ $getCurrentTranslation["location_required_to_check_in"] ?? "Location is required to check in. Please allow location and try again." }}');
+                        return;
+                    }
                     $('.r-preloader').show();
                     $.ajax({
                         url: '{{ route("attendance.checkIn") }}',
@@ -476,9 +566,14 @@
                         headers: {
                             'X-CSRF-TOKEN': getCsrfToken()
                         },
+                        data: {
+                            latitude: pendingCheckInLocation.lat,
+                            longitude: pendingCheckInLocation.lng
+                        },
                         success: function(response) {
                             $('.r-preloader').hide();
                             if (response.success) {
+                                pendingCheckInLocation = null;
                                 // Update previous total hours if provided
                                 if (response.data && response.data.previous_total_hours !== undefined) {
                                     attendanceStatus.previousTotalHours = parseFloat(response.data.previous_total_hours) || 0;

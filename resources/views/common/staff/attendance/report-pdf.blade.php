@@ -205,6 +205,7 @@
                     <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['total_hours'] ?? 'Total Hours')) }};">{{ $getCurrentTranslation['total_hours'] ?? 'Total Hours' }}</th>
                     <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['status'] ?? 'Status')) }};">{{ $getCurrentTranslation['status'] ?? 'Status' }}</th>
                     <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['overtime'] ?? 'Overtime')) }};">{{ $getCurrentTranslation['overtime'] ?? 'Overtime' }}</th>
+                    <th style="font-family: {{ language_font(strip_tags($getCurrentTranslation['location'] ?? 'Location')) }};">{{ $getCurrentTranslation['location'] ?? 'Location' }}</th>
                 </tr>
             </thead>
             <tbody>

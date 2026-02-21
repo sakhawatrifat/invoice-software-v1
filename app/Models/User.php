@@ -24,6 +24,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'uid',
+        'employee_uid',
+        'last_seen_at',
     ];
 
     /**
@@ -45,6 +48,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_seen_at' => 'datetime',
             'password' => 'hashed',
             'permissions' => 'json',
         ];
@@ -129,6 +133,16 @@ class User extends Authenticatable
     public function attendances()
     {
         return $this->hasMany(Attendance::class, 'employee_id', 'id');
+    }
+
+    public function chatMessagesSent()
+    {
+        return $this->hasMany(ChatMessage::class, 'sender_id', 'id');
+    }
+
+    public function chatMessagesReceived()
+    {
+        return $this->hasMany(ChatMessage::class, 'recipient_id', 'id');
     }
 
 }

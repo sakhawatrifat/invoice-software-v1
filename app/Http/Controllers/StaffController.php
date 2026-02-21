@@ -62,6 +62,7 @@ class StaffController extends Controller
                         $q->where('users.name', 'like', $searchTerm)
                             ->orWhere('users.email', 'like', $searchTerm)
                             ->orWhere('users.phone', 'like', $searchTerm)
+                            ->orWhere('users.employee_uid', 'like', $searchTerm)
                             ->orWhereHas('designation', function ($sub) use ($searchTerm) {
                                 $sub->where('name', 'like', $searchTerm);
                             })
@@ -102,6 +103,12 @@ class StaffController extends Controller
                 }
             })
             ->addIndexColumn()
+            ->addColumn('id', function ($row) {
+                return $row->id;
+            })
+            ->addColumn('employee_uid', function ($row) {
+                return $row->employee_uid ?? '—';
+            })
             ->editColumn('name', function ($row) {
                 $designation = is_object($row->designation) && isset($row->designation->name) ? $row->designation->name : (is_string($row->designation) ? $row->designation : 'N/A');
                 $department = is_object($row->department) && isset($row->department->name) ? $row->department->name : (is_string($row->department) ? $row->department : 'N/A');
@@ -556,6 +563,7 @@ class StaffController extends Controller
         $validator = Validator::make($request->all(), [
             'parent_id' => 'nullable|integer|exists:users,id',
             'name' => 'required|string|max:255',
+            'employee_uid' => 'nullable|string|max:100',
             'department_id' => 'nullable|integer|exists:departments,id',
             'designation_id' => 'nullable|integer|exists:designations,id',
             'joining_date' => 'nullable|date',
@@ -653,6 +661,7 @@ class StaffController extends Controller
         if (empty($user)) {
             $user = new User();
             $user->created_by = Auth::id();
+            $user->uid = uniqid();
         } else {
             $user->updated_by = Auth::id();
         }
@@ -702,6 +711,7 @@ class StaffController extends Controller
             }
             $user->is_staff = 1;
             $user->name = $request->name ?? null;
+            $user->employee_uid = $request->employee_uid ? trim($request->employee_uid) : null;
             $user->department_id = $request->department_id ?? null;
             $user->designation_id = $request->designation_id ?? null;
             $user->joining_date = $request->joining_date ?? null;

@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('tickets', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('user_id')->nullable();
+            $table->string('ticket_uid')->nullable();
             $table->enum('document_type', ['ticket', 'invoice', 'quotation'])->nullable()->default('ticket');
             $table->enum('booking_type', ['e-Booking', 'e-Ticket'])->nullable()->default('e-Ticket');
             $table->dateTime('invoice_date')->nullable();

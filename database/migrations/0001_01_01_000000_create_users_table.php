@@ -17,6 +17,7 @@ return new class extends Migration
             $table->boolean('is_staff')->nullable()->default(0);
             $table->bigInteger('parent_id')->nullable()->comment('For Staff');
             $table->string('uid')->nullable();
+            $table->string('employee_uid')->nullable();
             $table->longText('image')->nullable();
             $table->string('name');
             $table->bigInteger('department_id')->nullable();
@@ -33,6 +34,7 @@ return new class extends Migration
             
             
             $table->string('device_token')->nullable();
+            $table->timestamp('last_seen_at')->nullable();
             $table->string('ip_address')->nullable();
             $table->enum('status', ['Active', 'Inactive'])->nullable()->default('Inactive')->comment('Active, Inactive');
             $table->string('default_language')->nullable()->default('en');

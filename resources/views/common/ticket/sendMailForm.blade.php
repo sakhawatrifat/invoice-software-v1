@@ -93,7 +93,7 @@
 				
                 <div class="card rounded border mt-5 bg-white append-item-container">
 					<div class="card-header">
-						<h3 class="card-title">{{ $getCurrentTranslation['mail_informations'] ?? 'mail_informations' }}</h3>
+						<h3 class="card-title">{{ $getCurrentTranslation['mail_informations'] ?? 'mail_informations' }} <span class="badge badge-light-info ms-2">{{ $getCurrentTranslation['total_mail_sent'] ?? 'total_mail_sent' }}: {{ $editData->mail_sent_count ?? 0 }}</span></h3>
 						<div class="card-toolbar"></div>
 					</div>
 					<div class="card-body">

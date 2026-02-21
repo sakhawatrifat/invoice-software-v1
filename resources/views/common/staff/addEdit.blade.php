@@ -150,6 +150,16 @@
 
 								<div class="col-md-4">
 									<div class="form-item mb-5">
+										<label class="form-label">{{ $getCurrentTranslation['employee_uid'] ?? 'Employee UID' }}:</label>
+										<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['employee_uid_placeholder'] ?? 'Employee ID' }}" name="employee_uid" value="{{ old('employee_uid') ?? (isset($editData) ? ($editData->employee_uid ?? '') : '') }}"/>
+										@error('employee_uid')
+											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+										@enderror
+									</div>
+								</div>
+
+								<div class="col-md-4">
+									<div class="form-item mb-5">
 										<label class="form-label">{{ $getCurrentTranslation['department_name'] ?? 'department_name' }}:</label>
 										@php
 											$options = $departments ?? collect();

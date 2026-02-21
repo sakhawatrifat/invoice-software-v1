@@ -47,7 +47,7 @@
 					@method('put')
 				@endif
 
-				<div class="col-md-12 m-auto">
+				<div class="col-md-8 col-lg-6 m-auto">
 					<div class="card rounded border mt-5 bg-white append-item-container">
 						<div class="card-header">
 							@if(isset($editData))
@@ -62,58 +62,21 @@
 								<div class="col-md-6">
 									<div class="form-item mb-5">
 										<label class="form-label">{{ $getCurrentTranslation['airline_name'] ?? 'airline_name' }}:</label>
-										<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['enter_airline_name'] ?? 'enter_airline_name' }}" name="name" ip-required value="{{ old('name') ?? $editData->name ?? '' }}"/>
+										<input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['enter_airline_name'] ?? 'enter_airline_name' }}" name="name" ip-required value="{{ old('name') ?? ($editData->name ?? '') }}"/>
 										@error('name')
 											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 										@enderror
 									</div>
 								</div>
-								
 
 								<div class="col-md-6">
-									<div class="input-item-wrap mb-5">
-										<label>{{ $getCurrentTranslation['airline_logo'] ?? 'airline_logo' }}:</label>
-										@php
-											$selected = old('logo') ?? ($editData->logo_url ?? '');
-
-											$isFileExist = false;
-											if (isset($selected) && !empty($selected)) {
-												if (!empty($selected)) {
-													$isFileExist = true;
-												}
-											}
-
-										@endphp
-										<div class="file-input-box">
-											<input name="logo" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" {{ empty($selected) ? '' : '' }} data-old="{{ $selected ? $selected : '' }}">
-										</div>
-										<div class="preview-image" data-old="{{ $selected ? $selected : '' }}">
-											<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img mt-2 ml-2" width="100" style="{{ $selected ? '' : 'display: none;' }}">
-										</div>
-										@error('logo')
-											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
-										@enderror
-									</div>
-								</div>
-
-								{{-- <div class="col-md-6">
-									<div class="form-item mb-5">
-										<label class="form-label">{{ $getCurrentTranslation['description'] ?? 'description' }}</label>
-										<textarea class="form-control" name="description" rows="3">{{ old('description') ?? $editData->description ?? '' }}</textarea>
-										@error('description')
-											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
-										@enderror
-									</div>
-								</div> --}}
-
-								<div class="col-md-12">
 									<div class="mb-5">
 										@php
 											$options = [
 												0 => 'Inactive',
 												1 => 'Active',
 											];
-											$selected = $editData->status ?? '';
+											$selected = old('status') ?? (isset($editData) ? $editData->status : '');
 										@endphp
 										<label class="form-label">{{ $getCurrentTranslation['status'] ?? 'status' }}:</label>
 										<select name="status" class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" ip-required>
@@ -127,7 +90,25 @@
 									</div>
 								</div>
 
-
+								<div class="col-md-6">
+									<div class="input-item-wrap mb-5">
+										<label class="form-label">{{ $getCurrentTranslation['airline_logo'] ?? 'airline_logo' }}:</label>
+										@php
+											$selected = old('logo') ?? (isset($editData) ? $editData->logo_url : '');
+										@endphp
+										<div class="file-input-box">
+											<input name="logo" class="form-control image-input" type="file" max-size="0" accept=".heic,.jpeg,.png,.jpg" data-old="{{ $selected ? $selected : '' }}">
+										</div>
+										<div class="preview-image mt-2" data-old="{{ $selected ? $selected : '' }}" style="{{ $selected ? '' : 'display: none;' }}">
+											<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="{{ $selected }}">
+												<img old-selected="{{ $selected ? $selected : '' }}" src="{{ $selected ? $selected : '' }}" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain; {{ $selected ? '' : 'display: none;' }}">
+											</div>
+										</div>
+										@error('logo')
+											<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+										@enderror
+									</div>
+								</div>
 							</div>
 						</div>
 

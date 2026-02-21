@@ -234,7 +234,8 @@ $(document).on('click','.mf-prev',function(){
     
     if(isPdf) {
         // Show PDF in iframe
-        $('.mf-img-popup').children('img').hide();
+        $('.mf-img-popup-img-wrap').hide();
+        $('.mf-img-popup').find('img').hide();
         var iframe = $('.mf-img-popup').find('iframe');
         if(iframe.length === 0) {
             iframe = $('<iframe>').css({
@@ -247,19 +248,72 @@ $(document).on('click','.mf-prev',function(){
             $('.mf-img-popup').append(iframe);
         }
         iframe.attr('src', img_src).show();
+        $('.mf-img-popup-rotate-btn').hide();
     } else {
         // Show image
+        $('.mf-img-popup-img-wrap').show();
         $('.mf-img-popup').find('iframe').hide();
-        $('.mf-img-popup').children('img').attr('src', img_src).show();
+        var $img = $('.mf-img-popup').find('img').attr('src', img_src).attr('data-rotation', '0').show();
+        var el = $img[0];
+        if (el && el.style) {
+            el.style.removeProperty('transform');
+            el.style.removeProperty('width');
+            el.style.removeProperty('height');
+        }
+        $img.one('load', function() {
+            mfPopupFitRotatedImage($img);
+        });
+        if (el && el.complete && el.naturalWidth) mfPopupFitRotatedImage($img);
+        $('.mf-img-popup-rotate-btn').show();
     }
     
     $('.mf-img-popup').addClass('opened');
 });
 
+function mfPopupFitRotatedImage($img) {
+    var el = $img[0];
+    if (!el || !el.naturalWidth) return;
+    var rot = parseInt($img.attr('data-rotation') || '0', 10) % 360;
+    var nw = el.naturalWidth;
+    var nh = el.naturalHeight;
+    var vpW = window.innerWidth * 0.88;
+    var vpH = window.innerHeight * 0.88;
+    var scale, w, h;
+    if (rot === 90 || rot === 270) {
+        scale = Math.min(1, vpW / nh, vpH / nw);
+        w = Math.floor(nh * scale);
+        h = Math.floor(nw * scale);
+    } else {
+        scale = Math.min(1, vpW / nw, vpH / nh);
+        w = Math.floor(nw * scale);
+        h = Math.floor(nh * scale);
+    }
+    el.style.setProperty('width', w + 'px', 'important');
+    el.style.setProperty('height', h + 'px', 'important');
+    el.style.setProperty('transform', 'rotate(' + rot + 'deg)', 'important');
+}
+
+$(document).on('click','.mf-img-popup-rotate-btn', function(e){
+    e.stopPropagation();
+    var $img = $('.mf-img-popup').find('img');
+    if (!$img.is(':visible')) return;
+    var rot = parseInt($img.attr('data-rotation') || '0', 10);
+    rot = (rot + 90) % 360;
+    $img.attr('data-rotation', rot);
+    mfPopupFitRotatedImage($img);
+});
+
 $(document).on('click','.mf-img-popup, .mf-img-popup-close-btn',function(){
     $('body').removeClass('mf-popup-visible');
     $('.mf-img-popup').removeClass('opened');
-    $('.mf-img-popup').children('img').attr('src', '');
+    var $img = $('.mf-img-popup').find('img');
+    $img.attr('src', '').attr('data-rotation', '0');
+    var el = $img[0];
+    if (el && el.style) {
+        el.style.removeProperty('transform');
+        el.style.removeProperty('width');
+        el.style.removeProperty('height');
+    }
     $('.mf-img-popup').find('iframe').attr('src', '').hide();
 });
 

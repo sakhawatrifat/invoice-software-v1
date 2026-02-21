@@ -216,6 +216,89 @@
 				</div>
 				@endif
 
+				<!-- Essentials -->
+				<div class="menu-item">
+					<div class="menu-content pt-8 pb-2">
+						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>{{ $getCurrentTranslation['essentials'] ?? 'Essentials' }}</strong></span>
+					</div>
+				</div>
+
+				<div class="menu-item">
+					<a class="menu-link {{ getCurrentRouteName() == 'chat.index' ? 'active' : '' }}" href="{{ route('chat.index') }}">
+						<span class="menu-icon">
+							<i class="fa-solid fa-comments h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['view_all_messages'] ?? 'View all messages' }}</span>
+					</a>
+				</div>
+
+				@php
+					$stickyNoteRoutes = ['sticky_note.index','sticky_note.datatable','sticky_note.create','sticky_note.store','sticky_note.show','sticky_note.edit','sticky_note.update','sticky_note.destroy'];
+				@endphp
+				@if(hasPermission('sticky_note.index') || hasPermission('sticky_note.create'))
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($stickyNoteRoutes, 'hover show') }}">
+					<span class="menu-link">
+						<span class="menu-icon">
+							<i class="fa-solid fa-note-sticky h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['manage_sticky_notes'] ?? 'manage_sticky_notes' }}</span>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($stickyNoteRoutes, 'show') }}">
+						@if(hasPermission('sticky_note.index'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'sticky_note.index' ? 'active' : '' }}" href="{{ route('sticky_note.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['sticky_note_list'] ?? 'sticky_note_list' }}</span>
+							</a>
+						</div>
+						@endif
+
+						@if(hasPermission('sticky_note.create'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'sticky_note.create' ? 'active' : '' }}" href="{{ route('sticky_note.create') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['create_sticky_note'] ?? 'create_sticky_note' }}</span>
+							</a>
+						</div>
+						@endif
+					</div>
+				</div>
+				@endif
+
+				@if(hasPermission('email_marketing') || hasPermission('whatsapp_marketing'))
+				<!-- Marketing -->
+				<div class="menu-item">
+					<div class="menu-content pt-8 pb-2">
+						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>{{ $getCurrentTranslation['marketing'] ?? 'Marketing' }}</strong></span>
+					</div>
+				</div>
+				@if(hasPermission('email_marketing'))
+				<div class="menu-item">
+					<a class="menu-link {{ getCurrentRouteName() == 'marketing.email.form' ? 'active' : '' }}" href="{{ route('marketing.email.form') }}">
+						<span class="menu-icon">
+							<i class="fa-solid fa-envelope h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['email_marketing'] ?? 'Email Marketing' }}</span>
+					</a>
+				</div>
+				@endif
+				@if(hasPermission('whatsapp_marketing'))
+				<div class="menu-item">
+					<a class="menu-link {{ getCurrentRouteName() == 'marketing.whatsapp.form' ? 'active' : '' }}" href="{{ route('marketing.whatsapp.form') }}">
+						<span class="menu-icon">
+							<i class="fa-brands fa-whatsapp h4 mb-0"></i>
+						</span>
+						<span class="menu-title">{{ $getCurrentTranslation['whatsapp_marketing'] ?? 'WhatsApp Marketing' }}</span>
+					</a>
+				</div>
+				@endif
+				@endif
+
 			</div>
 		</div>
 	</div>

@@ -27,7 +27,7 @@
                 @if (hasPermission('hotel.invoice.mail'))
                     <a href="{{ route('hotel.invoice.mail', $editData->id) }}" class="btn btn-sm fw-bold btn-primary">
                         <i class="fa-solid fa-envelope"></i>
-                        {{ $getCurrentTranslation['mail'] ?? 'mail' }}
+                        {{ $getCurrentTranslation['mail'] ?? 'mail' }} ({{ $editData->mail_sent_count ?? 0 }})
                     </a>
                 @endif
                 @if (hasPermission('hotel.invoice.edit'))

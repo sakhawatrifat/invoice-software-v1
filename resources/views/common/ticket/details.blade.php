@@ -27,7 +27,7 @@
                 @if (hasPermission('ticket.mail'))
                     <a href="{{ route('ticket.mail', $editData->id) }}" class="btn btn-sm fw-bold btn-primary">
                         <i class="fa-solid fa-envelope"></i>
-                        {{ $getCurrentTranslation['mail'] ?? 'mail' }}
+                        {{ $getCurrentTranslation['mail'] ?? 'mail' }} ({{ $editData->mail_sent_count ?? 0 }})
                     </a>
                 @endif
                 @if (hasPermission('ticket.edit'))
@@ -124,6 +124,32 @@
                 </div>
             </div>
 
+            <!-- Record Audit (Created/Updated) -->
+            <div class="card rounded border mb-4 shadow-sm">
+                <div class="card-header align-items-center bg-dark text-white">
+                    <h5 class="mb-0 text-white">{{ $getCurrentTranslation['record_audit'] ?? 'Record Audit' }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <strong>{{ $getCurrentTranslation['created_at_label'] ?? 'Created At' }}:</strong>
+                            <p class="mb-0">{{ $editData->created_at ? date('Y-m-d H:i', strtotime($editData->created_at)) : 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <strong>{{ $getCurrentTranslation['created_by_label'] ?? 'Created By' }}:</strong>
+                            <p class="mb-0">{{ $editData->creator?->name ?? $editData->created_by ?? 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <strong>{{ $getCurrentTranslation['updated_at_label'] ?? 'Updated At' }}:</strong>
+                            <p class="mb-0">{{ $editData->updated_at ? date('Y-m-d H:i', strtotime($editData->updated_at)) : 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <strong>{{ $getCurrentTranslation['updated_by_label'] ?? 'Updated By' }}:</strong>
+                            <p class="mb-0">{{ $editData->updater?->name ?? $editData->updated_by ?? 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
 		</div>
 		<!--end::Content container-->

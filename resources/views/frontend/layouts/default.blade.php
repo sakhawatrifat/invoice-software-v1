@@ -93,7 +93,10 @@
         </div>
         
         <div class="mf-img-popup">
-            <img src="" alt="Popup Image">
+            <div class="mf-img-popup-img-wrap">
+                <img src="" alt="Popup Image">
+            </div>
+            <div class="mf-img-popup-rotate-btn" title="Rotate"><i class="fa-solid fa-rotate-right"></i></div>
             <div class="mf-img-popup-close-btn">
                 <div class="bar"></div>
                 <div class="bar"></div>
@@ -121,6 +124,9 @@
             </div>
         </div>
 
+        @auth
+        @include('common.chat.partials.widget')
+        @endauth
 
         <!--begin::Javascript-->
         <script>var hostUrl = "{{asset('/assets')}}/";</script>
