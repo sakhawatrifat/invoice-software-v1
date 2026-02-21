@@ -3,7 +3,9 @@
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use App\Models\Translation;
 
 
 // Common Controllers
@@ -78,6 +80,12 @@ Route::get('/clear-cache', function() {
     Artisan::call('config:cache');
     Artisan::call('config:clear');
     Artisan::call('view:clear');
+
+    // Clear translation cache so next request reloads from DB
+    $langs = Translation::distinct()->pluck('lang');
+    foreach ($langs as $lang) {
+        Cache::forget('translations_' . $lang);
+    }
 
     $route = url('/login');    
     return '

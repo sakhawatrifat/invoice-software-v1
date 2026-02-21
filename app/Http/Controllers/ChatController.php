@@ -256,10 +256,25 @@ class ChatController extends Controller
             if (!$path) {
                 return response()->json(['error' => 'Failed to process video.'], 422);
             }
-            $originalName = pathinfo($originalName, PATHINFO_FILENAME) . '.' . (pathinfo($path, PATHINFO_EXTENSION) ?: $ext);
+            $ext = pathinfo($path, PATHINFO_EXTENSION) ?: $ext;
         } else {
             $path = $file->store('chat-files', 'local');
         }
+
+        $appName = trim(preg_replace('/[\\\\\/:*?"<>|]/', '', config('app.name', env('APP_NAME', 'App'))));
+        if (in_array($ext, $imageExts)) {
+            $fileTypeLabel = 'Image';
+        } elseif (in_array($ext, $videoExts)) {
+            $fileTypeLabel = 'Video';
+        } elseif ($ext === 'pdf') {
+            $fileTypeLabel = 'PDF';
+        } else {
+            $fileTypeLabel = 'File';
+        }
+        $tz = config('app.timezone', env('APP_TIMEZONE', 'UTC'));
+        $tzSafe = trim(str_replace(['/', '\\'], '-', $tz));
+        $uniqueSuffix = bin2hex(random_bytes(4));
+        $displayFileName = $appName . ' ' . $fileTypeLabel . '-' . Carbon::now()->format('Y-m-d \a\t g.i.s A') . ' (' . $tzSafe . ')-' . $uniqueSuffix . '.' . $ext;
 
         $msg = ChatMessage::create([
             'sender_id' => $userId,
@@ -267,7 +282,7 @@ class ChatController extends Controller
             'body' => null,
             'type' => 'file',
             'file_path' => $path,
-            'file_name' => $originalName,
+            'file_name' => $displayFileName,
             'file_size' => $fileSize,
         ]);
         $msg->load(['sender:id,name,image', 'recipient:id,name,image', 'reads']);
@@ -419,9 +434,8 @@ class ChatController extends Controller
     }
 
     /**
-    /**
-     * Delete entire conversation with another user: permanently remove all messages
-     * and their files from storage and database (no soft delete).
+     * Hide entire conversation for the current user. Then: if the other user has already
+     * hidden this conversation too, permanently delete those messages and their files from DB.
      */
     public function deleteConversation(Request $request)
     {
@@ -440,33 +454,38 @@ class ChatController extends Controller
             });
         };
 
-        // Include soft-deleted messages so we permanently remove everything
-        $messages = ChatMessage::withTrashed()->where($query)->get();
-        $messageIds = $messages->pluck('id')->all();
+        $messageIds = ChatMessage::whereNull('deleted_at')->where($query)->pluck('id');
 
-        if (empty($messageIds)) {
-            return response()->json(['ok' => true]);
+        foreach ($messageIds as $messageId) {
+            ChatMessageHidden::firstOrCreate(['user_id' => $userId, 'message_id' => $messageId]);
         }
 
-        // 1. Permanently delete files from server (storage)
-        foreach ($messages as $msg) {
-            if ($msg->type === 'file' && !empty($msg->file_path)) {
-                $path = $msg->file_path;
-                if (Storage::disk('public')->exists($path)) {
-                    Storage::disk('public')->delete($path);
-                }
-                if (Storage::disk('local')->exists($path)) {
-                    Storage::disk('local')->delete($path);
+        $hiddenByBoth = ChatMessageHidden::whereIn('message_id', $messageIds)
+            ->whereIn('user_id', [$userId, $otherUserId])
+            ->get()
+            ->groupBy('message_id')
+            ->filter(fn ($rows) => $rows->pluck('user_id')->unique()->count() === 2)
+            ->keys()
+            ->all();
+
+        if (!empty($hiddenByBoth)) {
+            $messages = ChatMessage::withTrashed()->whereIn('id', $hiddenByBoth)->get();
+            foreach ($messages as $msg) {
+                if ($msg->type === 'file' && !empty($msg->file_path)) {
+                    if (Storage::disk('public')->exists($msg->file_path)) {
+                        Storage::disk('public')->delete($msg->file_path);
+                    }
+                    if (Storage::disk('local')->exists($msg->file_path)) {
+                        Storage::disk('local')->delete($msg->file_path);
+                    }
                 }
             }
+            DB::transaction(function () use ($hiddenByBoth) {
+                ChatMessageHidden::whereIn('message_id', $hiddenByBoth)->delete();
+                ChatMessageRead::whereIn('message_id', $hiddenByBoth)->delete();
+                ChatMessage::withTrashed()->whereIn('id', $hiddenByBoth)->forceDelete();
+            });
         }
-
-        // 2. Permanently delete from database (no soft delete)
-        DB::transaction(function () use ($messageIds) {
-            ChatMessageHidden::whereIn('message_id', $messageIds)->delete();
-            ChatMessageRead::whereIn('message_id', $messageIds)->delete();
-            ChatMessage::withTrashed()->whereIn('id', $messageIds)->forceDelete();
-        });
 
         $this->clearActivityCache($userId, $otherUserId);
         return response()->json(['ok' => true]);

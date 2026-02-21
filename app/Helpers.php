@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
 
@@ -1180,14 +1181,22 @@ if (!function_exists('getPreFooterDetails')) {
 
 
 if (!function_exists('getCurrentTranslation')) {
+    /**
+     * Get current user's translations (cached). Uses Laravel cache to avoid hitting the translations table on every request.
+     * Cache is cleared when /clear-cache is run.
+     */
     function getCurrentTranslation()
     {
+        if (!Auth::check()) {
+            return [];
+        }
+
         $lang = Auth::user()->default_language ?? 'en';
+        $cacheKey = 'translations_' . $lang;
 
-        //dd($lang);
-        $translations = Translation::where('lang', $lang)->pluck('lang_value', 'lang_key')->toArray();
-
-        return $translations;
+        return Cache::rememberForever($cacheKey, function () use ($lang) {
+            return Translation::where('lang', $lang)->pluck('lang_value', 'lang_key')->toArray();
+        });
     }
 }
 

@@ -123,4 +123,12 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Ticket QR Code
+    |--------------------------------------------------------------------------
+    | Show/hide QR code on ticket layouts. Set ENABLE_TICKET_QR_CODE=0 in .env to hide.
+    */
+    'enable_ticket_qr_code' => (bool) env('ENABLE_TICKET_QR_CODE', true),
+
 ];

@@ -44,6 +44,9 @@
             </div>
         </div>
         <div class="card-body p-0 d-flex flex-column overflow-hidden" style="height: calc(100% - 52px);">
+            <div id="chat-widget-search-wrap" class="p-2 border-bottom bg-white flex-shrink-0">
+                <input type="text" class="form-control form-control-sm form-control-solid" id="chat-widget-search-user" placeholder="{{ $getCurrentTranslation['search'] ?? 'Search' }}..." autocomplete="off">
+            </div>
             <div id="chat-widget-conversation-list" class="flex-grow-1 overflow-auto"></div>
             <div id="chat-widget-thread-panel" class="d-none flex-grow-1 d-flex flex-column overflow-hidden min-w-0">
                 <div class="p-2 border-bottom bg-light d-flex align-items-center flex-shrink-0">
@@ -83,9 +86,9 @@
             </div>
         </div>
     </div>
-    <button type="button" id="chat-widget-toggle" class="btn btn-primary btn-icon position-relative" style="width: 56px; height: 56px; border-radius: 50%; z-index: 1049;">
+    {{-- <button type="button" id="chat-widget-toggle" class="btn btn-primary btn-icon position-relative" style="width: 56px; height: 56px; border-radius: 50%; z-index: 1049;">
         <i class="fa-solid fa-comment-dots fa-lg"></i>
         <span class="position-absolute top-0 start-100 translate-middle badge badge-circle badge-danger d-none" id="chat-widget-badge">0</span>
-    </button>
+    </button> --}}
 </div>
 @include('common.chat.partials.chat-scripts', ['isWidget' => true])

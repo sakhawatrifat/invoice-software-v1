@@ -441,7 +441,7 @@
 
 
 				<!-- Essentials -->
-				<div class="menu-item">
+				{{-- <div class="menu-item">
 					<div class="menu-content pt-8 pb-2">
 						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>{{ $getCurrentTranslation['essentials'] ?? 'Essentials' }}</strong></span>
 					</div>
@@ -492,10 +492,10 @@
 						@endif
 					</div>
 				</div>
-				@endif
+				@endif --}}
 
-				@if(hasPermission('email_marketing') || hasPermission('whatsapp_marketing'))
 				<!-- Marketing -->
+				{{-- @if(hasPermission('email_marketing') || hasPermission('whatsapp_marketing'))
 				<div class="menu-item">
 					<div class="menu-content pt-8 pb-2">
 						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>{{ $getCurrentTranslation['marketing'] ?? 'Marketing' }}</strong></span>
@@ -521,7 +521,7 @@
 					</a>
 				</div>
 				@endif
-				@endif
+				@endif --}}
 
 				@php
 					$hasCrmPermissions = hasPermission('lead.index') || hasPermission('lead.create') || hasPermission('leadSource') || hasPermission('customerHistory');

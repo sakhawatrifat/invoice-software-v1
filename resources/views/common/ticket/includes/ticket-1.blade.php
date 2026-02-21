@@ -540,7 +540,7 @@
       @endif
    </div>
 
-   @if(!empty($editData->ticket_uid))
+   @if(config('app.enable_ticket_qr_code') && !empty($editData->ticket_uid))
       <div style="margin-top: 16px; text-align: left; page-break-inside: avoid;">
          <p style="font-size: 12px; color: #6c6c6c; margin-bottom: 6px; font-family: {{ language_font(strip_tags($getCurrentTranslation['scan_to_view_online'] ?? 'scan_to_view_online')) }};">{{ $getCurrentTranslation['scan_to_view_online'] ?? 'Scan to view online' }}</p>
          <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ urlencode(route('ticket.public.show', ['ticket_uid' => $editData->ticket_uid])) }}" alt="QR Code" style="width: 120px; height: 120px;">

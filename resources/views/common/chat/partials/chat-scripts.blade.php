@@ -202,6 +202,7 @@
         const status = conv?.user?.last_seen_at ? (isRecent(conv.user.last_seen_at) ? 'Active now' : 'Last seen ' + formatTime(conv.user.last_seen_at)) : '';
 
         if (isWidget) {
+            document.getElementById('chat-widget-search-wrap')?.classList.add('d-none');
             document.getElementById('chat-widget-conversation-list').classList.add('d-none');
             const panel = document.getElementById('chat-widget-thread-panel');
             panel.classList.remove('d-none');
@@ -741,6 +742,7 @@
         function closeWidgetThread() {
             document.getElementById('chat-widget-thread-panel').classList.add('d-none');
             document.getElementById('chat-widget-conversation-list').classList.remove('d-none');
+            document.getElementById('chat-widget-search-wrap')?.classList.remove('d-none');
             currentOtherUserId = null;
             clearReply();
             if (typeof startPollTimer === 'function') startPollTimer();
@@ -773,6 +775,7 @@
         document.getElementById('chat-widget-message-input').addEventListener('keydown', onMessageInputKeydown);
         document.getElementById('chat-widget-reply-cancel')?.addEventListener('click', clearReply);
         document.getElementById('chat-widget-messages')?.addEventListener('scroll', onMessagesScroll);
+        document.getElementById('chat-widget-search-user')?.addEventListener('input', function() { renderConversationList(conversationsCache); });
         document.getElementById('chat-widget-view-all')?.addEventListener('click', function(e) {
             if (currentOtherUserId) {
                 e.preventDefault();
