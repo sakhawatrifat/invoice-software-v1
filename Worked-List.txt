@@ -57,7 +57,18 @@ Invoice Software New Features (January 2026):
 	-Reminder With Email Notification (Cron Job)
 	-Activity log in note details page for each note (create,status change, update data)
 
-02. Message (Internal Users chat system)
+
+02. Ticket Data Import
+	-Ticket Live Data Fetch Via Flight API
+	-Create Ticket Auto Form Fill-up by Selecting Flight Data Item  
+
+
+03. Flight Status 
+	-Flight Status Cross Check with System Data vs. Live API Data
+	-Mail Sending Option to Client With Updated Flight Datetime and Updated Ticket PDF
+
+
+04. Message (Internal Users chat system)
 	-Chat list with photo, name, last message, time, unread count
 	-Online / last seen status + search by name
 	-Send message (Enter) + reply with quote preview
@@ -75,10 +86,9 @@ Invoice Software New Features (January 2026):
 	-Config settings (file size, refresh time), translations, local time display
 
 
-03. Marketing
+05. Marketing
 	-Email Marketing with attachment (image,pdf)
 	-WhatsApp Marketing with attachment (image,pdf)
-
 
 ======================
 
