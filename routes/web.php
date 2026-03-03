@@ -3,9 +3,11 @@
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use App\Models\Translation;
+use App\Models\User;
 
 
 // Common Controllers
@@ -75,22 +77,40 @@ Route::get('/seed', function () {
 });
 
 Route::get('/clear-cache', function() {
+    $usersUpdated = 0;
+
+    // If admin=1, flag all users to clear translation cache on their next request (do this first, before any cache clear)
+    $adminParam = request()->get('admin');
+    if ($adminParam === '1' || $adminParam === 1) {
+        $usersUpdated = DB::table('users')->update(['clear_cache' => 1]);
+    }
+
     Artisan::call('route:clear');
     Artisan::call('cache:clear');
     Artisan::call('config:cache');
     Artisan::call('config:clear');
     Artisan::call('view:clear');
 
-    // Clear translation cache so next request reloads from DB
+    // Forget all flight status session data (cached API responses per payment)
+    foreach (array_keys(session()->all()) as $key) {
+        if (str_starts_with((string) $key, 'flight_status_data_')) {
+            session()->forget($key);
+        }
+    }
+
+    // Immediate clear translation cache for all languages
     $langs = Translation::distinct()->pluck('lang');
     foreach ($langs as $lang) {
         Cache::forget('translations_' . $lang);
     }
 
-    $route = url('/login');    
+    $route = url('/login');
+    $msg = $usersUpdated > 0
+        ? "Cache cleared successfully! Updated {$usersUpdated} user(s)."
+        : 'Cache cleared successfully!';
     return '
         <div style="font-family: Arial; padding:20px; text-align:center">
-            <h3>Cache cleared successfully!</h3>
+            <h3>' . htmlspecialchars($msg) . '</h3>
             <a href="' . $route . '" 
                style="display:inline-block; margin-top:10px; padding:8px 15px; background:#3490dc; color:white; text-decoration:none; border-radius:4px;">
                 ← Back
@@ -98,6 +118,9 @@ Route::get('/clear-cache', function() {
         </div>
     ';
 })->name('clear-cache');
+
+// TEMPORARY: Fix AUTO_INCREMENT for all tables (remove after use)
+Route::get('/fix-tables-auto-increment', [HomeController::class, 'fixAllTablesAutoIncrement']);
 
 Route::get('/storage-link', function () {
     Artisan::call('storage:link');
@@ -385,6 +408,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::get('/airports/search', 'getAirportSuggestions')->name('airports.search');
         Route::get('/airports/common', 'getCommonAirports')->name('airports.common');
         Route::post('/ticket/search/import', 'ticketSearchImport')->name('ticket.search.import');
+        Route::post('/ticket/search/clear', 'clearLastFlightSearch')->name('ticket.search.clear');
         Route::post('/ticket/search/process-flight', 'processFlightData')->name('ticket.search.process.flight');
 
         Route::get('travel/flights/calendar', 'getFlightCalendar')->name('travel.getFlightCalendar');
@@ -454,6 +478,12 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
 
         Route::get('/flight-list', 'flightList')->name('flight.list');
         Route::get('/flight-list-datatable', 'flightListDatatable')->name('flight.list.datatable');
+        Route::get('/payment/flight-status/{id}', 'flightStatus')->name('payment.flight.status');
+        Route::get('/payment/flight-status/{id}/clear-cache', 'clearFlightStatusCache')->name('payment.flight.status.clearCache');
+        Route::get('/payment/flight-status/{id}/mail', 'flightStatusMail')->name('payment.flight.status.mail');
+        Route::post('/payment/flight-status/{id}/update', 'updateFlightFromApi')->name('payment.flight.status.update');
+        Route::post('/payment/flight-status/{id}/mail-content', 'flightStatusMailContentLoad')->name('payment.flight.status.mailContentLoad');
+        Route::put('/payment/flight-status/{id}/mail', 'flightStatusMailSend')->name('payment.flight.status.mailSend');
     });
 
     // CRM Lead Routes

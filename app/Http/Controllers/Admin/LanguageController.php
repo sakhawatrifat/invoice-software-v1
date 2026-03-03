@@ -10,6 +10,7 @@ use Session;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Mail;
@@ -356,6 +357,8 @@ class LanguageController extends Controller
         $translation->lang_value = null;
         $translation->save();
 
+        Cache::forget('translations_en');
+
         return redirect(route('admin.language.translate.form', $id))->with('message', getCurrentTranslation()['new_language_key_saved'] ?? 'new_language_key_saved');
     }
 
@@ -372,7 +375,10 @@ class LanguageController extends Controller
         if(empty($translation)){
             abort(404);
         }
+        $lang = $translation->lang;
         $translation->delete();
+
+        Cache::forget('translations_' . $lang);
 
         return redirect()->back()->with('message', getCurrentTranslation()['language_key_deleted'] ?? 'language_key_deleted');
     }
@@ -445,14 +451,9 @@ class LanguageController extends Controller
 
             DB::commit();
 
-            return [
-                'is_success' => 1,
-                'icon' => 'success',
-                'message' => getCurrentTranslation()['data_saved'] ?? 'data_saved'
-            ];
+            // Clear translation cache for this language so all users get updated translations on next request
+            Cache::forget('translations_' . $lang);
 
-
-            DB::commit();
             return [
                 'is_success' => 1,
                 'icon' => 'success',

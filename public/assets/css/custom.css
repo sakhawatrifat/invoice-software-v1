@@ -870,3 +870,15 @@ a.brand-logo-min img {
     70% { opacity: 0.15; }
     85%, 100% { opacity: 0; }
 }
+.nav-line-tabs .nav-item .nav-link:focus-visible {
+    outline: 0;
+}
+
+/* Select2: show validation error under dropdown and invalid state on container */
+.select2-container.is-invalid .select2-selection {
+    border-color: #dc3545 !important;
+}
+.select2-container + .error-message.text-danger {
+    display: block;
+    margin-top: 0.25rem;
+}

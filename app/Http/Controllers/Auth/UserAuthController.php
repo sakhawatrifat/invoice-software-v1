@@ -15,8 +15,10 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Session;
+use App\Models\Translation;
 
 class UserAuthController extends Controller
 {
@@ -51,6 +53,8 @@ class UserAuthController extends Controller
         }
 
         if (Auth::attempt(['email' => $request->email, 'password' => $request->password], $remember)) {
+            // Clear translation cache so user gets latest translations
+            $this->clearTranslationCache();
             //return redirect(Auth::user()->user_type == 'admin' ? route('admin.dashboard') : route('user.dashboard'));
             if($user->user_type == 'admin'){
                 return redirect()->intended(route('admin.dashboard'));
@@ -396,7 +400,19 @@ class UserAuthController extends Controller
     public function logout(Request $request)
     {
         Session::forget('bbf_popup_notice_read_status');
+        $this->clearTranslationCache();
         Auth::logout();
         return redirect(route('login'));
+    }
+
+    /**
+     * Clear translation cache for all languages (so next request reloads from DB).
+     */
+    private function clearTranslationCache(): void
+    {
+        $langs = Translation::distinct()->pluck('lang');
+        foreach ($langs as $lang) {
+            Cache::forget('translations_' . $lang);
+        }
     }
 }

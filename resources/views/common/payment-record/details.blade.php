@@ -394,21 +394,61 @@
                                                     <tr>
                                                         <th class="ps-5">#</th>
                                                         <th>{{ $getCurrentTranslation['paid_amount_label'] ?? 'paid_amount_label' }}</th>
-                                                        <th class="pe-5">{{ $getCurrentTranslation['date_label'] ?? 'date_label' }}</th>
+                                                        <th>{{ $getCurrentTranslation['date_label'] ?? 'date_label' }}</th>
+                                                        <th>{{ $getCurrentTranslation['payment_row_document'] ?? ($getCurrentTranslation['document'] ?? 'document') }}</th>
+                                                        <th class="pe-5">{{ $getCurrentTranslation['payment_row_note'] ?? ($getCurrentTranslation['note_label'] ?? 'note') }}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     @if(!empty($editData->paymentData) && is_array($editData->paymentData))
                                                         @foreach($editData->paymentData as $index => $payment)
+                                                            @php
+                                                                $pDocPath = $payment['document'] ?? '';
+                                                                $pDocUrl = !empty($pDocPath) ? getUploadedUrl($pDocPath) : '';
+                                                                $pDocExt = !empty($pDocPath) ? strtolower(pathinfo($pDocPath, PATHINFO_EXTENSION)) : '';
+                                                                $pDocIsImage = in_array($pDocExt, ['jpg','jpeg','png','gif','webp','heic']);
+                                                                $pDocIsPdf = ($pDocExt === 'pdf');
+                                                            @endphp
                                                             <tr>
                                                                 <td class="ps-5">{{ $index + 1 }}</td>
                                                                 <td>{{ isset($payment['paid_amount']) && $payment['paid_amount'] ? number_format($payment['paid_amount']) : '0.00' }} {{ Auth::user()->company_data->currency->short_name ?? '' }}</td>
-                                                                <td class="pe-5">{{ $payment['date'] ?? 'N/A' }}</td>
+                                                                <td>{{ $payment['date'] ?? 'N/A' }}</td>
+                                                                <td>
+                                                                    @if(!empty($pDocUrl))
+                                                                        @if($pDocIsImage)
+                                                                            <div class="append-prev mf-prev hover-effect justify-content-start m-0" data-src="{{ $pDocUrl }}">
+                                                                                <img src="{{ $pDocUrl }}" alt="Document" style="max-height:80px; max-width:100px; object-fit:contain;">
+                                                                            </div>
+                                                                        @elseif($pDocIsPdf)
+                                                                            <div class="append-prev mf-prev hover-effect justify-content-start m-0" data-src="{{ $pDocUrl }}">
+                                                                                <a href="javascript:void(0);" class="append-prev file-prev-thumb mt-2">
+                                                                                    <i class="fas fa-file-pdf"></i>
+                                                                                </a>
+                                                                            </div>
+                                                                        @else
+                                                                            <a class="file-prev-thumb" href="{{ $pDocUrl }}" target="_blank" download>
+                                                                                <i class="fas fa-file-alt"></i>
+                                                                            </a>
+                                                                        @endif
+                                                                    @else
+                                                                        <span class="text-muted">—</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td class="pe-5">
+                                                                    @php
+                                                                        $pNote = isset($payment['note']) ? trim((string) $payment['note']) : '';
+                                                                    @endphp
+                                                                    @if($pNote !== '')
+                                                                        {!! nl2br(e($pNote)) !!}
+                                                                    @else
+                                                                        <span class="text-muted">—</span>
+                                                                    @endif
+                                                                </td>
                                                             </tr>
                                                         @endforeach
                                                     @else
                                                         <tr>
-                                                            <td colspan="3" class="text-center">{{ $getCurrentTranslation['no_payments_recorded'] ?? 'no_payments_recorded' }}</td>
+                                                            <td colspan="5" class="text-center">{{ $getCurrentTranslation['no_payments_recorded'] ?? 'no_payments_recorded' }}</td>
                                                         </tr>
                                                     @endif
                                                 </tbody>

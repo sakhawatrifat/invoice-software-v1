@@ -192,6 +192,22 @@
 						appendItem.find('input[type="checkbox"], input[type="radio"]').prop('checked', false);
 						appendItem.find('select').val(null).trigger('change'); // reset select2 or normal selects
 
+						// Clear file inputs (replace with clone to clear selected file)
+						appendItem.find('input[type="file"]').each(function() {
+							$(this).replaceWith($(this).clone(true));
+						});
+
+						// Clear all preview file/image areas and hide them
+						appendItem.find('.preview-image').each(function() {
+							var $preview = $(this);
+							$preview.attr('data-old', '').hide();
+							$preview.find('.image-preview').hide().attr('data-src', '');
+							$preview.find('.pdf-preview').hide().attr('data-src', '').attr('old-selected', '');
+							$preview.find('.preview-img').attr('old-selected', '').attr('src', '').attr('alt', '');
+							$preview.find('.file-prev-thumb').attr('href', 'javascript:void(0);').removeAttr('target');
+						});
+						appendItem.find('.append-prev').attr('data-src', '').hide();
+
 						resetAppendToolbar();
 
 						toastr.success('Selected input data cleared successfully.');
@@ -334,6 +350,20 @@
 						childItem.find('input[type="checkbox"], input[type="radio"]').prop('checked', false);
 						childItem.find('select').val(null).trigger('change'); // reset select2 or normal selects
 
+						// Clear file inputs and previews (same as parent append-item)
+						childItem.find('input[type="file"]').each(function() {
+							$(this).replaceWith($(this).clone(true));
+						});
+						childItem.find('.preview-image').each(function() {
+							var $preview = $(this);
+							$preview.attr('data-old', '').hide();
+							$preview.find('.image-preview').hide().attr('data-src', '');
+							$preview.find('.pdf-preview').hide().attr('data-src', '').attr('old-selected', '');
+							$preview.find('.preview-img').attr('old-selected', '').attr('src', '').attr('alt', '');
+							$preview.find('.file-prev-thumb').attr('href', 'javascript:void(0);').removeAttr('target');
+						});
+						childItem.find('.append-prev').attr('data-src', '').hide();
+
 						resetAppendToolbar();
 
 						toastr.success('Selected input data cleared successfully.');
@@ -434,6 +464,20 @@
 						innerChildItem.find('input[type="checkbox"], input[type="radio"]').prop('checked', false);
 						innerChildItem.find('select').val(null).trigger('change'); // reset select2 or normal selects
 
+						// Clear file inputs and previews (same as parent append-item)
+						innerChildItem.find('input[type="file"]').each(function() {
+							$(this).replaceWith($(this).clone(true));
+						});
+						innerChildItem.find('.preview-image').each(function() {
+							var $preview = $(this);
+							$preview.attr('data-old', '').hide();
+							$preview.find('.image-preview').hide().attr('data-src', '');
+							$preview.find('.pdf-preview').hide().attr('data-src', '').attr('old-selected', '');
+							$preview.find('.preview-img').attr('old-selected', '').attr('src', '').attr('alt', '');
+							$preview.find('.file-prev-thumb').attr('href', 'javascript:void(0);').removeAttr('target');
+						});
+						innerChildItem.find('.append-prev').attr('data-src', '').hide();
+
 						resetAppendToolbar();
 
 						toastr.success('Selected input data cleared successfully.');
@@ -527,6 +571,10 @@
 	function reinitPlugins(container) {
 		container.find('img').not('.fixed-value').closest('.img-wrapper').remove();
 		container.find('img').not('.fixed-value').remove();
+
+		// Clear file inputs + old preview metadata for cloned items
+		container.find('input[type="file"]').val('').removeAttr('data-old');
+		container.find('.preview-image').attr('data-old', '');
 
 		container.find('.ck.ck-editor').remove(); // remove CKEditor UI markup
 
@@ -879,7 +927,7 @@
 	}
 
 	$(document).on('input change', '.trip-flight .append-item .parent-ip', function () {
-		if (window.flightTransitCascadeEnabled === false) return;
+		if (window.autoFillingFromSearch === true || window.flightTransitCascadeEnabled === false) return;
 		if ($(this).closest('.flight-transit-child-wrap').length) return;
 		var dataName = $(this).attr('data-name');
 		if (!dataName || dataName === 'is_transit' || FLIGHT_PARENT_DATA_NAMES.indexOf(dataName) === -1) return;
@@ -896,7 +944,7 @@
 	});
 
 	$(document).on('input change', '.trip-flight .append-child-item .child-ip', function () {
-		if (window.flightTransitCascadeEnabled === false) return;
+		if (window.autoFillingFromSearch === true || window.flightTransitCascadeEnabled === false) return;
 		var $transit = $(this).closest('.append-child-item');
 		var $next = $transit.next('.append-child-item');
 		if (!$next.length) return;
@@ -911,7 +959,7 @@
 
 	// Parent (flight) going_to → first transit leaving_from; current transit going_to → next transit leaving_from
 	$(document).on('input change', '.trip-flight [data-name="going_to"]', function () {
-		if (window.flightTransitCascadeEnabled === false) return;
+		if (window.autoFillingFromSearch === true || window.flightTransitCascadeEnabled === false) return;
 		var $from = $(this).closest('.append-item, .append-child-item');
 		var $nextLeavingFrom = null;
 		if ($from.hasClass('append-item') && !$from.hasClass('append-child-item')) {
@@ -928,7 +976,7 @@
 
 	// Parent (flight) arrival_date_time → first transit departure_date_time; current transit arrival_date_time → next transit departure_date_time
 	$(document).on('input change', '.trip-flight [data-name="arrival_date_time"]', function () {
-		if (window.flightTransitCascadeEnabled === false) return;
+		if (window.autoFillingFromSearch === true || window.flightTransitCascadeEnabled === false) return;
 		var $from = $(this).closest('.append-item, .append-child-item');
 		var $nextDeparture = null;
 		if ($from.hasClass('append-item') && !$from.hasClass('append-child-item')) {

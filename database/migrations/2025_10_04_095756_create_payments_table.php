@@ -56,6 +56,8 @@ return new class extends Migration
             $table->decimal('service_fee', 20,2)->nullable()->default(0);
             $table->enum('refund_payment_status', ['Unpaid', 'Paid'])->nullable();
             $table->longText('refund_note')->nullable();
+            
+            $table->bigInteger('flight_status_mail_count')->nullable()->default(0);
 
             $table->bigInteger('created_by')->nullable();
             $table->bigInteger('updated_by')->nullable();

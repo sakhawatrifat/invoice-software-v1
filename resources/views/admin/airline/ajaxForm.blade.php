@@ -16,6 +16,17 @@
                 @enderror
             </div>
         </div>
+
+        <div class="col-md-12">
+            <div class="form-item mb-5">
+                <label class="form-label">{{ $getCurrentTranslation['airline_code'] ?? 'Airline Code (IATA)' }}:</label>
+                <input type="text" class="form-control" placeholder="{{ $getCurrentTranslation['airline_code_placeholder'] ?? 'e.g. BG, DL' }}" name="code" maxlength="10" ip-required value="{{ old('code') ?? (isset($editData) ? ($editData->code ?? '') : '') }}"/>
+                <small class="text-muted">{{ $getCurrentTranslation['airline_code_hint'] ?? '2-letter IATA code' }}</small>
+                @error('code')
+                    <span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+                @enderror
+            </div>
+        </div>
         
         <div class="col-md-12">
             <div class="form-item mb-5">

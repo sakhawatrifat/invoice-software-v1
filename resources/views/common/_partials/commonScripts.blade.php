@@ -11,6 +11,71 @@
 </div>
 
 <script>
+	// Global AJAX handler: on CSRF mismatch (419/403) show Swal + toastr, offer reload (reload only if user confirms)
+	(function() {
+		var csrfModalShown = false;
+		function isCsrfMismatch(xhr) {
+			if (xhr.status === 419) return true;
+			if (xhr.status === 403) {
+				var msg = (xhr.responseJSON && xhr.responseJSON.message) ? String(xhr.responseJSON.message) : '';
+				return /csrf|token|expired|session/i.test(msg);
+			}
+			return false;
+		}
+		function showCsrfReloadModal(xhr) {
+			if (csrfModalShown) return;
+			csrfModalShown = true;
+			var title = (typeof getCurrentTranslation !== 'undefined' && getCurrentTranslation.csrf_token_mismatch) ? getCurrentTranslation.csrf_token_mismatch : 'CSRF Token Mismatch';
+			var text = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : ((typeof getCurrentTranslation !== 'undefined' && getCurrentTranslation.csrf_token_mismatch_msg) ? getCurrentTranslation.csrf_token_mismatch_msg : 'Your session has expired. Please reload the page.');
+			if (typeof toastr !== 'undefined') {
+				toastr.error(text);
+			}
+			var confirmText = (typeof getCurrentTranslation !== 'undefined' && getCurrentTranslation.yes_reload_page) ? getCurrentTranslation.yes_reload_page : 'Reload Page';
+			var cancelText = (typeof getCurrentTranslation !== 'undefined' && getCurrentTranslation.cancel) ? getCurrentTranslation.cancel : 'Cancel';
+			Swal.fire({
+				icon: 'error',
+				title: title,
+				text: text,
+				showCancelButton: true,
+				confirmButtonText: confirmText,
+				cancelButtonText: cancelText,
+				allowOutsideClick: true,
+				allowEscapeKey: true
+			}).then(function(result) {
+				csrfModalShown = false;
+				if (result.isConfirmed) {
+					location.reload();
+				}
+			});
+		}
+		$(document).ajaxError(function(event, xhr) {
+			if (xhr && isCsrfMismatch(xhr)) {
+				showCsrfReloadModal(xhr);
+			}
+		});
+
+		// Also handle fetch() API (e.g. chat): wrap fetch to show same CSRF modal on 419/403
+		var originalFetch = window.fetch;
+		if (typeof originalFetch === 'function') {
+			window.fetch = function() {
+				return originalFetch.apply(this, arguments).then(function(response) {
+					if (response.status === 419 || response.status === 403) {
+						var clone = response.clone();
+						clone.json().then(function(data) {
+							var fakeXhr = { status: response.status, responseJSON: data };
+							if (isCsrfMismatch(fakeXhr)) {
+								showCsrfReloadModal(fakeXhr);
+							}
+						}).catch(function() {
+							showCsrfReloadModal({ status: response.status, responseJSON: {} });
+						});
+					}
+					return response;
+				});
+			};
+		}
+	})();
+
 	function openAjaxCreateModal(route, for_input, title='New Data') {
 		$('.r-preloader').show();
 
@@ -34,19 +99,8 @@
 			},
 			error: function (xhr) {
 				$('.r-preloader').hide();
-
-				if (xhr.status === 419) {
-					Swal.fire({
-						icon: 'error',
-						title: getCurrentTranslation.csrf_token_mismatch ?? 'CSRF Token Mismatch',
-						text: getCurrentTranslation.csrf_token_mismatch_msg ?? 'Your session has expired. Please reload the page.',
-						confirmButtonText: getCurrentTranslation.yes_reload_page ?? 'Reload Page'
-					}).then(() => {
-						location.reload();
-					});
-					return;
-				}
-
+				// 419/403 CSRF handled by global ajaxError handler (Swal with reload/cancel)
+				if (xhr && (xhr.status === 419 || xhr.status === 403)) return;
 				Swal.fire(
 					getCurrentTranslation.error ?? 'Error',
 					getCurrentTranslation.something_went_wrong ?? 'Something went wrong. Please try again.',
@@ -114,6 +168,14 @@
 			// Hide modal and preloader if opened in new tab
 			$("#ticketLayoutModal").modal("hide");
 			$(".r-preloader").hide();
+		}
+	});
+
+	// Check Flight Status button: show preloader on same-tab click (page load will hide it)
+	$(document).on("click", ".check-flight-status-btn", function (e) {
+		const isNewTab = e.ctrlKey || e.metaKey || e.which === 2 || $(this).attr("target") === "_blank";
+		if (!isNewTab) {
+			$(".r-preloader").show();
 		}
 	});
 

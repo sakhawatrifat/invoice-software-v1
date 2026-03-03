@@ -138,6 +138,17 @@
 						</div>
 						@endif
 
+						@if(hasPermission('ticket.search.form'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'ticket.search.form' && request()->document_type=='ticket' ? 'active' : '' }}" href="{{ route('ticket.search.form') }}?document_type=ticket">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['import_ticket_data'] ?? 'import_ticket_data' }}</span>
+							</a>
+						</div>
+						@endif
+
 						@if(hasPermission('ticket.create'))
 						<div class="menu-item">
 							<a class="menu-link {{ getCurrentRouteName() == 'ticket.create' && request()->document_type=='invoice' ? 'active' : '' }}" href="{{ route('ticket.create') }}?document_type=invoice">
@@ -186,7 +197,7 @@
 				@endif
 
 				@php
-					$reminderRoutes = ['ticket.reminder.index', 'ticket.reminder.datatable', 'ticket.reminder.form'];
+					$reminderRoutes = ['ticket.reminder.index', 'ticket.reminder.datatable', 'ticket.reminder.form', 'flight.list', 'flight.list.datatable', 'payment.flight.status'];
 				@endphp
 				@if(hasPermission('ticket.reminder'))
 				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($reminderRoutes, 'hover show') }}">
@@ -212,6 +223,20 @@
 									<span class="bullet bullet-dot"></span>
 								</span>
 								<span class="menu-title">{{ $getCurrentTranslation['reminder_informations'] ?? 'reminder_informations' }}</span>
+							</a>
+						</div>
+
+						@php
+							$upcomingFlightStart = \Carbon\Carbon::today()->format('Y/m/d');
+							$upcomingFlightEnd = \Carbon\Carbon::today()->addDays(30)->format('Y/m/d');
+							$upcomingFlightDateRange = "{$upcomingFlightStart}-{$upcomingFlightEnd}";
+						@endphp
+						<div class="menu-item">
+							<a class="menu-link {{ in_array(getCurrentRouteName(), ['flight.list', 'flight.list.datatable', 'payment.flight.status']) ? 'active' : '' }}" href="{{ route('flight.list') }}?flight_date_range={{ $upcomingFlightDateRange }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['upcomming_flights'] ?? 'upcomming_flights' }}</span>
 							</a>
 						</div>
 					</div>
@@ -441,20 +466,20 @@
 
 
 				<!-- Essentials -->
-				{{-- <div class="menu-item">
+				<div class="menu-item">
 					<div class="menu-content pt-8 pb-2">
 						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>{{ $getCurrentTranslation['essentials'] ?? 'Essentials' }}</strong></span>
 					</div>
 				</div>
 
-				<div class="menu-item">
+				{{-- <div class="menu-item">
 					<a class="menu-link {{ getCurrentRouteName() == 'chat.index' ? 'active' : '' }}" href="{{ route('chat.index') }}">
 						<span class="menu-icon">
 							<i class="fa-solid fa-comments h4 mb-0"></i>
 						</span>
 						<span class="menu-title">{{ $getCurrentTranslation['view_all_messages'] ?? 'View all messages' }}</span>
 					</a>
-				</div>
+				</div> --}}
 
 				@php
 					$stickyNoteRoutes = ['sticky_note.index','sticky_note.datatable','sticky_note.create','sticky_note.store','sticky_note.show','sticky_note.edit','sticky_note.update','sticky_note.destroy'];
@@ -492,7 +517,7 @@
 						@endif
 					</div>
 				</div>
-				@endif --}}
+				@endif
 
 				<!-- Marketing -->
 				{{-- @if(hasPermission('email_marketing') || hasPermission('whatsapp_marketing'))

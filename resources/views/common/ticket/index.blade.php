@@ -39,6 +39,9 @@
 						</button>
 						<div class="dropdown-menu p-0">
 							<a href="{{ $createRoute }}?document_type=ticket" class="dropdown-item btn btn-sm fw-bold btn-success">{{ $getCurrentTranslation['ticket'] ?? 'ticket' }}</a>
+							@if(hasPermission('ticket.search.form'))
+								<a href="{{ route('ticket.search.form') }}?document_type=ticket" class="dropdown-item btn btn-sm fw-bold btn-secondary">{{ $getCurrentTranslation['import_ticket_data'] ?? 'import_ticket_data' }}</a>
+							@endif
 							<a href="{{ $createRoute }}?document_type=invoice" class="dropdown-item btn btn-sm fw-bold btn-info">{{ $getCurrentTranslation['invoice'] ?? 'invoice' }}</a>
 							<a href="{{ $createRoute }}?document_type=quotation" class="dropdown-item btn btn-sm fw-bold btn-primary">{{ $getCurrentTranslation['quotation'] ?? 'quotation' }}</a>
 						</div>

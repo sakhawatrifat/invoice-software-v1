@@ -286,7 +286,16 @@
 									${message}
 								</div>
 							`);
-							$input.after($error);
+							// Place error under Select2 dropdown when present, otherwise after the input
+							const $select2Container = $input.next('.select2-container').length
+								? $input.next('.select2-container')
+								: $input.closest('.select2-container');
+							if ($input.is('select') && $select2Container.length) {
+								$select2Container.after($error);
+								$select2Container.addClass('is-invalid');
+							} else {
+								$input.after($error);
+							}
 
 							if (!firstField) {
 								firstField = $input;

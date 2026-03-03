@@ -532,15 +532,20 @@ function isExistUploadedUrl($url) {
 //For Storage
 function deleteUploadedFile($path)
 {
-    // Normalize path (remove leading slash)
-    $relativePath = ltrim($path, '/');
+    if (empty($path)) {
+        return false;
+    }
+    // Normalize path (remove leading slash; normalize backslashes for Windows)
+    $relativePath = str_replace('\\', '/', ltrim($path, '/'));
 
-    // Possible file locations
+    // Possible file locations (uploadFile returns "uploads/folder/file", handleImageUpload returns "folder/file" for storage)
     $storagePath = public_path('storage/' . $relativePath);
-    $uploadPath = public_path('uploads/' . $relativePath);
+    $uploadPath = (strpos($relativePath, 'uploads/') === 0)
+        ? public_path($relativePath)
+        : public_path('uploads/' . $relativePath);
     $publicPath = public_path($relativePath);
 
-    // Try deleting from storage folder
+    // Try deleting from storage folder (storage link: public/storage -> storage/app/public)
     if (File::exists($storagePath)) {
         File::delete($storagePath);
         return true;
@@ -1183,7 +1188,7 @@ if (!function_exists('getPreFooterDetails')) {
 if (!function_exists('getCurrentTranslation')) {
     /**
      * Get current user's translations (cached). Uses Laravel cache to avoid hitting the translations table on every request.
-     * Cache is cleared when /clear-cache is run.
+     * If user's clear_cache flag is 1, translation cache is cleared and reloaded from DB, then flag is set back to 0.
      */
     function getCurrentTranslation()
     {
@@ -1191,9 +1196,20 @@ if (!function_exists('getCurrentTranslation')) {
             return [];
         }
 
-        $lang = Auth::user()->default_language ?? 'en';
+        $user = Auth::user();
+        $lang = $user->default_language ?? 'en';
         $cacheKey = 'translations_' . $lang;
 
+        // Admin requested cache clear for all users: forget all language translation caches, then reset flag
+        if (!empty($user->clear_cache)) {
+            $langs = Translation::distinct()->pluck('lang');
+            foreach ($langs as $langCode) {
+                Cache::forget('translations_' . $langCode);
+            }
+            User::where('id', $user->id)->update(['clear_cache' => 0]);
+        }
+
+        // Cache and return translations for the user's default language only
         return Cache::rememberForever($cacheKey, function () use ($lang) {
             return Translation::where('lang', $lang)->pluck('lang_value', 'lang_key')->toArray();
         });
@@ -1300,6 +1316,7 @@ if (!function_exists('getPermissionList')) {
                     ['title' => 'status', 'key' => 'payment.status'],
                     ['title' => 'delete', 'key' => 'payment.delete'],
                     ['title' => 'mail', 'key' => 'payment.mail'],
+                    ['title' => 'flight_status', 'key' => 'payment.flight_status'],
                 ],
             ],
             [
@@ -2209,7 +2226,7 @@ if (!function_exists('flightListData')) {
         
         $rangeType = determineRangeType($startDate, $endDate);
         
-        $toDoData = Payment::with('ticket', 'ticket.passengers', 'country', 'issuedBy', 'airline')
+        $toDoData = Payment::with('ticket', 'ticket.allFlights', 'ticket.passengers', 'country', 'issuedBy', 'airline', 'introductionSource')
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('departure_date_time', [$startDate, $endDate])
                     ->orWhereBetween('return_date_time', [$startDate, $endDate]);

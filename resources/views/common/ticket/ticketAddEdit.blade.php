@@ -72,7 +72,7 @@
 				@if(hasPermission('ticket.search.form') && !isset($editData))
                 	<a href="{{ route('ticket.search.form') }}?document_type=ticket" class="btn btn-sm fw-bold btn-primary">
 						<i class="fa-solid fa-file-import"></i>
-						{{ $getCurrentTranslation['import_data'] ?? 'import_data' }}
+						{{ $getCurrentTranslation['import_ticket_data'] ?? 'import_ticket_data' }}
 					</a>
                 @endif
 				

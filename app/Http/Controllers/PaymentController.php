@@ -24,9 +24,16 @@ use App\Models\UserCompany;
 use App\Models\Ticket;
 use App\Models\Payment;
 use App\Models\PaymentDocument;
+use App\Models\TicketFlight;
+use App\Models\TicketPassenger;
+use App\Models\Airline;
 
 use PDF;
 use App\Services\PdfService;
+use App\Services\FlightApiService;
+use App\Mail\FlightChangeMail;
+use App\Mail\FlightStatusMail;
+use Illuminate\Support\Facades\View;
 
 class PaymentController extends Controller
 {
@@ -847,12 +854,13 @@ class PaymentController extends Controller
 
         $logoMimes = 'heic,jpg,jpeg,png';
         $documentMimes = 'heic,jpg,jpeg,png,pdf,doc,docx';
+        $paymentDataDocumentMimes = 'jpg,jpeg,png,pdf';
         $maxImageSize = 3072; // in KB
 
         $validator = Validator::make($request->all(), [
             'invoice_date' => 'nullable|date',
             'payment_invoice_id' => 'nullable|string',
-            'ticket_id' => 'nullable|integer',
+            'ticket_id' => 'required|integer|exists:tickets,id',
             'client_name' => 'nullable|string|max:255',
             'client_phone' => 'nullable|string|max:50',
             'client_email' => 'nullable|email|max:255',
@@ -890,6 +898,9 @@ class PaymentController extends Controller
             'paymentData' => 'nullable|array',
             'paymentData.*.paid_amount' => 'nullable|numeric|min:0',
             'paymentData.*.date' => 'nullable|date',
+            'paymentData.*.document' => 'nullable|file|mimes:' . $paymentDataDocumentMimes . '|max:' . $maxImageSize,
+            'paymentData.*.note' => 'nullable|string|max:2000',
+            'paymentData.*.document_old' => 'nullable|string',
 
             'payment_status' => 'nullable|in:Unpaid,Paid,Partial,Unknown',
             'next_payment_deadline' => 'nullable|date',
@@ -918,6 +929,8 @@ class PaymentController extends Controller
             // File messages
             'documents.*.file.max'   => ($messages['max_file_size_message'] ?? 'The maximum allowed file size for this field is: ') . ($maxImageSize / 1024) . ' MB',
             'documents.*.file.mimes' => ($messages['mimes_message'] ?? 'The file must be of type:') . ' ' . $documentMimes,
+            'paymentData.*.document.max'   => ($messages['max_file_size_message'] ?? 'The maximum allowed file size for this field is: ') . ($maxImageSize / 1024) . ' MB',
+            'paymentData.*.document.mimes' => ($messages['mimes_message'] ?? 'The file must be of type:') . ' ' . $paymentDataDocumentMimes,
 
             // Payment Data
             'paymentData.*.paid_amount.min' => ($messages['min_string_message'] ?? 'This field allowed maximum character length is: ') . ':min',
@@ -1007,7 +1020,92 @@ class PaymentController extends Controller
             $paymentData->card_digit = $request->card_digit ?? null;
             $paymentData->total_purchase_price = $request->total_purchase_price ?? null;
             $paymentData->total_selling_price = $request->total_selling_price ?? null;
-            $paymentData->paymentData = removeEmptyArrays($request->paymentData ?? []);
+
+            // Normalize payment collection rows (store file paths in JSON, never UploadedFile objects)
+            $rawPaymentRows = $request->paymentData ?? [];
+            $existingPaymentRows = (is_array($paymentData->paymentData ?? null)) ? ($paymentData->paymentData ?? []) : [];
+            $processedPaymentRows = [];
+
+            if (is_array($rawPaymentRows) && count($rawPaymentRows)) {
+                foreach ($rawPaymentRows as $rowIndex => $row) {
+                    if (!is_array($row)) continue;
+
+                    $paidAmount = $row['paid_amount'] ?? null;
+                    $date = $row['date'] ?? null;
+                    $note = array_key_exists('note', $row) ? trim((string) $row['note']) : null;
+
+                    $oldDocPath = $row['document_old'] ?? ($existingPaymentRows[$rowIndex]['document'] ?? null);
+                    $docPath = $oldDocPath;
+
+                    if (isset($row['document']) && $row['document'] instanceof \Illuminate\Http\UploadedFile) {
+                        $uploadedFile = $row['document'];
+                        $extension = strtolower($uploadedFile->getClientOriginalExtension());
+                        $imageExtensions = ['jpg', 'jpeg', 'png'];
+
+                        if (in_array($extension, $imageExtensions)) {
+                            $newPath = handleImageUpload(
+                                $uploadedFile,
+                                1920,
+                                1080,
+                                'payment-collection-documents',
+                                null,
+                                null
+                            );
+                            if (!empty($newPath)) {
+                                if (!empty($oldDocPath)) {
+                                    deleteUploadedFile($oldDocPath);
+                                }
+                                $docPath = $newPath;
+                            }
+                        } else {
+                            $newPath = uploadFile(
+                                $uploadedFile,
+                                null,
+                                'payment-collection-documents',
+                                null
+                            );
+                            if (!empty($newPath)) {
+                                if (!empty($oldDocPath)) {
+                                    deleteUploadedFile($oldDocPath);
+                                }
+                                $docPath = $newPath;
+                            }
+                        }
+                    } else {
+                        // Row cleared: no new file — if row is empty, remove document from JSON and delete file from server
+                        $paidEmpty = trim((string) $paidAmount) === '' || $paidAmount === 0 || $paidAmount === '0';
+                        $rowIsEmpty = $paidEmpty && trim((string) $date) === '' && $note === '';
+                        if ($rowIsEmpty && !empty($oldDocPath)) {
+                            deleteUploadedFile($oldDocPath);
+                            $docPath = null;
+                        }
+                    }
+
+                    $processedPaymentRows[$rowIndex] = [
+                        'paid_amount' => $paidAmount,
+                        'date' => $date,
+                        'document' => $docPath,
+                        'note' => $note,
+                    ];
+                }
+            }
+
+            // Collect document paths we are keeping in the new payload (before removeEmptyArrays)
+            $keptDocPaths = [];
+            foreach ($processedPaymentRows as $row) {
+                if (!empty($row['document'])) {
+                    $keptDocPaths[] = $row['document'];
+                }
+            }
+            // Delete payment-collection-documents that are no longer in the new rows (removed or cleared)
+            foreach ($existingPaymentRows as $existingRow) {
+                $existingDoc = $existingRow['document'] ?? null;
+                if (!empty($existingDoc) && !in_array($existingDoc, $keptDocPaths)) {
+                    deleteUploadedFile($existingDoc);
+                }
+            }
+
+            $paymentData->paymentData = removeEmptyArrays($processedPaymentRows);
             $paymentData->payment_status = $request->payment_status ?? null;
             $paymentData->next_payment_deadline = $request->next_payment_deadline ?? null;
 
@@ -1032,12 +1130,18 @@ class PaymentController extends Controller
 
             if (is_array($documents) && count($documents)) {
                 foreach ($documents as $docItem) {
+                    $existingId = isset($docItem['id']) && $docItem['id'] !== '' && $docItem['id'] !== null ? $docItem['id'] : null;
+                    $hasNewFile = !empty($docItem['file']);
+                    // Skip items that have no existing id and no new file (e.g. cleared row) so we don't create empty records
+                    if (!$existingId && !$hasNewFile) {
+                        continue;
+                    }
 
                     $docFile = new PaymentDocument();
 
-                    if (isset($docItem['id']) && $docItem['id'] != null) {
+                    if ($existingId) {
                         $docFile = PaymentDocument::where('payment_id', $paymentData->id)
-                                                ->where('id', $docItem['id'])
+                                                ->where('id', $existingId)
                                                 ->first();
                         if (!$docFile) {
                             $docFile = new PaymentDocument();
@@ -1045,7 +1149,7 @@ class PaymentController extends Controller
                     }
 
                     // Only upload if a new file exists
-                    if (!empty($docItem['file'])) {
+                    if ($hasNewFile) {
                         $uploadedFile = $docItem['file'];
 
                         // Determine file type
@@ -1086,13 +1190,15 @@ class PaymentController extends Controller
                 }
             }
 
-            // Delete old files not in current upload
-            PaymentDocument::where('payment_id', $paymentData->id)
-                ->whereNotIn('id', $currentFileIds)
-                ->each(function($oldDoc){
-                    deleteUploadedFile($oldDoc->file_url);
-                    $oldDoc->delete();
-                });
+            // Delete old files not in current upload (when currentFileIds is empty, remove all payment documents)
+            $docsToDelete = PaymentDocument::where('payment_id', $paymentData->id);
+            if (count($currentFileIds) > 0) {
+                $docsToDelete = $docsToDelete->whereNotIn('id', $currentFileIds);
+            }
+            $docsToDelete->each(function ($oldDoc) {
+                deleteUploadedFile($oldDoc->file_url);
+                $oldDoc->delete();
+            });
 
             if ($paymentData->payment_status == 'Paid') {
                 Notification::where('url', route('payment.show', $paymentData->id, false))->delete();
@@ -1505,7 +1611,7 @@ class PaymentController extends Controller
         $user = Auth::user();
 
         $query = Payment::with([
-            'ticket', 'paymentDocuments', 'introductionSource', 'country',
+            'ticket', 'ticket.allFlights', 'paymentDocuments', 'introductionSource', 'country',
             'issuedBy', 'airline', 'transferTo', 'paymentMethod',
             'issuedCardType', 'cardOwner'
         ]);
@@ -1719,10 +1825,17 @@ class PaymentController extends Controller
                 $departureLabel      = $getCurrentTranslation['departure_label'] ?? 'departure_label';
                 $returnLabel         = $getCurrentTranslation['return_label'] ?? 'return_label';
                 $airlineLabel        = $getCurrentTranslation['airline_label'] ?? 'airline_label';
+                $introductionSourceLabel = $getCurrentTranslation['introduction_source_label'] ?? 'introduction_source_label';
+                $flightStatusMailCountLabel = $getCurrentTranslation['flight_status_mail_count'] ?? 'flight_status_mail_count';
 
-                $departure = $row->departure_date_time ? date('Y-m-d, H:i', strtotime($row->departure_date_time)) : 'N/A';
+                $upcomingDeparture = $row->ticket?->upcoming_departure_date;
+                $departureLine = ($upcomingDeparture !== null)
+                    ? '<strong>' . $departureLabel . ':</strong> ' . \Carbon\Carbon::parse($upcomingDeparture)->format('Y-m-d, H:i') . '<br>'
+                    : '';
                 $return    = $row->return_date_time ? date('Y-m-d, H:i', strtotime($row->return_date_time)) : 'N/A';
                 $airline   = $row->airline->name ?? 'N/A';
+                $introductionSource = $row->introductionSource?->name ?? 'N/A';
+                $flightStatusMailCount = (int) ($row->flight_status_mail_count ?? 0);
 
                 return '<div style="max-width: 280px; line-height: 1.6; text-align: left;">
                     <strong>' . $passengerNameLabel . ':</strong> ' . $row->client_name . '<br>
@@ -1731,8 +1844,10 @@ class PaymentController extends Controller
                     <strong>' . $tripTypeLabel . ':</strong> ' . $row->trip_type . '<br>
                     <strong>' . $airlineLabel . ':</strong> ' . $airline . '<br>
                     <strong>' . $flightRouteLabel . ':</strong> ' . $row->flight_route . '<br>
-                    <strong>' . $departureLabel . ':</strong> ' . $departure . '<br>
+                    ' . $departureLine . '
                     <strong>' . $returnLabel . ':</strong> ' . $return . '<br>
+                    <strong>' . $introductionSourceLabel . ':</strong> ' . $introductionSource . '<br>
+                    <strong>' . $flightStatusMailCountLabel . ':</strong> <span class="badge badge-info">' . $flightStatusMailCount . '</span><br>
                 </div>';
             })
 
@@ -1789,12 +1904,23 @@ class PaymentController extends Controller
             })
 
             // ✅ Actions
-            ->addColumn('action', function ($row) {
+            ->addColumn('action', function ($row) use ($getCurrentTranslation) {
                 $detailsUrl   = route('payment.show', $row->id);
                 $editUrl      = route('payment.edit', $row->id);
                 $deleteUrl    = route('payment.destroy', $row->id);
+                $flightStatusUrl = route('payment.flight.status', $row->id);
+                $checkFlightStatusTitle = $getCurrentTranslation['check_flight_status'] ?? 'Check Flight Status';
 
                 $buttons = '';
+
+                // ✈️ Check Flight Status (only when document_type = ticket)
+                if (($row->ticket->document_type ?? '') === 'ticket' && hasPermission('payment.flight_status')) {
+                    $buttons .= '
+                        <a href="' . e($flightStatusUrl) . '" class="btn btn-sm btn-success my-1 check-flight-status-btn" title="' . e($checkFlightStatusTitle) . '">
+                            <i class="fa-solid fa-plane-departure"></i>
+                        </a>
+                    ';
+                }
 
                 // 👁️ Details
                 if (hasPermission('payment.show')) {
@@ -1841,6 +1967,647 @@ class PaymentController extends Controller
             ])
             ->make(true);
 
+    }
+
+    /** Session key for cached flight status data (per payment id). Call API only on page load/reload; use this for mail content and send. */
+    private function flightStatusSessionKey(int $paymentId): string
+    {
+        return 'flight_status_data_' . $paymentId;
+    }
+
+    /**
+     * Build system segments with flight_id/transit_id for applying live updates by id.
+     * @return array<int, array>
+     */
+    private function buildSystemSegmentsWithIds(Payment $payment): array
+    {
+        $ticket = $payment->ticket;
+        $mainFlights = $ticket->allFlights->whereNull('parent_id')->values();
+        $systemSegments = [];
+        foreach ($mainFlights as $f) {
+            $systemSegments[] = [
+                'airline' => $f->airline->name ?? 'N/A',
+                'airline_code' => $f->airline->code ?? FlightApiService::extractAirlineCodeFromFlightNumber($f->flight_number),
+                'flight_number' => $f->flight_number,
+                'flight_number_only' => FlightApiService::extractFlightNumberOnly($f->flight_number),
+                'leaving_from' => $f->leaving_from,
+                'going_to' => $f->going_to,
+                'departure_date_time' => $f->departure_date_time,
+                'arrival_date_time' => $f->arrival_date_time,
+                'is_transit' => (bool) ($f->is_transit ?? false),
+                'flight_id' => $f->id,
+                'transit_id' => null,
+            ];
+            foreach ($f->transits ?? [] as $transit) {
+                $systemSegments[] = [
+                    'airline' => $transit->airline->name ?? 'N/A',
+                    'airline_code' => $transit->airline->code ?? FlightApiService::extractAirlineCodeFromFlightNumber($transit->flight_number),
+                    'flight_number' => $transit->flight_number,
+                    'flight_number_only' => FlightApiService::extractFlightNumberOnly($transit->flight_number),
+                    'leaving_from' => $transit->leaving_from,
+                    'going_to' => $transit->going_to,
+                    'departure_date_time' => $transit->departure_date_time,
+                    'arrival_date_time' => $transit->arrival_date_time,
+                    'is_transit' => true,
+                    'flight_id' => null,
+                    'transit_id' => $transit->id,
+                ];
+            }
+        }
+        return $systemSegments;
+    }
+
+    /**
+     * Fetch live data from API for all segments, store in session, return [systemSegments, liveData, liveUpdates, trackError].
+     * Call this only on page load or reload; mail content load and mail send use session.
+     */
+    private function fetchAndCacheFlightStatusData(Payment $payment): array
+    {
+        $systemSegments = $this->buildSystemSegmentsWithIds($payment);
+        $liveData = [];
+        $liveUpdates = [];
+        $trackError = null;
+        $flightApi = app(FlightApiService::class);
+
+        if (!$flightApi->isConfigured() || empty($systemSegments)) {
+            $this->putFlightStatusSession($payment->id, $liveData, $liveUpdates, $trackError);
+            return [$systemSegments, $liveData, $liveUpdates, $trackError];
+        }
+
+        foreach ($systemSegments as $seg) {
+            $airlineCode = $seg['airline_code'] ?? null;
+            $num = $seg['flight_number_only'] ?: $seg['flight_number'];
+            $num = trim((string) $num);
+            $airlineCode = $airlineCode !== null ? trim((string) $airlineCode) : '';
+            $date = $seg['departure_date_time'] ?? $payment->departure_date_time;
+            $depAp = null;
+            if (!empty($seg['leaving_from']) && preg_match('/\b([A-Z]{3})\b/i', $seg['leaving_from'], $m)) {
+                $depAp = strtoupper($m[1]);
+            }
+            $liveData[] = [];
+            if ($num === '' || strlen($airlineCode) < 2) {
+                if ($trackError === null) {
+                    $trackError = getCurrentTranslation()['flight_tracking_requires_airline_and_number'] ?? 'Live tracking requires a 2-letter airline IATA code and flight number for each segment.';
+                }
+                continue;
+            }
+            try {
+                $raw = $flightApi->trackFlight($airlineCode, $num, (string) ($date ?? now()), $depAp);
+                $normalized = $this->normalizeFlightTrackingResponse($raw);
+                if (!empty($normalized)) {
+                    $liveData[array_key_last($liveData)] = $normalized[0];
+                    $dep = $normalized[0]['departure'] ?? [];
+                    $arr = $normalized[0]['arrival'] ?? [];
+                    $newDep = $this->safeParseDateTimeForDb($dep['departureDateTime'] ?? $dep['scheduledTime'] ?? null);
+                    $newArr = $this->safeParseDateTimeForDb($arr['arrivalDateTime'] ?? $arr['scheduledTime'] ?? null);
+                    if ($newDep || $newArr) {
+                        $liveUpdates[] = [
+                            'flight_id' => $seg['flight_id'],
+                            'transit_id' => $seg['transit_id'],
+                            'departure_date_time' => $newDep,
+                            'arrival_date_time' => $newArr,
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                if ($trackError === null) {
+                    $trackError = $e->getMessage();
+                }
+                \Log::warning('FlightAPI track failed for segment: ' . $e->getMessage());
+            }
+        }
+
+        $this->putFlightStatusSession($payment->id, $liveData, $liveUpdates, $trackError);
+        return [$systemSegments, $liveData, $liveUpdates, $trackError];
+    }
+
+    /** Store only API response data (formatted) in session; System Data is always read from current DB. */
+    private function putFlightStatusSession(int $paymentId, array $liveData, array $liveUpdates, ?string $trackError): void
+    {
+        session([$this->flightStatusSessionKey($paymentId) => [
+            'liveData' => $liveData,
+            'liveUpdates' => $liveUpdates,
+            'trackError' => $trackError,
+            'updated_at' => now()->toDateTimeString(),
+        ]]);
+    }
+
+    private function getFlightStatusSession(int $paymentId): ?array
+    {
+        $key = $this->flightStatusSessionKey($paymentId);
+        $data = session($key);
+        if (!is_array($data)) {
+            return null;
+        }
+        return $data;
+    }
+
+    /**
+     * Compute datetimeMismatch from systemSegments and liveData (same format as flight status view).
+     */
+    private function computeDatetimeMismatch(array $systemSegments, array $liveData): bool
+    {
+        foreach ($systemSegments as $idx => $seg) {
+            $sysDep = $seg['departure_date_time'] ?? null;
+            $liveSeg = $liveData[$idx] ?? null;
+            if (!$sysDep || !$liveSeg) {
+                continue;
+            }
+            $liveDep = $liveSeg['departure']['departureDateTime'] ?? $liveSeg['departure']['scheduledTime'] ?? null;
+            if (!$liveDep) {
+                continue;
+            }
+            try {
+                if (Carbon::parse($sysDep)->format('Y-m-d H:i') !== Carbon::parse($liveDep)->format('Y-m-d H:i')) {
+                    return true;
+                }
+            } catch (\Throwable $e) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Flight status page: show system vs live. Uses session when present (no API call on F5/browser refresh).
+     * API is called only when session data is missing or when user clicks "Refresh flight status" (via updateFlightFromApi).
+     */
+    public function flightStatus($id)
+    {
+        if (!hasPermission('payment.flight_status')) {
+            abort(403, getCurrentTranslation()['permission_denied'] ?? 'Permission denied');
+        }
+
+        $payment = Payment::with([
+            'ticket', 'ticket.allFlights', 'ticket.flights', 'ticket.passengers', 'ticket.passengers.flights',
+            'airline', 'ticket.allFlights.airline', 'ticket.flights.transits',
+        ])->findOrFail($id);
+
+        if (!$payment->ticket || ($payment->ticket->document_type ?? '') !== 'ticket') {
+            abort(404, 'Ticket not found or not a ticket document.');
+        }
+
+        $ticket = $payment->ticket;
+        $getCurrentTranslation = getCurrentTranslation();
+        $listRoute = route('flight.list');
+        $flightListUrl = $listRoute;
+
+        $systemSegments = $this->buildSystemSegmentsWithIds($payment);
+        $sessionData = $this->getFlightStatusSession((int) $payment->id);
+        if ($sessionData !== null) {
+            $liveData = $sessionData['liveData'] ?? [];
+            $trackError = $sessionData['trackError'] ?? null;
+        } else {
+            list($systemSegments, $liveData, $liveUpdates, $trackError) = $this->fetchAndCacheFlightStatusData($payment);
+        }
+        $datetimeMismatch = $this->computeDatetimeMismatch($systemSegments, $liveData);
+
+        $customerEmail = $payment->client_email;
+
+        return view('common.payment-record.flightStatus', get_defined_vars());
+    }
+
+    /**
+     * Flight status mail form page (same design as ticket mail).
+     */
+    public function flightStatusMail($id)
+    {
+        if (!hasPermission('payment.flight_status')) {
+            abort(403, getCurrentTranslation()['permission_denied'] ?? 'Permission denied');
+        }
+
+        $payment = Payment::with([
+            'ticket', 'ticket.allFlights', 'ticket.flights', 'ticket.passengers', 'ticket.allFlights.airline', 'ticket.flights.transits',
+        ])->findOrFail($id);
+
+        if (!$payment->ticket || ($payment->ticket->document_type ?? '') !== 'ticket') {
+            abort(404, 'Ticket not found or not a ticket document.');
+        }
+
+        $editData = $payment;
+        $listRoute = route('flight.list');
+        $getCurrentTranslation = getCurrentTranslation();
+
+        return view('common.payment-record.flightStatusSendMailForm', get_defined_vars());
+    }
+
+    /**
+     * Apply cached live updates to DB (no API call). Used after reload or when sending mail with "update to DB" checked.
+     */
+    private function applyFlightStatusLiveUpdatesToDb(Payment $payment, array $liveUpdates): bool
+    {
+        if (empty($liveUpdates)) {
+            return false;
+        }
+        $updated = false;
+        DB::beginTransaction();
+        try {
+            foreach ($liveUpdates as $one) {
+                $flightId = $one['flight_id'] ?? null;
+                $transitId = $one['transit_id'] ?? null;
+                $dep = $one['departure_date_time'] ?? null;
+                $arr = $one['arrival_date_time'] ?? null;
+                $id = $transitId ?? $flightId;
+                if ($id === null) {
+                    continue;
+                }
+                $flight = \App\Models\TicketFlight::find($id);
+                if (!$flight) {
+                    continue;
+                }
+                if ($dep && $flight->departure_date_time !== $dep) {
+                    $flight->departure_date_time = $dep;
+                    $updated = true;
+                }
+                if ($arr && $flight->arrival_date_time !== $arr) {
+                    $flight->arrival_date_time = $arr;
+                    $updated = true;
+                }
+                if ($flight->isDirty(['departure_date_time', 'arrival_date_time'])) {
+                    $flight->save();
+                }
+            }
+            if ($updated) {
+                $payment->refresh();
+                $payment->load(['ticket', 'ticket.allFlights', 'ticket.flights']);
+                $payment->departure_date_time = $payment->ticket->flights->first()?->departure_date_time ?? $payment->departure_date_time;
+                $payment->return_date_time = $payment->ticket->allFlights->sortByDesc('departure_date_time')->first()?->departure_date_time ?? $payment->return_date_time;
+                $payment->save();
+            }
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::warning('Apply flight status live updates failed: ' . $e->getMessage());
+            return false;
+        }
+        return $updated;
+    }
+
+    /**
+     * Reload: call API once for all segments, update DB from response, store in session.
+     */
+    public function updateFlightFromApi(Request $request, $id)
+    {
+        if (!hasPermission('payment.flight_status')) {
+            return response()->json([
+                'is_success' => 0,
+                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
+            ], 403);
+        }
+
+        $payment = Payment::with(['ticket', 'ticket.allFlights', 'ticket.flights', 'ticket.allFlights.airline', 'ticket.flights.transits'])->findOrFail($id);
+        if (!$payment->ticket || ($payment->ticket->document_type ?? '') !== 'ticket') {
+            return response()->json(['is_success' => 0, 'message' => 'Ticket not found.'], 404);
+        }
+
+        $flightApi = app(FlightApiService::class);
+        if (!$flightApi->isConfigured()) {
+            return response()->json(['is_success' => 0, 'message' => 'Flight API is not configured.'], 400);
+        }
+
+        list($systemSegments, $liveData, $liveUpdates, $trackError) = $this->fetchAndCacheFlightStatusData($payment);
+        $updated = $this->applyFlightStatusLiveUpdatesToDb($payment, $liveUpdates);
+
+        $message = $updated
+            ? (getCurrentTranslation()['flight_data_updated'] ?? 'Flight data updated.')
+            : (getCurrentTranslation()['no_changes_from_api'] ?? 'No changes from API.');
+
+        return response()->json(['is_success' => 1, 'message' => $message]);
+    }
+
+    /**
+     * Load mail body content for flight status (AJAX).
+     */
+    public function flightStatusMailContentLoad(Request $request, $id)
+    {
+        if (!hasPermission('payment.flight_status')) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
+            ], 403);
+        }
+
+        $payment = Payment::with([
+            'ticket', 'ticket.allFlights', 'ticket.flights', 'ticket.allFlights.airline', 'ticket.flights.transits',
+        ])->findOrFail($id);
+
+        if (!$payment->ticket || ($payment->ticket->document_type ?? '') !== 'ticket') {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['data_not_found'] ?? 'Data not found',
+            ], 404);
+        }
+
+        list($systemSegments, $liveDataFromDb, $trackErrorFromDb) = $this->buildFlightStatusSegmentsAndLive($payment, false);
+        $sessionData = $this->getFlightStatusSession((int) $payment->id);
+        if ($sessionData !== null) {
+            $liveData = $sessionData['liveData'] ?? [];
+            $trackError = $sessionData['trackError'] ?? null;
+        } else {
+            $liveData = $liveDataFromDb ?? [];
+            $trackError = $trackErrorFromDb;
+        }
+        $ticket = $payment->ticket;
+        $getCurrentTranslation = getCurrentTranslation();
+
+        try {
+            $viewData = view('common.payment-record.flightStatusMailContent', get_defined_vars())->render();
+            return response()->json([
+                'is_success' => 1,
+                'icon' => 'success',
+                'message' => getCurrentTranslation()['mail_content_updated'] ?? 'Mail content updated',
+                'mail_content' => $viewData,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Flight status mail content load failed: ' . $e->getMessage());
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['something_went_wrong'] ?? 'Something went wrong.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Save and send flight status mail: optional update from API, generate PDF, send with custom content.
+     */
+    public function flightStatusMailSend(Request $request, $id, PdfService $pdfService)
+    {
+        if (!hasPermission('payment.flight_status')) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
+            ], 403);
+        }
+
+        $messages = getCurrentTranslation();
+        $rules = [
+            'to_email' => 'required|array|min:1',
+            'to_email.*' => 'required|email|max:255',
+            'subject' => 'required|string|max:255',
+            'mail_content' => 'nullable|string',
+        ];
+        $validator = Validator::make($request->all(), $rules, [
+            'required' => $messages['required_message'] ?? 'This field is required.',
+            'email' => $messages['enter_valid_email_address'] ?? 'Please enter a valid email address.',
+            'max' => $messages['max_string_message'] ?? 'Maximum length exceeded.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'errors' => $validator->errors(),
+            ]);
+        }
+
+        $payment = Payment::with([
+            'ticket', 'ticket.allFlights', 'ticket.flights', 'ticket.allFlights.airline', 'ticket.flights.transits',
+        ])->findOrFail($id);
+
+        if (!$payment->ticket || ($payment->ticket->document_type ?? '') !== 'ticket') {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['data_not_found'] ?? 'Data not found',
+            ], 404);
+        }
+
+        $updateFromApi = $request->boolean('update_flight_before_send', true);
+        $attachTicketPdf = $request->has('document_type_ticket') ? $request->boolean('document_type_ticket') : $request->boolean('attach_pdf', true);
+        $ticketLayoutId = (int) $request->input('ticket_layout', 1);
+        if ($ticketLayoutId < 1 || $ticketLayoutId > 3) {
+            $ticketLayoutId = 1;
+        }
+        $tempPdfPaths = [];
+
+        try {
+            if ($updateFromApi) {
+                $sessionData = $this->getFlightStatusSession((int) $payment->id);
+                $liveUpdates = $sessionData['liveUpdates'] ?? [];
+                if (!empty($liveUpdates)) {
+                    $this->applyFlightStatusLiveUpdatesToDb($payment, $liveUpdates);
+                    $payment->load(['ticket', 'ticket.allFlights', 'ticket.flights', 'ticket.allFlights.airline', 'ticket.flights.transits']);
+                }
+            }
+
+            $ticket = $payment->ticket;
+            if (!$ticket) {
+                return response()->json([
+                    'is_success' => 0,
+                    'icon' => 'error',
+                    'message' => getCurrentTranslation()['data_not_found'] ?? 'Data not found',
+                ], 404);
+            }
+
+            $attachments = [];
+            if ($attachTicketPdf) {
+                $ticket->load(['flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'user.company', 'creator']);
+                $editData = $ticket;
+                $passenger = null;
+                $ticket_passengers = $ticket->passengers ?? collect();
+                $withPrice = $request->boolean('ticket_with_price', false) ? 1 : 0;
+                $isTicket = 1;
+                $isInvoice = 0;
+
+                $ticketLayout = 'common.ticket.includes.ticket-' . $ticketLayoutId;
+                if (!View::exists($ticketLayout)) {
+                    $ticketLayout = 'common.ticket.includes.ticket-1';
+                }
+                if (!hasPermission('ticket.multiLayout')) {
+                    $ticketLayout = 'common.ticket.includes.ticket-1';
+                }
+
+                $html = view($ticketLayout, compact('editData', 'passenger', 'ticket_passengers', 'withPrice', 'isTicket', 'isInvoice'))->render();
+                if (!file_exists(public_path('temp_pdfs'))) {
+                    mkdir(public_path('temp_pdfs'), 0777, true);
+                }
+                $rawFilename = 'Reservation-' . ($ticket->reservation_number ?? $payment->payment_invoice_id ?? $payment->id) . '.pdf';
+                $filename = preg_replace('/[\/\\\\?%*:|"<>]/', '_', $rawFilename);
+                $filePath = public_path('temp_pdfs/' . $filename);
+                $pdfService->generatePdf($editData, $html, $filePath, 'F', 'ticket');
+                $attachments[] = $filePath;
+                $tempPdfPaths[] = $filePath;
+            }
+
+            $toEmails = is_array($request->input('to_email')) ? array_filter($request->input('to_email')) : [];
+            if (empty($toEmails)) {
+                return response()->json([
+                    'is_success' => 0,
+                    'icon' => 'error',
+                    'message' => getCurrentTranslation()['enter_valid_email_address'] ?? 'Please enter at least one valid email address.',
+                ], 422);
+            }
+            $toName = $payment->client_name ?: $toEmails[0];
+            $subject = $request->input('subject');
+            $mailContent = $request->input('mail_content', '');
+
+            $mailContent = str_replace('{passenger_automatic_name_here}', $toName ?: $toEmails[0], $mailContent);
+            $passengers = $payment->ticket->passengers ?? collect();
+            $mailContent = str_replace('{passenger_automatic_data_here}', getPassengerDataForMail($passengers), $mailContent);
+
+            $mail = Mail::to($toEmails[0], $toName);
+            if (count($toEmails) > 1) {
+                foreach (array_slice($toEmails, 1) as $extra) {
+                    $mail->to($extra);
+                }
+            }
+            if ($request->filled('cc_emails') && is_array($request->cc_emails)) {
+                $ccEmails = array_filter($request->cc_emails);
+                if (!empty($ccEmails)) {
+                    $mail->cc($ccEmails);
+                }
+            }
+            if ($request->filled('bcc_emails') && is_array($request->bcc_emails)) {
+                $bccEmails = array_filter($request->bcc_emails);
+                if (!empty($bccEmails)) {
+                    $mail->bcc($bccEmails);
+                }
+            }
+            $mail->send(new FlightStatusMail($subject, $mailContent, $attachments));
+
+            Payment::where('id', $payment->id)->increment('flight_status_mail_count');
+
+            foreach ($tempPdfPaths as $p) {
+                if (is_string($p) && file_exists($p)) {
+                    @unlink($p);
+                }
+            }
+
+            return response()->json([
+                'is_success' => 1,
+                'icon' => 'success',
+                'message' => $messages['mail_sent_successfully'] ?? 'Mail sent successfully.',
+                'redirect_url' => route('payment.flight.status', $payment->id),
+                'redirection_title' => $messages['back_to_flight_status'] ?? 'Back to flight status',
+            ]);
+        } catch (\Throwable $e) {
+            foreach ($tempPdfPaths as $p) {
+                if (is_string($p) && file_exists($p)) {
+                    @unlink($p);
+                }
+            }
+            \Log::error('Flight status mail send error: ' . $e->getMessage());
+            $isMailError = ($e instanceof \Illuminate\Mail\SendException) || (str_contains($e->getMessage(), 'Mail'));
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => $isMailError
+                    ? ($messages['mail_send_failed'] ?? 'Mail could not be sent. Please try again.')
+                    : ($messages['something_went_wrong'] ?? 'Something went wrong. Please try again.'),
+            ], 500);
+        }
+    }
+
+    /**
+     * Build system segments and optionally live API data for flight status. Returns [systemSegments, liveData, trackError].
+     * When $fetchLive is false (e.g. when sending mail), only DB data is used and no API call is made.
+     *
+     * @return array{0: array, 1: array|null, 2: string|null}
+     */
+    private function buildFlightStatusSegmentsAndLive(Payment $payment, bool $fetchLive = true): array
+    {
+        $ticket = $payment->ticket;
+        $mainFlights = $ticket->allFlights->whereNull('parent_id')->values();
+        $systemSegments = [];
+        foreach ($mainFlights as $f) {
+            $systemSegments[] = [
+                'airline' => $f->airline->name ?? 'N/A',
+                'airline_code' => $f->airline->code ?? FlightApiService::extractAirlineCodeFromFlightNumber($f->flight_number),
+                'flight_number' => $f->flight_number,
+                'flight_number_only' => FlightApiService::extractFlightNumberOnly($f->flight_number),
+                'leaving_from' => $f->leaving_from,
+                'going_to' => $f->going_to,
+                'departure_date_time' => $f->departure_date_time,
+                'arrival_date_time' => $f->arrival_date_time,
+                'is_transit' => (bool) ($f->is_transit ?? false),
+            ];
+            foreach ($f->transits ?? [] as $transit) {
+                $systemSegments[] = [
+                    'airline' => $transit->airline->name ?? 'N/A',
+                    'airline_code' => $transit->airline->code ?? FlightApiService::extractAirlineCodeFromFlightNumber($transit->flight_number),
+                    'flight_number' => $transit->flight_number,
+                    'flight_number_only' => FlightApiService::extractFlightNumberOnly($transit->flight_number),
+                    'leaving_from' => $transit->leaving_from,
+                    'going_to' => $transit->going_to,
+                    'departure_date_time' => $transit->departure_date_time,
+                    'arrival_date_time' => $transit->arrival_date_time,
+                    'is_transit' => true,
+                ];
+            }
+        }
+
+        $liveData = null;
+        $trackError = null;
+        if ($fetchLive) {
+            $flightApi = app(FlightApiService::class);
+            if ($flightApi->isConfigured() && !empty($systemSegments)) {
+                $first = $systemSegments[0];
+                $airlineCode = $first['airline_code'] ?? null;
+                $num = $first['flight_number_only'] ?: $first['flight_number'];
+                $date = $first['departure_date_time'] ?? $payment->departure_date_time;
+                if ($airlineCode && $num) {
+                    try {
+                        $depAp = null;
+                        if (!empty($first['leaving_from']) && preg_match('/\b([A-Z]{3})\b/i', $first['leaving_from'], $m)) {
+                            $depAp = strtoupper($m[1]);
+                        }
+                        $raw = $flightApi->trackFlight($airlineCode, $num, $date ?? now(), $depAp);
+                        $liveData = $this->normalizeFlightTrackingResponse($raw);
+                    } catch (\Exception $e) {
+                        $trackError = $e->getMessage();
+                    }
+                }
+            }
+        }
+        return [$systemSegments, $liveData, $trackError];
+    }
+
+    /**
+     * Normalize FlightAPI tracking response to array of [ 'departure' => ..., 'arrival' => ... ].
+     * API may return [ { departure }, { arrival } ] or [ { departure, arrival } ].
+     */
+    private function normalizeFlightTrackingResponse($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $dep = null;
+        $arr = null;
+        foreach ($raw as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            if (isset($item['departure'])) {
+                $dep = $item['departure'];
+            }
+            if (isset($item['arrival'])) {
+                $arr = $item['arrival'];
+            }
+        }
+        if ($dep !== null || $arr !== null) {
+            return [['departure' => $dep ?? [], 'arrival' => $arr ?? []]];
+        }
+        return $raw;
+    }
+
+    /**
+     * Parse API datetime into DB-friendly format (Y-m-d H:i:s).
+     * Returns null if value can't be parsed safely.
+     */
+    private function safeParseDateTimeForDb($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+        try {
+            return Carbon::parse((string) $value)->format('Y-m-d H:i:s');
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     

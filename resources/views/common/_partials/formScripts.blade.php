@@ -187,6 +187,13 @@
 		e.preventDefault();
 
         syncCKEditor5Fields();
+        $('.summernote').each(function() {
+            var $t = $(this);
+            if ($t.next('.note-editor').length && typeof $t.summernote === 'function') {
+                var code = $t.summernote('code');
+                if (code !== undefined && code !== null) $t.val(code);
+            }
+        });
 
         let isModal = $(this).hasClass('ajax-modal-form-submit-btn') || $(this).closest('.modal').length > 0;
         let $form = $(this).closest('form');
@@ -248,8 +255,16 @@
 									${message}
 								</div>
 							`);
-                            //console.log(messages[0]);
-							$input.after($error);
+							// Place error under Select2 dropdown when present, otherwise after the input
+							const $select2Container = $input.next('.select2-container').length
+								? $input.next('.select2-container')
+								: $input.closest('.select2-container');
+							if ($input.is('select') && $select2Container.length) {
+								$select2Container.after($error);
+								$select2Container.addClass('is-invalid');
+							} else {
+								$input.after($error);
+							}
 
 							if (!firstField) {
 								firstField = $input;
@@ -346,20 +361,8 @@
 			},
 			error: function (xhr) {
                 $('.r-preloader').hide();
-
-                // Laravel CSRF mismatch status
-                if (xhr.status === 419) { 
-                    Swal.fire({
-                        icon: 'error',
-                        title: getCurrentTranslation.csrf_token_mismatch ?? 'csrf_token_mismatch',
-                        text: getCurrentTranslation.csrf_token_mismatch_msg ?? 'csrf_token_mismatch_msg',
-                        confirmButtonText: getCurrentTranslation.yes_reload_page || 'yes_reload_page'
-                    }).then(() => {
-                        location.reload(); // Reload after user confirms
-                    });
-
-                    return;
-                }
+                // 419/403 CSRF handled by global ajaxError (commonScripts) - Swal with reload/cancel
+                if (xhr && (xhr.status === 419 || xhr.status === 403)) return;
 
 				// Generic error fallback for 500s or connectivity issues
 				Swal.fire({

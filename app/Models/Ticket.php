@@ -18,7 +18,8 @@ class Ticket extends Model
         'departure_route',
         'return_route',
         'departure_datetime',
-        'return_datetime'
+        'return_datetime',
+        'upcoming_departure_date',
     ];
 
     public function allFlights()
@@ -193,5 +194,22 @@ class Ticket extends Model
             ->last();
 
         return $lastFlight->departure_date_time ?? null;
+    }
+
+    /**
+     * Upcoming departure: first non-transit flight with departure_date_time >= today.
+     * Used for Trip Info and Upcoming Flights (hide departure when all legs are in the past).
+     */
+    public function getUpcomingDepartureDateAttribute()
+    {
+        $today = \Carbon\Carbon::today()->startOfDay();
+        $nonTransitFlights = $this->allFlights->filter(function ($flight) {
+            return ($flight->is_transit != 1) && $flight->departure_date_time;
+        });
+        $next = $nonTransitFlights->filter(function ($flight) use ($today) {
+            return \Carbon\Carbon::parse($flight->departure_date_time)->gte($today);
+        })->sortBy('departure_date_time')->first();
+
+        return $next ? $next->departure_date_time : null;
     }
 }

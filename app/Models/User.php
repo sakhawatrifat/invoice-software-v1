@@ -27,6 +27,7 @@ class User extends Authenticatable
         'uid',
         'employee_uid',
         'last_seen_at',
+        'clear_cache',
     ];
 
     /**

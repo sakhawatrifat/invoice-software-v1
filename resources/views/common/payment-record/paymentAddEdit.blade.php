@@ -85,7 +85,7 @@
 										$selected = $editData->ticket_id ?? '';
 										$options = getWhereInModelData('Ticket', 'id', [$selected]);
 									@endphp
-									<label class="form-label">{{ $getCurrentTranslation['ticket_label'] ?? 'ticket_label' }}:</label>
+									<label class="form-label">{{ $getCurrentTranslation['ticket_label'] ?? 'ticket_label' }}*:</label>
 									<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['ticket_placeholder'] ?? 'ticket_placeholder' }}" name="ticket_id" >
 										<option value="">----</option>
 										@foreach($options as $option)
@@ -745,7 +745,7 @@
 											</div>
 
 											<div class="row p-5">
-												<div class="col-5">
+												<div class="col-md-3">
 													<div class="form-item mb-5">
 														<label class="form-label">
 															{{ $getCurrentTranslation['paid_amount_label'] ?? 'paid_amount_label' }}
@@ -762,7 +762,7 @@
 													</div>
 												</div>
 
-												<div class="col-5">
+												<div class="col-md-3">
 													<div class="form-item mb-5">
 														<label class="form-label">{{ $getCurrentTranslation['date_label'] ?? 'date_label' }}:</label>
 														<input 
@@ -772,6 +772,80 @@
 															name="paymentData[{{ $index }}][date]"
 															value="{{ $payment['date'] ?? '' }}"
 														/>
+													</div>
+												</div>
+
+												@php
+													$paymentDocPath = $payment['document'] ?? '';
+													$paymentDocUrl = !empty($paymentDocPath) ? getUploadedUrl($paymentDocPath) : '';
+													$paymentDocExt = !empty($paymentDocPath) ? strtolower(pathinfo($paymentDocPath, PATHINFO_EXTENSION)) : '';
+													$paymentDocIsImage = in_array($paymentDocExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic']);
+													$paymentDocIsPdf = ($paymentDocExt === 'pdf');
+												@endphp
+
+												<div class="col-md-3">
+													<div class="input-item-wrap mb-5">
+														<label class="form-label">{{ $getCurrentTranslation['payment_row_document'] ?? ($getCurrentTranslation['document'] ?? 'document') }}:</label>
+														<input type="hidden" name="paymentData[{{ $index }}][document_old]" value="{{ $paymentDocPath }}">
+														<div class="file-input-box">
+															<input
+																type="file"
+																class="form-control image-input"
+																name="paymentData[{{ $index }}][document]"
+																accept=".jpg,.jpeg,.png,.pdf"
+																max-size="3072"
+																data-old="{{ $paymentDocUrl }}"
+															/>
+														</div>
+
+														<div class="preview-image mt-2" style="{{ !empty($paymentDocUrl) ? '' : 'display: none;' }}" data-old="{{ $paymentDocUrl }}">
+															@if(!empty($paymentDocUrl))
+																@if($paymentDocIsImage)
+																	<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="{{ $paymentDocUrl }}">
+																		<img src="{{ $paymentDocUrl }}" alt="Document" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;" old-selected="{{ $paymentDocUrl }}">
+																	</div>
+																	<div class="pdf-preview" data-src="" style="display: none;">
+																		<a href="javascript:void(0);" class="file-prev-thumb">
+																			<i class="fas fa-file-pdf fa-3x text-danger"></i>
+																		</a>
+																	</div>
+																@elseif($paymentDocIsPdf)
+																	<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+																		<img src="" alt="Document" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+																	</div>
+																	<div class="append-prev mf-prev hover-effect m-0 pdf-preview" data-src="{{ $paymentDocUrl }}" old-selected="{{ $paymentDocUrl }}">
+																		<a href="javascript:void(0);" class="file-prev-thumb">
+																			<i class="fas fa-file-pdf fa-3x text-danger"></i>
+																		</a>
+																	</div>
+																@else
+																	<a href="{{ $paymentDocUrl }}" target="_blank" class="file-prev-thumb">
+																		<i class="fas fa-file-alt fa-3x"></i>
+																	</a>
+																@endif
+															@else
+																<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+																	<img src="" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+																</div>
+																<div class="pdf-preview" data-src="" style="display: none;">
+																	<a href="javascript:void(0);" class="file-prev-thumb">
+																		<i class="fas fa-file-pdf fa-3x text-danger"></i>
+																	</a>
+																</div>
+															@endif
+														</div>
+													</div>
+												</div>
+
+												<div class="col-md-3">
+													<div class="form-item mb-5">
+														<label class="form-label">{{ $getCurrentTranslation['payment_row_note'] ?? ($getCurrentTranslation['note_label'] ?? 'note') }}:</label>
+														<textarea
+															class="form-control"
+															name="paymentData[{{ $index }}][note]"
+															rows="3"
+															placeholder="{{ $getCurrentTranslation['note_placeholder'] ?? 'note' }}"
+														>{{ $payment['note'] ?? '' }}</textarea>
 													</div>
 												</div>
 											</div>
@@ -788,7 +862,7 @@
 											</div>
 										</div>
 										<div class="row p-5">
-											<div class="col-5">
+											<div class="col-md-3">
 												<div class="form-item mb-5">
 													<label class="form-label">
 														{{ $getCurrentTranslation['paid_amount_label'] ?? 'paid_amount_label' }}
@@ -798,7 +872,7 @@
 													<input type="text" class="form-control number-validate calc-input ticket-paid-amount" placeholder="0.00" name="paymentData[0][paid_amount]" />
 												</div>
 											</div>
-											<div class="col-5">
+											<div class="col-md-3">
 												<div class="form-item mb-5">
 													<label class="form-label">
 														{{ $getCurrentTranslation['date_label'] ?? 'date_label' }}:
@@ -807,6 +881,44 @@
 												</div>
 											</div>
 
+											<div class="col-md-3">
+												<div class="input-item-wrap mb-5">
+													<label class="form-label">{{ $getCurrentTranslation['payment_row_document'] ?? ($getCurrentTranslation['document'] ?? 'document') }}:</label>
+													<input type="hidden" name="paymentData[0][document_old]" value="">
+													<div class="file-input-box">
+														<input
+															type="file"
+															class="form-control image-input"
+															name="paymentData[0][document]"
+															accept=".jpg,.jpeg,.png,.pdf"
+															max-size="3072"
+															data-old=""
+														/>
+													</div>
+													<div class="preview-image mt-2" style="display: none;" data-old="">
+														<div class="append-prev mf-prev hover-effect m-0 image-preview" data-src="" style="display: none;">
+															<img src="" class="preview-img ml-2" width="100" style="max-height:100px; max-width:100%; object-fit:contain;">
+														</div>
+														<div class="pdf-preview" data-src="" style="display: none;">
+															<a href="javascript:void(0);" class="file-prev-thumb">
+																<i class="fas fa-file-pdf fa-3x text-danger"></i>
+															</a>
+														</div>
+													</div>
+												</div>
+											</div>
+
+											<div class="col-md-3">
+												<div class="form-item mb-5">
+													<label class="form-label">{{ $getCurrentTranslation['payment_row_note'] ?? ($getCurrentTranslation['note_label'] ?? 'note') }}:</label>
+													<textarea
+														class="form-control"
+														name="paymentData[0][note]"
+														rows="1"
+														placeholder="{{ $getCurrentTranslation['note_placeholder'] ?? 'note' }}"
+													></textarea>
+												</div>
+											</div>
 										</div>
 									</div>
 								@endif
@@ -1231,24 +1343,44 @@
 		// Update remaining balance text
 		$('.remaining-due-balance .number').text(remaining.toFixed(2));
 
-		// Determine payment status
-		if (remaining === 0) {
-			$('[name="payment_status"]').val('Paid').trigger('change');
-		} else if (remaining === sellingPrice) {
-			$('[name="payment_status"]').val('Unpaid').trigger('change');
-		} else if (remaining < sellingPrice && remaining > 0) {
-			$('[name="payment_status"]').val('Partial').trigger('change');
+		// Determine payment status (only auto-set when we have a selling price)
+		if (sellingPrice > 0) {
+			if (remaining === 0) {
+				$('select[name="payment_status"]').val('Paid').trigger('change');
+			} else if (remaining >= sellingPrice) {
+				$('select[name="payment_status"]').val('Unpaid').trigger('change');
+			} else if (remaining > 0) {
+				$('select[name="payment_status"]').val('Partial').trigger('change');
+			}
 		}
 
-		let paymentStatus = $('[name="payment_status"]').find('option:selected').val() || $('[name="payment_status"]').val();
-		// Toggle required attribute based on payment status
+		applyPaymentStatusAndDeadlineRequired();
+	}
+
+	// Toggle ip-required on payment_status and next_payment_deadline based on current payment status.
+	// Use select's .val() for Select2 compatibility; target input[name="next_payment_deadline"] directly.
+	function applyPaymentStatusAndDeadlineRequired() {
+		var $paymentStatusSelect = $('select[name="payment_status"]');
+		var paymentStatus = ($paymentStatusSelect.length) ? ($paymentStatusSelect.val() || '').toString().trim() : '';
+		var $nextDeadlineInput = $('input[name="next_payment_deadline"]');
+
 		if (paymentStatus === 'Paid') {
-			$('[name="payment_status"]').removeAttr('ip-required');
-			$('[name="next_payment_deadline"]').closest('div').find('.flatpickr-input').removeAttr('ip-required');
+			$paymentStatusSelect.removeAttr('ip-required');
+			$nextDeadlineInput.removeAttr('ip-required');
 		} else {
-			$('[name="next_payment_deadline"]').closest('div').find('.flatpickr-input').attr('ip-required', 'ip-required');
+			$nextDeadlineInput.attr('ip-required', 'ip-required');
+			// payment_status required when Unpaid/Partial/Unknown so user must choose
+			if (paymentStatus !== '') {
+				$paymentStatusSelect.removeAttr('ip-required');
+			} else {
+				$paymentStatusSelect.attr('ip-required', 'ip-required');
+			}
 		}
 	}
+
+	$(document).on('change', 'select[name="payment_status"]', function() {
+		applyPaymentStatusAndDeadlineRequired();
+	});
 
 
 	$(document).on('click', '.clear-refund-data-btn', function () {
@@ -1290,6 +1422,8 @@
 	
 	$(document).ready(function(){
 		updateRefundableAmount();
+		// Apply payment status / next deadline required after Select2 and flatpickr have initialized
+		setTimeout(applyPaymentStatusAndDeadlineRequired, 100);
 	});
 
 	$(document).on('input', '.c-calc-input', function() {

@@ -338,6 +338,7 @@ class AirlineController extends Controller
         $maxImageSize = 3072;
         $rules = [
             'name' => 'required|string|max:255|unique:airlines,name,' . ($id ?? 'NULL'),
+            'code' => 'required|string|max:10',
             'logo' => 'nullable|mimes:'.$logoMimes.'|max:' . $maxImageSize,
             'description' => 'nullable',
             'status' => 'required|in:0,1',
@@ -409,6 +410,7 @@ class AirlineController extends Controller
         try {
             //$airline->user_id = $userId;
             $airline->name = $request->name ?? null;
+            $airline->code = $request->filled('code') ? trim(substr((string) $request->code, 0, 10)) : null;
             $airline->logo = $logo;
             $airline->description = $request->description ?? 0;
             $airline->status = $request->status ?? 0;

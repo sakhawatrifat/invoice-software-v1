@@ -207,7 +207,7 @@
                                             <option value="">{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}</option>
                                             @foreach($users as $u)
                                                 <option value="{{ $u->id }}" {{ (string) $u->id === (string) old('assigned_to', $lead->assigned_to ?? '') ? 'selected' : '' }}>
-                                                    {{ $u->name }}
+                                                    {{ $u->name }} ({{ $u->email }})
                                                 </option>
                                             @endforeach
                                         </select>

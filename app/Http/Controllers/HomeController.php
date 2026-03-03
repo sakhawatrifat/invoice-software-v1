@@ -399,4 +399,38 @@ class HomeController extends Controller
             ];
         }
     }
+
+    /**
+     * Fix AUTO_INCREMENT for all tables that have an auto_increment column (e.g. id).
+     * Call via GET /fix-tables-auto-increment (temporary route).
+     */
+    public function fixAllTablesAutoIncrement()
+    {
+        $db = DB::getDatabaseName();
+        $rows = DB::select('SHOW TABLES');
+        $tableKey = 'Tables_in_' . str_replace(['-', ' '], '_', $db);
+        $tables = [];
+        foreach ($rows as $row) {
+            $tables[] = $row->{$tableKey};
+        }
+
+        $results = [];
+        foreach ($tables as $table) {
+            $col = DB::select(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+                 WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND EXTRA LIKE '%auto_increment%'",
+                [$db, $table]
+            );
+            if (empty($col)) {
+                continue;
+            }
+            $column = $col[0]->COLUMN_NAME;
+            $maxId = DB::table($table)->max($column);
+            $next = $maxId ? (int) $maxId + 1 : 1;
+            DB::statement('ALTER TABLE `' . str_replace('`', '``', $table) . '` AUTO_INCREMENT = ' . (int) $next);
+            $results[] = "{$table}: AUTO_INCREMENT set to {$next} (max {$column} was " . ($maxId ?? 'none') . ')';
+        }
+
+        return implode("\n", $results ?: ['No tables with auto_increment found.']);
+    }
 }

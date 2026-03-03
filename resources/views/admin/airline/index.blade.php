@@ -41,6 +41,7 @@
 							<th>#</th>
 							<th>{{ $getCurrentTranslation['airline_logo'] ?? 'airline_logo' }}</th>
 							<th>{{ $getCurrentTranslation['airline_name'] ?? 'airline_name' }}</th>
+							<th>{{ $getCurrentTranslation['airline_code'] ?? 'airline_code' }}</th>
 							{{-- <th>{{ $getCurrentTranslation['url'] ?? 'url' }}</th> --}}
 							<th>{{ $getCurrentTranslation['created_at'] ?? 'created_at' }}</th>
 							<th>{{ $getCurrentTranslation['created_by'] ?? 'created_by' }}</th>
@@ -69,6 +70,7 @@ var dataTable = $('#datatable').DataTable({
 		{ data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
 		{ data: 'logo', name: 'logo' },
 		{ data: 'name', name: 'name' },
+		{ data: 'code', name: 'code' },
 		// { data: 'url', name: 'url' },
 		//{ data: 'user_id', name: 'user_id', orderable: false, searchable: true },
 		{ data: 'created_at', name: 'created_at' },

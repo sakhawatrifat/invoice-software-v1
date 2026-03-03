@@ -48,4 +48,14 @@ return [
         'base_url' => env('INNOTRAVELTECH_BASE_URL', 'https://serviceapi.nakamura-tour.com'),
     ],
 
+    /*
+    | FlightAPI (flightapi.io) - One-way, Round-trip & Multi-trip flight search
+    | Docs: https://docs.flightapi.io/flight-price-api/
+    */
+    'flightapi' => [
+        'api_key' => env('FLIGHTAPI_API_KEY'),
+        'region' => env('FLIGHTAPI_REGION', 'US'), // ISO country code for local prices
+        'base_url' => env('FLIGHTAPI_BASE_URL', 'https://api.flightapi.io'),
+    ],
+
 ];

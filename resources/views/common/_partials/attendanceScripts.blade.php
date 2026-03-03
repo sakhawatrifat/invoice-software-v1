@@ -29,8 +29,43 @@
     // Location for check-in (set after user allows geolocation)
     let pendingCheckInLocation = null;
 
+    // Prevent duplicate pause/resume requests and only one toast per action
+    let pauseResumeInProgress = false;
+    let lastPauseResumeToastAt = 0;
+    const PAUSE_RESUME_TOAST_COOLDOWN_MS = 3000;
+
+    function showPauseResumeToast(message, isSuccess) {
+        var now = Date.now();
+        if (now - lastPauseResumeToastAt < PAUSE_RESUME_TOAST_COOLDOWN_MS) return;
+        lastPauseResumeToastAt = now;
+        if (isSuccess) {
+            toastr.success(message);
+        } else {
+            toastr.error(message);
+        }
+    }
+
+    // Get current location (optional). Calls callback with { lat, lng } or null. Used for pause/resume/check-in.
+    function getCurrentLocation(callback) {
+        if (!navigator.geolocation) {
+            callback(null);
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                callback({ lat: position.coords.latitude, lng: position.coords.longitude });
+            },
+            function() {
+                callback(null);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+        );
+    }
+
     const dailyWorkTimeHours = {{ env('DAILY_WORK_TIME', 8) }};
     const dailyWorkTimeMinutes = dailyWorkTimeHours * 60;
+    // Activity endpoint caches response. Backend clears cache on pause/resume; short delay so next fetch gets fresh data.
+    const ACTIVITY_CACHE_MS = 500;
 
     // Format time helper (HH:MM:SS). Clamp to non-negative so break/work never show minus.
     function formatTime(minutes) {
@@ -447,8 +482,11 @@
         showCheckOutModal();
     });
 
-    // Pause button click
-    $('#btn-pause').on('click', function() {
+    // Pause button click (updates user location when pausing) - delegated so it works when header is in DOM
+    $(document).on('click', '#btn-pause', function(e) {
+        e.stopImmediatePropagation();
+        if (pauseResumeInProgress) return;
+        pauseResumeInProgress = true;
         Swal.fire({
             title: '{{ $getCurrentTranslation["pause_timer"] ?? "Pause Timer" }}',
             text: '{{ $getCurrentTranslation["are_you_sure_you_want_to_pause_the_timer"] ?? "Are you sure you want to pause the timer?" }}',
@@ -459,7 +497,16 @@
             cancelButtonColor: '#d33',
             cancelButtonText: '{{ $getCurrentTranslation["cancel"] ?? "Cancel" }}',
         }).then((result) => {
-            if (result.isConfirmed) {
+            if (!result.isConfirmed) {
+                pauseResumeInProgress = false;
+                return;
+            }
+            getCurrentLocation(function(loc) {
+                var pauseData = {};
+                if (loc) {
+                    pauseData.latitude = loc.lat;
+                    pauseData.longitude = loc.lng;
+                }
                 $('.r-preloader').show();
                 $.ajax({
                     url: '{{ route("attendance.pause") }}',
@@ -467,7 +514,9 @@
                     headers: {
                         'X-CSRF-TOKEN': getCsrfToken()
                     },
+                    data: pauseData,
                     success: function(response) {
+                        pauseResumeInProgress = false;
                         $('.r-preloader').hide();
                         if (response.success) {
                             attendanceStatus.isPaused = true;
@@ -478,27 +527,28 @@
                             }
                             updateUI();
                             updateTimer();
-                            toastr.success(response.message);
-                            fetchStatus();
+                            showPauseResumeToast(response.message, true);
+                            setTimeout(fetchStatus, ACTIVITY_CACHE_MS);
                         } else {
-                            toastr.error(response.message);
+                            showPauseResumeToast(response.message, false);
                         }
                     },
                     error: function(xhr) {
+                        pauseResumeInProgress = false;
                         $('.r-preloader').hide();
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            toastr.error(xhr.responseJSON.message);
-                        } else {
-                            toastr.error('Failed to pause timer');
-                        }
+                        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to pause timer';
+                        showPauseResumeToast(msg, false);
                     }
                 });
-            }
+            });
         });
     });
 
-    // Resume button click
-    $('#btn-resume').on('click', function() {
+    // Resume button click (updates user location when resuming) - delegated so it works when header is in DOM
+    $(document).on('click', '#btn-resume', function(e) {
+        e.stopImmediatePropagation();
+        if (pauseResumeInProgress) return;
+        pauseResumeInProgress = true;
         Swal.fire({
             title: '{{ $getCurrentTranslation["resume_timer"] ?? "Resume Timer" }}',
             text: '{{ $getCurrentTranslation["are_you_sure_you_want_to_resume_the_timer"] ?? "Are you sure you want to resume the timer?" }}',
@@ -509,7 +559,16 @@
             cancelButtonColor: '#d33',
             cancelButtonText: '{{ $getCurrentTranslation["cancel"] ?? "Cancel" }}',
         }).then((result) => {
-            if (result.isConfirmed) {
+            if (!result.isConfirmed) {
+                pauseResumeInProgress = false;
+                return;
+            }
+            getCurrentLocation(function(loc) {
+                var resumeData = {};
+                if (loc) {
+                    resumeData.latitude = loc.lat;
+                    resumeData.longitude = loc.lng;
+                }
                 $('.r-preloader').show();
                 $.ajax({
                     url: '{{ route("attendance.resume") }}',
@@ -517,26 +576,43 @@
                     headers: {
                         'X-CSRF-TOKEN': getCsrfToken()
                     },
+                    data: resumeData,
                     success: function(response) {
+                        pauseResumeInProgress = false;
                         $('.r-preloader').hide();
                         if (response.success) {
-                            toastr.success(response.message);
-                            fetchStatus();
+                            attendanceStatus.isPaused = false;
+                            attendanceStatus.currentPauseStart = null;
+                            attendanceStatus.fixedNetWorkMinutes = null;
+                            var added = parseFloat(response.data && response.data.pause_duration_minutes) || 0;
+                            attendanceStatus.totalPauseMinutes = (parseFloat(attendanceStatus.totalPauseMinutes) || 0) + added;
+                            updateUI();
+                            updateTimer();
+                            showPauseResumeToast(response.message, true);
+                            setTimeout(fetchStatus, ACTIVITY_CACHE_MS);
                         } else {
-                            toastr.error(response.message);
+                            showPauseResumeToast(response.message, false);
                         }
                     },
                     error: function(xhr) {
+                        pauseResumeInProgress = false;
                         $('.r-preloader').hide();
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            toastr.error(xhr.responseJSON.message);
-                        } else {
-                            toastr.error('Failed to resume timer');
-                        }
+                        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to resume timer';
+                        showPauseResumeToast(msg, false);
                     }
                 });
-            }
+            });
         });
+    });
+
+    // Click on timer (clock) to pause or resume - same as clicking the button
+    $(document).on('click', '#attendance-timer', function() {
+        if (!attendanceStatus.isCheckedIn) return;
+        if (attendanceStatus.isPaused) {
+            $('#btn-resume').trigger('click');
+        } else {
+            $('#btn-pause').trigger('click');
+        }
     });
 
     // Confirm attendance action

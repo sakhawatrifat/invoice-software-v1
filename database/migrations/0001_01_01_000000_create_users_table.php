@@ -39,6 +39,7 @@ return new class extends Migration
             $table->enum('status', ['Active', 'Inactive'])->nullable()->default('Inactive')->comment('Active, Inactive');
             $table->string('default_language')->nullable()->default('en');
             $table->json('permissions')->nullable();
+            $table->boolean('clear_cache')->nullable()->default(0)->comment('0, 1');
             $table->rememberToken();
             
             $table->bigInteger('created_by')->nullable();

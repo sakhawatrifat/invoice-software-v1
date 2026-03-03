@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Auth;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
@@ -590,12 +591,28 @@ class AttendanceController extends Controller
 
         DB::beginTransaction();
         try {
+            // Update attendance location when provided (pause location)
+            if ($request->has('latitude') && $request->has('longitude')) {
+                $lat = (float) $request->latitude;
+                $lng = (float) $request->longitude;
+                if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                    $location = ['lat' => $lat, 'lng' => $lng];
+                    $locationName = Attendance::getLocationNameFromCoordinates($lat, $lng);
+                    if ($locationName !== null) {
+                        $location['name'] = $locationName;
+                    }
+                    $attendance->location = $location;
+                    $attendance->save();
+                }
+            }
+
             $pause = new AttendancePause();
             $pause->attendance_id = $attendance->id;
             $pause->pause_start = Carbon::now();
             $pause->save();
 
             DB::commit();
+            Cache::forget('chat_activity_' . $user->id);
 
             return response()->json([
                 'success' => true,
@@ -661,6 +678,21 @@ class AttendanceController extends Controller
 
         DB::beginTransaction();
         try {
+            // Update attendance location when provided (resume location)
+            if ($request->has('latitude') && $request->has('longitude')) {
+                $lat = (float) $request->latitude;
+                $lng = (float) $request->longitude;
+                if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                    $location = ['lat' => $lat, 'lng' => $lng];
+                    $locationName = Attendance::getLocationNameFromCoordinates($lat, $lng);
+                    if ($locationName !== null) {
+                        $location['name'] = $locationName;
+                    }
+                    $attendance->location = $location;
+                    $attendance->save();
+                }
+            }
+
             $pauseEnd = Carbon::now();
             $pauseDuration = $activePause->pause_start->diffInMinutes($pauseEnd);
             
@@ -669,6 +701,7 @@ class AttendanceController extends Controller
             $activePause->save();
 
             DB::commit();
+            Cache::forget('chat_activity_' . $user->id);
 
             return response()->json([
                 'success' => true,

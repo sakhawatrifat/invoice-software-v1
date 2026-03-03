@@ -749,19 +749,23 @@
         }
         function closeWidgetPanel() {
             closeWidgetThread();
-            document.getElementById('chat-widget-panel').classList.add('d-none');
+            document.getElementById('chat-widget-panel')?.classList.add('d-none');
         }
-        document.getElementById('chat-widget-toggle').addEventListener('click', () => {
-            var panel = document.getElementById('chat-widget-panel');
-            if (panel.classList.contains('d-none')) {
-                panel.classList.remove('d-none');
-                poll();
-            } else {
-                closeWidgetPanel();
-            }
-        });
-        document.getElementById('chat-widget-minimize').addEventListener('click', closeWidgetPanel);
-        document.getElementById('chat-widget-back').addEventListener('click', () => {
+        var chatWidgetToggle = document.getElementById('chat-widget-toggle');
+        if (chatWidgetToggle) {
+            chatWidgetToggle.addEventListener('click', () => {
+                var panel = document.getElementById('chat-widget-panel');
+                if (panel && panel.classList.contains('d-none')) {
+                    panel.classList.remove('d-none');
+                    poll();
+                } else if (panel) {
+                    closeWidgetPanel();
+                }
+            });
+        }
+        var chatWidgetMinimize = document.getElementById('chat-widget-minimize');
+        if (chatWidgetMinimize) chatWidgetMinimize.addEventListener('click', closeWidgetPanel);
+        document.getElementById('chat-widget-back')?.addEventListener('click', () => {
             closeWidgetThread();
         });
         document.getElementById('chat-widget-close-thread')?.addEventListener('click', closeWidgetThread);

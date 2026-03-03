@@ -132,7 +132,7 @@
 					<button type="button" class="btn btn-sm btn-info me-1" id="btn-resume" style="display: none;">
 						<i class="fas fa-play"></i> <span id="resume-text">{{ $getCurrentTranslation['resume'] ?? 'Resume' }}</span>
 					</button>
-					<div class="d-inline-block ms-2" id="attendance-timer" style="display: none;">
+					<div class="d-inline-block ms-2" id="attendance-timer" style="display: none; cursor: pointer;" title="{{ $getCurrentTranslation['click_to_pause_or_resume'] ?? 'Click to pause or resume' }}">
 						<small class="text-muted">
 							<span id="timer-display">00:00:00</span>
 							<br>
@@ -142,7 +142,7 @@
 				</div>
 
 				<div class="app-navbar-item ms-0">
-					<a href="{{ route('clear-cache') }}" class="menu-link px-3 py-2">
+					<a href="{{ route('clear-cache') }}{{ Auth::user()->id==1 ? '?admin=1' : '' }}" class="menu-link px-3 py-2">
 						<i class="fas fa-eraser fa-2x"></i>
 						{{-- {{ $getCurrentTranslation['clear_cache'] ?? 'clear_cache' }} --}}
 					</a>
@@ -359,17 +359,27 @@
 									                <b>{{ $getCurrentTranslation['flight_route_label'] ?? 'flight_route_label' }}:</b> 
 									                {{ $flight->flight_route ?? 'N/A' }}
 									            </div>
+									            @if($flight->ticket?->upcoming_departure_date)
 									            <div class="fs-7 text-gray-800 mb-0">
 									                <b>{{ $getCurrentTranslation['departure_label'] ?? 'departure_label' }}:</b> 
-									                {{ \Carbon\Carbon::parse($flight->departure_date_time)->format('Y-m-d, H:i') }}
+									                {{ \Carbon\Carbon::parse($flight->ticket->upcoming_departure_date)->format('Y-m-d, H:i') }}
+									            </div>
+									            @endif
+									            <div class="fs-7 text-gray-800 mb-0">
+									                <b>{{ $getCurrentTranslation['return_label'] ?? 'return_label' }}:</b> 
+									                {{ $flight->return_date_time ? \Carbon\Carbon::parse($flight->return_date_time)->format('Y-m-d, H:i') : 'N/A' }}
 									            </div>
 									            <div class="fs-7 text-gray-800">
-									                <b>{{ $getCurrentTranslation['return_label'] ?? 'return_label' }}:</b> 
-									                {{ \Carbon\Carbon::parse($flight->return_date_time)->format('Y-m-d, H:i') }}
+									                <b>{{ $getCurrentTranslation['introduction_source_label'] ?? 'introduction_source_label' }}:</b> 
+									                {{ $flight->introductionSource?->name ?? 'N/A' }}
 									            </div>
 									        </div>
 
-									        <div class="ms-auto">
+									        <div class="ms-auto d-flex gap-1">
+									            <a href="{{ route('payment.flight.status', $flight->id) }}" 
+									               class="btn btn-sm btn-primary" title="Check Flight Status">
+									                <i class="fa-solid fa-plane"></i>
+									            </a>
 									            <a href="{{ route('payment.show', $flight->id) }}" 
 									               class="btn btn-sm btn-info">
 									                <i class="fa-solid fa-pager"></i>

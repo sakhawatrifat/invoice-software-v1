@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('airlines', function (Blueprint $table) {
             $table->id();
             $table->longText('name');
+            $table->longText('code')->nullable();
             $table->longText('logo')->nullable();
             $table->longText('description')->nullable();
             $table->boolean('status')->nullable()->default(0)->comment('0/1');

@@ -28,23 +28,13 @@
                             checkbox.prop('checked', !checkbox.prop('checked')); // revert checkbox
                         }
                     },
-                    error: function () {
+                    error: function (xhr) {
                         $('.r-preloader').hide();
-
-                        // Laravel CSRF mismatch status
-                        if (xhr.status === 419) { 
-                            Swal.fire({
-                                icon: 'error',
-                                title: getCurrentTranslation.csrf_token_mismatch ?? 'csrf_token_mismatch',
-                                text: getCurrentTranslation.csrf_token_mismatch_msg ?? 'csrf_token_mismatch_msg',
-                                confirmButtonText: getCurrentTranslation.yes_reload_page || 'yes_reload_page'
-                            }).then(() => {
-                                location.reload(); // Reload after user confirms
-                            });
-
+                        // 419/403 CSRF handled by global ajaxError (commonScripts)
+                        if (xhr && (xhr.status === 419 || xhr.status === 403)) {
+                            checkbox.prop('checked', !checkbox.prop('checked'));
                             return;
                         }
-
                         Swal.fire(getCurrentTranslation.error ?? 'error', getCurrentTranslation.something_went_wrong ?? 'something_went_wrong', 'error');
                         checkbox.prop('checked', !checkbox.prop('checked')); // revert checkbox
                     }
@@ -143,21 +133,8 @@
                     },
                     error: function (xhr) {
                         $('.r-preloader').hide();
-
-                        // Laravel CSRF mismatch status
-                        if (xhr.status === 419) { 
-                            Swal.fire({
-                                icon: 'error',
-                                title: getCurrentTranslation.csrf_token_mismatch ?? 'csrf_token_mismatch',
-                                text: getCurrentTranslation.csrf_token_mismatch_msg ?? 'csrf_token_mismatch_msg',
-                                confirmButtonText: getCurrentTranslation.yes_reload_page || 'yes_reload_page'
-                            }).then(() => {
-                                location.reload(); // Reload after user confirms
-                            });
-
-                            return;
-                        }
-                        
+                        // 419/403 CSRF handled by global ajaxError (commonScripts)
+                        if (xhr && (xhr.status === 419 || xhr.status === 403)) return;
                         toastr.error(getCurrentTranslation.something_went_wrong ?? 'something_went_wrong');
                     }
                 });

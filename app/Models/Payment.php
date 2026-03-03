@@ -11,6 +11,9 @@ class Payment extends Model
     use HasFactory;
     use SoftDeletes;
 
+    /** Prevent id from being mass-assigned (avoids duplicate key on create). */
+    protected $guarded = ['id'];
+
     protected $appends = ['issued_suppliers', 'issued_suppliers_name'];
 
     protected function casts(): array

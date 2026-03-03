@@ -193,7 +193,9 @@
                         <td style="background-color: #ffffff; width: 30%; padding-left:20px; vertical-align: middle; " rowspan="3">
                            <div style="">
                               @if(!empty(env('DB_PASSWORD')) || (isset($view)) && $view == 1)
-                                 <img src="{{ $flight->airline->logo_url ?? '' }}" alt="{{ $flight->airline->name ?? '' }}" style="width: auto; max-width: 150px; vertical-align:middle; margin-right:10px;"><br>
+                                 @if(!empty($flight->airline->logo_url ?? ''))
+                                    <img src="{{ $flight->airline->logo_url }}" alt="{{ $flight->airline->name ?? '' }}" style="width: auto; max-width: 150px; vertical-align:middle; margin-right:10px;"><br>
+                                 @endif
                               @else
                                  <h4 style="text-align: center; margin: 0; color: #32323b;">Airlines Logo Here</h4>
                               @endif
@@ -301,7 +303,9 @@
                            <td style="background-color: #ffffff; width: 30%; padding-left:20px; vertical-align: middle; " rowspan="3">
                               <div style="">
                                  @if(!empty(env('DB_PASSWORD')) || (isset($view)) && $view == 1)
-                                    <img src="{{ $transit->airline->logo_url ?? '' }}" alt="{{ $transit->airline->name ?? '' }}" style="width: auto; max-width: 150px; vertical-align:middle; margin-right:10px;"><br>
+                                    @if(!empty($transit->airline->logo_url ?? ''))
+                                       <img src="{{ $transit->airline->logo_url }}" alt="{{ $transit->airline->name ?? '' }}" style="width: auto; max-width: 150px; vertical-align:middle; margin-right:10px;"><br>
+                                    @endif
                                  @else
                                     <h4 style="text-align: center; margin: 0; color: #32323b;">Airlines Logo Here</h4>
                                  @endif

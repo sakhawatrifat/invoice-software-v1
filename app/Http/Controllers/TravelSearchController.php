@@ -6,8 +6,8 @@ namespace App\Http\Controllers;
 use Auth;
 use File;
 use Image;
-use Session;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth as AuthFacade;
 
 use App\Services\TravelpayoutsService;
+use App\Services\FlightApiService;
 use Illuminate\Http\JsonResponse;
 
 use App\Models\Language;
@@ -45,10 +46,14 @@ class TravelSearchController extends Controller
         $createRoute = hasPermission('ticket.create') ? route('ticket.create') : '';
         $searchImportRoute = hasPermission('ticket.search.form') ? route('ticket.search.import') : '';
         $saveRoute = hasPermission('ticket.create') ? route('ticket.store') : '';
+        $clearFlightSearchRoute = hasPermission('ticket.search.form') ? route('ticket.search.clear') : '';
 
         //$languages = Language::orderBy('name', 'asc')->where('status', 1)->get();
         $currencies = Currency::where('status', 'Active')->orderBy('currency_name', 'asc')->get();
         $airlines = Airline::where('status', '1')->orderBy('name', 'asc')->get();
+
+        // Last flight search from session (for reload / reduce API hits)
+        $lastFlightSearch = Session::get('flight_search_last');
 
         return view('common.ticket.ticketSearchForm', get_defined_vars());
     }
@@ -172,7 +177,7 @@ class TravelSearchController extends Controller
 
             // Add common parameters with defaults
             $searchParams['flight_type'] = $flightType; // Add flight type
-            $searchParams['currency'] = 'USD'; // Default currency
+            $searchParams['currency'] = 'JPY'; // Default currency for flight search API
             $searchParams['limit'] = 30; // Default limit
             $searchParams['result_type'] = 'general'; // Default result type
             
@@ -187,8 +192,13 @@ class TravelSearchController extends Controller
                 $searchParams['passenger'] = $validated['passenger'];
             }
 
-            // Call InnoTravelTech API via TravelpayoutsService
-            $flights = $this->travelpayouts->searchCheapestFlights($searchParams);
+            // Use FlightAPI when configured, otherwise InnoTravelTech via TravelpayoutsService
+            $flightApi = app(FlightApiService::class);
+            if ($flightApi->isConfigured()) {
+                $flights = $flightApi->searchCheapestFlights($searchParams);
+            } else {
+                $flights = $this->travelpayouts->searchCheapestFlights($searchParams);
+            }
             
             // Check if we have results
             if (empty($flights) || (isset($flights['data']) && empty($flights['data']))) {
@@ -213,18 +223,27 @@ class TravelSearchController extends Controller
                 }
             }
             
+            $searchParamsForSession = [
+                'flight_type' => $flightType,
+                'origin' => $searchParams['origin'] ?? null,
+                'destination' => $searchParams['destination'] ?? null,
+                'departure_at' => $searchParams['departure_at'] ?? null,
+                'return_at' => $searchParams['return_at'] ?? null,
+                'class' => $validated['class'] ?? 'economy',
+                'passenger' => $validated['passenger'] ?? 1,
+            ];
+
+            // Store in session to show on reload and reduce API over-hit
+            Session::put('flight_search_last', [
+                'data' => $responseData,
+                'search_params' => $searchParamsForSession,
+                'at' => now()->toIso8601String(),
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $responseData,
-                'search_params' => [
-                    'flight_type' => $flightType,
-                    'origin' => $searchParams['origin'] ?? null,
-                    'destination' => $searchParams['destination'] ?? null,
-                    'departure_at' => $searchParams['departure_at'] ?? null,
-                    'return_at' => $searchParams['return_at'] ?? null,
-                    'class' => $validated['class'] ?? 'economy',
-                    'passenger' => $validated['passenger'] ?? 1,
-                ],
+                'search_params' => $searchParamsForSession,
                 'message' => 'Flights retrieved successfully',
             ]);
 
@@ -242,27 +261,46 @@ class TravelSearchController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Return user-friendly error message
             $errorMessage = $e->getMessage();
-            
-            // Customize error messages
+            $isTimeout = str_contains(strtolower($errorMessage), 'timeout') || str_contains(strtolower($errorMessage), 'timed out');
+            $isConnection = str_contains(strtolower($errorMessage), 'connection') || str_contains(strtolower($errorMessage), 'connect');
+
             if (str_contains($errorMessage, 'not flightable')) {
                 $errorMessage = 'One of the airport codes is not valid. Please use specific airport codes (e.g., JFK, LAX) instead of city codes (e.g., NYC, LON).';
-            } elseif (str_contains($errorMessage, 'timeout')) {
-                $errorMessage = 'The request timed out. Please try again.';
-            } elseif (str_contains($errorMessage, 'connection')) {
-                $errorMessage = 'Unable to connect to the flight search service. Please try again later.';
-            } elseif (str_contains($errorMessage, 'Validation failed')) {
-                // Keep validation errors as is
-            } else {
-                $errorMessage = 'An error occurred while searching for flights. Please try again later.';
+            } elseif ($isTimeout) {
+                $errorMessage = 'The flight search took too long and timed out. Please try again.';
+            } elseif ($isConnection) {
+                $errorMessage = 'Unable to connect to the flight search service. Please check your connection and try again.';
+            } elseif (!str_contains($errorMessage, 'Validation failed')) {
+                $errorMessage = 'An error occurred while searching for flights. Please try again.';
             }
 
             return response()->json([
                 'success' => false,
                 'message' => $errorMessage,
+                'retry' => true,
             ], 500);
         }
+    }
+
+    /**
+     * Clear last flight search from session (user clicks "Clear response data").
+     */
+    public function clearLastFlightSearch(): JsonResponse
+    {
+        if (!hasPermission('ticket.search.form')) {
+            return response()->json([
+                'success' => false,
+                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
+            ], 403);
+        }
+
+        Session::forget('flight_search_last');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Flight search results cleared.',
+        ]);
     }
 
     public function getAirportSuggestions(Request $request): JsonResponse
@@ -421,65 +459,128 @@ class TravelSearchController extends Controller
             }
         }
 
+        // Collect all airline IDs used (main + transit) so frontend can ensure dropdown options exist and show logos
+        $airlineIds = [];
+        foreach ($formatted['ticket_flight_info'] as $info) {
+            if (!empty($info['airline_id'])) {
+                $airlineIds[] = $info['airline_id'];
+            }
+            foreach ($info['transit'] ?? [] as $transit) {
+                if (!empty($transit['airline_id'])) {
+                    $airlineIds[] = $transit['airline_id'];
+                }
+            }
+        }
+        $airlineIds = array_values(array_unique(array_filter($airlineIds)));
+        $airlinesUsed = [];
+        if (!empty($airlineIds)) {
+            $airlines = Airline::whereIn('id', $airlineIds)->get();
+            foreach ($airlines as $a) {
+                $airlinesUsed[] = [
+                    'id' => $a->id,
+                    'name' => $a->name,
+                    'logo_url' => $a->logo_url ?? null,
+                ];
+            }
+        }
+        $formatted['airlines_used'] = $airlinesUsed;
+        $formatted['default_airline_logo'] = function_exists('defaultImage') ? defaultImage('s') : '';
+
         return $formatted;
     }
 
     /**
-     * Process a single flight with transit handling
+     * Process a single flight with transit handling.
+     * When segments exist: main flight = first segment only (one airline, one flight number);
+     * subsequent segments = separate transit rows (each with its own airline, e.g. Spring Japan then China Eastern).
      */
     private function processSingleFlight(array $flightData, array $searchParams, string $direction = 'outbound'): array
     {
-        // Extract airport codes - check multiple possible field names
+        $segments = $flightData['segments'] ?? null;
+        $hasSegments = is_array($segments) && count($segments) > 0;
+
+        if ($hasSegments && count($segments) > 1) {
+            // Main flight = first segment only. Leaving From = journey start; Going To = first segment destination (transit hub), NOT final destination.
+            $firstSeg = $segments[0];
+            $originCode = $firstSeg['origin_iata'] ?? $firstSeg['origin'] ?? $flightData['origin_iata'] ?? $searchParams['origin'] ?? '';
+            $destinationCode = $firstSeg['destination_iata'] ?? $firstSeg['destination'] ?? '';
+            if ($destinationCode === '' && isset($segments[1])) {
+                $destinationCode = $segments[1]['origin_iata'] ?? $segments[1]['origin'] ?? '';
+            }
+            if ($destinationCode === '') {
+                $destinationCode = $flightData['destination_iata'] ?? $searchParams['destination'] ?? '';
+            }
+            $origin = !empty($firstSeg['origin_display']) ? $firstSeg['origin_display'] : $this->getAirportFullName($originCode);
+            $destination = !empty($firstSeg['destination_display']) ? $firstSeg['destination_display'] : $this->getAirportFullName($destinationCode);
+            $airlineName = $firstSeg['airline'] ?? $firstSeg['airline_name'] ?? $flightData['airline'] ?? null;
+            $airlineCode = $firstSeg['airline_code'] ?? $flightData['airline_code'] ?? null;
+            $airlineId = $this->findOrCreateAirline($airlineName, $airlineCode);
+            $departureAt = $firstSeg['departure_at'] ?? $firstSeg['departure'] ?? '';
+            $arrivalAt = $firstSeg['arrival_at'] ?? $firstSeg['arrival'] ?? '';
+            $departureDateTime = $this->formatDateTime($departureAt);
+            $arrivalDateTime = $this->formatDateTime($arrivalAt);
+            if (!empty($departureDateTime) && !empty($arrivalDateTime)) {
+                $dep = new \DateTime($departureDateTime);
+                $arr = new \DateTime($arrivalDateTime);
+                if ($arr <= $dep) {
+                    $arr->modify('+1 hour');
+                    $arrivalDateTime = $arr->format('Y-m-d H:i');
+                }
+            }
+            $totalFlyTime = $this->calculateDuration($departureDateTime, $arrivalDateTime);
+            $mainFlightNumber = $firstSeg['flight_number'] ?? $firstSeg['marketing_flight_number'] ?? $flightData['flight_number'] ?? '';
+
+            $flight = [
+                'airline_id' => $airlineId,
+                'flight_number' => $mainFlightNumber,
+                'leaving_from' => $origin,
+                'going_to' => $destination,
+                'departure_date_time' => $departureDateTime,
+                'arrival_date_time' => $arrivalDateTime,
+                'total_fly_time' => $totalFlyTime,
+                'is_transit' => 1,
+                'transit' => $this->processTransitsFromSegments($segments, $searchParams),
+            ];
+            return $flight;
+        }
+
+        // No segments or single segment: build one main flight from flightData
         $originCode = $flightData['origin_iata'] ?? $flightData['search_origin'] ?? $flightData['origin'] ?? $searchParams['origin'] ?? '';
         $destinationCode = $flightData['destination_iata'] ?? $flightData['search_destination'] ?? $flightData['destination'] ?? $searchParams['destination'] ?? '';
-        
-        // Get airport full names
-        $origin = $this->getAirportFullName($originCode);
-        $destination = $this->getAirportFullName($destinationCode);
-
-        // Extract airline name - get full name if available
+        $origin = !empty($flightData['origin_display']) ? $flightData['origin_display'] : $this->getAirportFullName($originCode);
+        $destination = !empty($flightData['destination_display']) ? $flightData['destination_display'] : $this->getAirportFullName($destinationCode);
         $airlineName = $flightData['airline'] ?? $flightData['airline_name'] ?? null;
-        
-        // Get airline ID (find or create) - this will get full name from database or create with full name
-        $airlineId = $this->findOrCreateAirline($airlineName);
-
-        // Extract dates - check multiple possible field names
+        $airlineCode = $flightData['airline_code'] ?? (isset($segments[0]) ? ($segments[0]['airline_code'] ?? null) : null);
+        $airlineId = $this->findOrCreateAirline($airlineName, $airlineCode);
         $departureAt = $flightData['departure_at'] ?? $flightData['search_departure_at'] ?? $searchParams['departure_at'] ?? '';
         $arrivalAt = $flightData['arrival_at'] ?? $flightData['arrival_date'] ?? null;
-        
-        // For one-way, arrival_at might be in return_at field
         if (empty($arrivalAt) && isset($flightData['return_at'])) {
-            // Check if return_at is actually the arrival (for one-way flights)
             $departureDate = new \DateTime($departureAt);
             $returnDate = new \DateTime($flightData['return_at']);
-            // If return_at is after departure_at and within reasonable time (less than 48 hours), it's likely the arrival
             $diff = $returnDate->diff($departureDate);
             if ($diff->days < 2 && $returnDate > $departureDate) {
                 $arrivalAt = $flightData['return_at'];
             }
         }
-
-        // Format dates
         $departureDateTime = $this->formatDateTime($departureAt);
         $arrivalDateTime = $this->formatDateTime($arrivalAt);
-        
-        // Ensure arrival is after departure
         if (!empty($departureDateTime) && !empty($arrivalDateTime)) {
             $dep = new \DateTime($departureDateTime);
             $arr = new \DateTime($arrivalDateTime);
             if ($arr <= $dep) {
-                // If arrival is not after departure, add minimum flight time (1 hour)
                 $arr->modify('+1 hour');
                 $arrivalDateTime = $arr->format('Y-m-d H:i');
             }
         }
-
-        // Calculate flight duration
         $totalFlyTime = $this->calculateDuration($departureDateTime, $arrivalDateTime);
+        $mainFlightNumber = $flightData['flight_number'] ?? $flightData['number'] ?? '';
+        if ($hasSegments && count($segments) === 1) {
+            $mainFlightNumber = $segments[0]['flight_number'] ?? $segments[0]['marketing_flight_number'] ?? $mainFlightNumber;
+        }
 
         $flight = [
             'airline_id' => $airlineId,
-            'flight_number' => $flightData['flight_number'] ?? $flightData['number'] ?? '',
+            'flight_number' => $mainFlightNumber,
             'leaving_from' => $origin,
             'going_to' => $destination,
             'departure_date_time' => $departureDateTime,
@@ -489,19 +590,8 @@ class TravelSearchController extends Controller
             'transit' => [],
         ];
 
-        // Check if flight has transit/segments - ONLY set transit if there are actual transit segments
-        // Check for segments array in API response
-        if (isset($flightData['segments']) && is_array($flightData['segments']) && count($flightData['segments']) > 1) {
-            $transits = $this->processTransitsFromSegments($flightData['segments'], $searchParams);
-            // Only set is_transit = 1 if there are actual transit segments
-            if (!empty($transits)) {
-                $flight['is_transit'] = 1;
-                $flight['transit'] = $transits;
-            }
-        } elseif (isset($flightData['route']) && is_array($flightData['route']) && count($flightData['route']) > 2) {
-            // Fallback: process route array if segments not available
+        if (isset($flightData['route']) && is_array($flightData['route']) && count($flightData['route']) > 2) {
             $transits = $this->processTransitsFromRoute($flightData, $searchParams, $departureDateTime, $arrivalDateTime);
-            // Only set is_transit = 1 if there are actual transit segments
             if (!empty($transits)) {
                 $flight['is_transit'] = 1;
                 $flight['transit'] = $transits;
@@ -520,13 +610,14 @@ class TravelSearchController extends Controller
         $originCode = $flightData['destination_iata'] ?? $flightData['search_destination'] ?? $flightData['destination'] ?? $searchParams['destination'] ?? '';
         $destinationCode = $flightData['origin_iata'] ?? $flightData['search_origin'] ?? $flightData['origin'] ?? $searchParams['origin'] ?? '';
         
-        // Get airport full names
-        $origin = $this->getAirportFullName($originCode);
-        $destination = $this->getAirportFullName($destinationCode);
+        // Return flight: origin = main destination, destination = main origin; prefer API display when available
+        $origin = !empty($flightData['destination_display']) ? $flightData['destination_display'] : $this->getAirportFullName($originCode);
+        $destination = !empty($flightData['origin_display']) ? $flightData['origin_display'] : $this->getAirportFullName($destinationCode);
 
         // Extract airline name for return flight
         $airlineName = $flightData['return_airline'] ?? $flightData['return_airline_name'] ?? $flightData['airline'] ?? $flightData['airline_name'] ?? null;
-        $airlineId = $this->findOrCreateAirline($airlineName);
+        $airlineCode = $flightData['return_airline_code'] ?? $flightData['airline_code'] ?? null;
+        $airlineId = $this->findOrCreateAirline($airlineName, $airlineCode);
 
         // Extract return flight dates
         $departureDateTime = $this->formatDateTime($flightData['return_at'] ?? $flightData['return_departure_at'] ?? $searchParams['return_at'] ?? '');
@@ -582,17 +673,35 @@ class TravelSearchController extends Controller
         for ($i = 1; $i < count($segments); $i++) {
             $segment = $segments[$i];
             
-            // Extract airport codes
+            // Extract airport codes (support multiple key names from API)
             $originCode = $segment['origin_iata'] ?? $segment['origin'] ?? '';
             $destinationCode = $segment['destination_iata'] ?? $segment['destination'] ?? '';
+            if (($originCode === '' || $destinationCode === '') && !empty($segment['route'])) {
+                $route = preg_replace('/\s+/', ' ', trim($segment['route']));
+                if (preg_match('/^([A-Z]{3})\s*[→\-]\s*([A-Z]{3})/i', $route, $m)) {
+                    if ($originCode === '') {
+                        $originCode = strtoupper($m[1]);
+                    }
+                    if ($destinationCode === '') {
+                        $destinationCode = strtoupper($m[2]);
+                    }
+                }
+            }
             
-            // Get airport full names
-            $transitOrigin = $this->getAirportFullName($originCode);
-            $transitDestination = $this->getAirportFullName($destinationCode);
+            // Prefer API display string (name + code + terminal) when available; else resolve full name
+            $transitOrigin = !empty($segment['origin_display']) ? $segment['origin_display'] : $this->getAirportFullName($originCode);
+            $transitDestination = !empty($segment['destination_display']) ? $segment['destination_display'] : $this->getAirportFullName($destinationCode);
+            if ($transitOrigin === '' && $originCode !== '') {
+                $transitOrigin = $originCode;
+            }
+            if ($transitDestination === '' && $destinationCode !== '') {
+                $transitDestination = $destinationCode;
+            }
             
             // Extract airline
             $airlineName = $segment['airline'] ?? $segment['airline_name'] ?? null;
-            $airlineId = $this->findOrCreateAirline($airlineName);
+            $airlineCode = $segment['airline_code'] ?? null;
+            $airlineId = $this->findOrCreateAirline($airlineName, $airlineCode);
             
             // Extract dates
             $transitDeparture = $this->formatDateTime($segment['departure_at'] ?? $segment['departure'] ?? '');
@@ -662,8 +771,9 @@ class TravelSearchController extends Controller
                 $transitTime = $this->calculateDuration($previousArrival, $transitDeparture);
 
                 $airlineName = $flightData['airline'] ?? $flightData['airline_name'] ?? null;
+                $airlineCode = $flightData['airline_code'] ?? null;
                 $transits[] = [
-                    'airline_id' => $this->findOrCreateAirline($airlineName),
+                    'airline_id' => $this->findOrCreateAirline($airlineName, $airlineCode),
                     'flight_number' => $flightData['flight_number'] ?? '',
                     'leaving_from' => $transitOrigin,
                     'going_to' => $transitDestination,
@@ -710,76 +820,129 @@ class TravelSearchController extends Controller
     }
 
     /**
-     * Find or create airline by full name
+     * Find existing airline by actual flight data (name or code), or create new one if not available.
+     * Uses exact match, case-insensitive, normalized name (without "Airlines"/"Airways"), then creates.
+     * When creating, saves airline code (IATA) when provided.
      */
-    private function findOrCreateAirline(?string $airlineName): ?int
+    private function findOrCreateAirline(?string $airlineName, ?string $airlineCode = null): ?int
     {
-        if (empty($airlineName)) {
+        if ($airlineName === null || $airlineName === '') {
             return null;
         }
 
-        // Clean airline name - remove extra spaces
-        $airlineName = trim($airlineName);
+        $airlineName = trim(preg_replace('/\s+/', ' ', $airlineName));
         $originalName = $airlineName;
-        
-        // If it's an IATA code (2 letters), try to get full name
-        if (strlen($airlineName) == 2 && ctype_upper($airlineName)) {
+        $airlineCode = $airlineCode !== null && $airlineCode !== '' ? strtoupper(trim(substr((string) $airlineCode, 0, 10))) : null;
+
+        // Do not create placeholder / unknown names
+        $placeholders = ['n/a', 'na', '-', '—', 'unknown', 'null'];
+        if (in_array(strtolower($airlineName), $placeholders, true) || strlen($airlineName) < 2) {
+            return null;
+        }
+
+        // If it's an IATA code (2 letters), resolve to full name for lookup/display
+        if (strlen($airlineName) === 2 && ctype_upper($airlineName)) {
             $fullName = $this->getAirlineFullName($airlineName);
             if ($fullName) {
                 $airlineName = $fullName;
-                Log::info('Converted IATA code to full name', ['code' => $originalName, 'full_name' => $airlineName]);
-            } else {
-                // If we can't find full name, use the code as-is but log it
-                Log::warning('IATA code not found in mapping, using code as name', ['code' => $originalName]);
+            }
+            if ($airlineCode === null) {
+                $airlineCode = $originalName;
             }
         }
 
-        // Try to find by exact name
+        // 0) If we have a code, try match by code first
+        if ($airlineCode !== null && $airlineCode !== '') {
+            $airline = Airline::whereRaw('UPPER(TRIM(code)) = ?', [$airlineCode])->first();
+            if ($airline) {
+                return $airline->id;
+            }
+        }
+
+        // 1) Try exact name
         $airline = Airline::where('name', $airlineName)->first();
-
         if ($airline) {
             return $airline->id;
         }
 
-        // Try to find by case-insensitive match
-        $airline = Airline::whereRaw('LOWER(name) = ?', [strtolower($airlineName)])->first();
-
+        // 2) Try case-insensitive
+        $airline = Airline::whereRaw('LOWER(TRIM(name)) = ?', [strtolower($airlineName)])->first();
         if ($airline) {
             return $airline->id;
         }
 
-        // Try to find by partial match (check if airline name contains search term or vice versa)
-        $airline = Airline::where('name', 'LIKE', '%' . $airlineName . '%')
-            ->orWhere('name', 'LIKE', '%' . substr($airlineName, 0, 10) . '%')
-            ->first();
+        // 3) Try normalized "core" name (strip common suffixes so "China Eastern" matches "China Eastern Airlines")
+        $coreName = $this->normalizeAirlineNameForMatch($airlineName);
+        if ($coreName !== '') {
+            $like = '%' . addcslashes($coreName, '%_\\') . '%';
+            $airline = Airline::where('status', 1)
+                ->where(function ($q) use ($coreName, $like) {
+                    $q->whereRaw('LOWER(TRIM(name)) = ?', [$coreName])
+                        ->orWhereRaw("LOWER(TRIM(REPLACE(REPLACE(REPLACE(name, ' Airlines', ''), ' Airways', ''), ' Air', ''))) = ?", [$coreName])
+                        ->orWhereRaw('LOWER(name) LIKE ?', [$like]);
+                })
+                ->first();
+            if ($airline) {
+                return $airline->id;
+            }
+        }
 
+        // 4) Try partial / LIKE match (DB name contains our name or vice versa)
+        $airline = Airline::where('name', 'LIKE', '%' . addcslashes($airlineName, '%_\\') . '%')->first();
+        if ($airline) {
+            return $airline->id;
+        }
+        $airline = Airline::where('name', 'LIKE', '%' . addcslashes(substr($airlineName, 0, 15), '%_\\') . '%')->first();
         if ($airline) {
             return $airline->id;
         }
 
-        // Create new airline with full name if not found
+        // 5) Not found: create new airline so actual flight data is always stored (with code when available)
         try {
             $newAirline = new Airline();
-            $newAirline->name = $airlineName; // Store full name (not IATA code)
+            $newAirline->name = $airlineName;
+            if ($airlineCode !== null && $airlineCode !== '') {
+                $newAirline->code = $airlineCode;
+            }
             $newAirline->status = 1;
             $newAirline->created_by = AuthFacade::id();
             $newAirline->save();
 
-            Log::info('Created new airline', [
+            Log::info('Created new airline for flight data', [
                 'airline_id' => $newAirline->id,
                 'airline_name' => $airlineName,
-                'original_input' => $originalName
+                'airline_code' => $airlineCode,
+                'original_input' => $originalName,
             ]);
             return $newAirline->id;
         } catch (\Exception $e) {
             Log::error('Failed to create airline', [
                 'airline_name' => $airlineName,
+                'airline_code' => $airlineCode,
                 'original_input' => $originalName,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
             return null;
         }
+    }
+
+    /**
+     * Normalize airline name for matching (lowercase, strip common suffixes).
+     */
+    private function normalizeAirlineNameForMatch(string $name): string
+    {
+        $name = trim(strtolower($name));
+        if ($name === '') {
+            return '';
+        }
+        $suffixes = [' airlines', ' airline', ' airways', ' air ways', ' air line', ' air lines', ' aviation'];
+        foreach ($suffixes as $suffix) {
+            if (str_ends_with($name, $suffix)) {
+                $name = trim(substr($name, 0, -strlen($suffix)));
+                break;
+            }
+        }
+        return preg_replace('/\s+/', ' ', $name);
     }
     
     /**

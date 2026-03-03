@@ -26,12 +26,16 @@
                             <a href="{{ route('sticky_note.show', $sn->id) }}" class="btn btn-sm btn-icon btn-light-primary" title="{{ $getCurrentTranslation['show'] ?? 'show' }}">
                                 <i class="fa-solid fa-eye"></i>
                             </a>
+                            <a href="{{ route('sticky_note.edit', $sn->id) }}" class="btn btn-sm btn-icon btn-light-primary" title="{{ $getCurrentTranslation['edit'] ?? 'edit' }}">
+                                <i class="fa-solid fa-pen"></i>
+                            </a>
                             <span class="d-inline-flex align-items-center gap-1">
                                 <button type="button" class="btn btn-sm btn-success btn-acknowledge-note" data-note-id="{{ $sn->id }}" data-url="{{ route('sticky_note.updateStatus', $sn->id) }}" title="{{ $getCurrentTranslation['acknowledge'] ?? 'Acknowledge' }} ({{ $getCurrentTranslation['in_progress'] ?? 'In Progress' }})">
                                     <span class="btn-label">{{ $getCurrentTranslation['acknowledge'] ?? 'Acknowledge' }}</span>
-                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span><br>
+                                    <small class="">({{ $getCurrentTranslation['in_progress'] ?? 'In Progress' }})</small>
                                 </button>
-                                <small class="text-muted">({{ $getCurrentTranslation['in_progress'] ?? 'In Progress' }})</small>
+                                
                             </span>
                         </div>
                     </div>
