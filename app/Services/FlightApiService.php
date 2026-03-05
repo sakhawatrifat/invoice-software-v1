@@ -155,15 +155,21 @@ class FlightApiService
     /**
      * GET request and decode JSON.
      * Uses a longer timeout (120s) so slow flight APIs can respond; connection timeout 20s.
+     *
+     * @param array<string, mixed> $logContext Optional context for error logs (e.g. num, name, date for tracking). API key is never logged.
      */
-    private function get(string $url, array $query = []): array
+    private function get(string $url, array $query = [], array $logContext = []): array
     {
         $response = Http::connectTimeout(20)->timeout(120)->get($url, $query);
 
         if ($response->failed()) {
             $body = $response->body();
             $message = $this->parseFlightApiErrorMessage($body, $response->status());
-            Log::error('FlightAPI request failed', ['url' => $url, 'status' => $response->status(), 'body' => $body]);
+            $logUrl = $this->redactApiKeyFromUrl($url);
+            Log::error('FlightAPI request failed', array_merge(
+                ['url' => $logUrl, 'status' => $response->status(), 'body' => $body],
+                $logContext
+            ));
             throw new Exception($message);
         }
 
@@ -172,6 +178,28 @@ class FlightApiService
             throw new Exception('FlightAPI returned invalid response.');
         }
         return $data;
+    }
+
+    /**
+     * Blocklist of 3-letter tokens that are not IATA airport codes (e.g. from "leaving_from" text).
+     * Sending these as depap can cause FlightAPI to return 400.
+     */
+    private function isLikelyNonAirportCode(string $code): bool
+    {
+        $bad = ['APT', 'TBA', 'NA', 'N/A', 'XXX', 'TBD', 'TBH', 'TBC', 'TBD', 'TBA', 'NIL', 'NA'];
+        return in_array($code, $bad, true);
+    }
+
+    /**
+     * Redact API key from URL for safe logging (e.g. /airline/KEY -> /airline/***).
+     */
+    private function redactApiKeyFromUrl(string $url): string
+    {
+        $prefix = $this->baseUrl . '/airline/';
+        if (str_starts_with($url, $prefix)) {
+            return $prefix . '***';
+        }
+        return $url;
     }
 
     /**
@@ -879,11 +907,15 @@ class FlightApiService
             'name' => $name,
             'date' => $dateStr,
         ];
-        if (!empty($departureAirportCode)) {
-            $query['depap'] = strtoupper(substr(trim($departureAirportCode), 0, 3));
+        $depap = $departureAirportCode !== null && $departureAirportCode !== ''
+            ? strtoupper(substr(trim($departureAirportCode), 0, 3))
+            : '';
+        if ($depap !== '' && !$this->isLikelyNonAirportCode($depap)) {
+            $query['depap'] = $depap;
         }
 
-        $data = $this->get($url, $query);
+        $logContext = ['tracking_request' => ['num' => $num, 'name' => $name, 'date' => $dateStr, 'depap' => $query['depap'] ?? null]];
+        $data = $this->get($url, $query, $logContext);
 
         if (isset($data['success']) && $data['success'] === false) {
             $apiMsg = isset($data['message']) && is_string($data['message']) ? trim($data['message']) : 'Unknown error';

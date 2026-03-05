@@ -124,12 +124,15 @@ class StickyNoteController extends Controller
             'note_title' => 'required|string|max:255',
             'note_description' => 'nullable|string',
             'deadline' => 'required|date',
-            'reminder_datetime' => 'required|date',
+            'reminder_datetime' => 'required|date|before_or_equal:deadline',
             'status' => 'nullable|in:Pending,In Progress,Completed,Cancelled',
             'assigned_user_ids' => 'nullable|array',
             'assigned_user_ids.*' => 'exists:users,id',
         ];
-        $validator = Validator::make($request->all(), $rules);
+        $messages = [
+            'reminder_datetime.before_or_equal' => getCurrentTranslation()['reminder_cannot_after_deadline'] ?? 'Reminder date & time cannot be after the deadline.',
+        ];
+        $validator = Validator::make($request->all(), $rules, $messages);
         if ($validator->fails()) {
             return response()->json([
                 'is_success' => 0,
@@ -230,12 +233,15 @@ class StickyNoteController extends Controller
             'note_title' => 'required|string|max:255',
             'note_description' => 'nullable|string',
             'deadline' => 'required|date',
-            'reminder_datetime' => 'required|date',
+            'reminder_datetime' => 'required|date|before_or_equal:deadline',
             'status' => 'nullable|in:Pending,In Progress,Completed,Cancelled',
             'assigned_user_ids' => 'nullable|array',
             'assigned_user_ids.*' => 'exists:users,id',
         ];
-        $validator = Validator::make($request->all(), $rules);
+        $messages = [
+            'reminder_datetime.before_or_equal' => getCurrentTranslation()['reminder_cannot_after_deadline'] ?? 'Reminder date & time cannot be after the deadline.',
+        ];
+        $validator = Validator::make($request->all(), $rules, $messages);
         if ($validator->fails()) {
             return response()->json([
                 'is_success' => 0,

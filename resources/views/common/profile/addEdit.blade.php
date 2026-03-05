@@ -132,7 +132,12 @@
 					<div class="card rounded border mt-5 bg-white append-item-container">
 						<div class="card-header">
 							<h3 class="card-title">{{ $getCurrentTranslation['password_label'] ?? 'password_label' }}</h3>
-							<div class="card-toolbar"></div>
+							<div class="card-toolbar">
+								<button type="button" class="btn btn-sm btn-warning" id="btnLogoutOtherDevices" data-url="{{ route('myProfile.logoutOtherDevices') }}">
+									<i class="fa-solid fa-right-from-bracket me-1"></i>
+									<span>{{ $getCurrentTranslation['logout_other_devices_btn'] ?? 'Logout From Other Devices' }}</span>
+								</button>
+							</div>
 						</div>
 						<div class="card-body">
 							<div class="row">
@@ -168,6 +173,17 @@
 										<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 									@enderror
 								</div>
+
+								{{-- <div class="col-md-6">
+									<label class="form-label opacity-0">{{ $getCurrentTranslation['logout_from_other_devices_label'] ?? 'logout_from_other_devices_label' }}:</label>
+									<div class="form-check form-check-custom form-check-solid">
+										<input class="form-check-input" type="checkbox" name="logout_other_devices" value="1" id="logoutOtherDevices" {{ old('logout_other_devices') ? 'checked' : '' }}>
+										<label class="ps-2 form-check-label fw-semibold text-gray-800" for="logoutOtherDevices">
+											{{ $getCurrentTranslation['logout_from_other_devices'] ?? 'Logout From Other Devices' }}
+										</label>
+									</div>
+									<small class="text-muted">{{ $getCurrentTranslation['logout_from_other_devices_help'] ?? 'When checked, you will stay logged in on this device only. All other sessions will be signed out.' }}</small>
+								</div> --}}
 							</div>
 						</div>
 					</div>
@@ -535,6 +551,64 @@
 @include('common._partials.appendJs')
 @include('common._partials.formScripts')
 <script>
-	//
+	(function() {
+		var btn = document.getElementById('btnLogoutOtherDevices');
+		if (!btn) return;
+		var url = btn.getAttribute('data-url');
+		var tr = typeof getCurrentTranslation !== 'undefined' ? getCurrentTranslation : {};
+		var confirmTitle = tr.logout_other_devices_confirm_title || 'Logout from other devices?';
+		var confirmText = tr.logout_other_devices_confirm_text || 'All other sessions will be signed out. You will stay logged in on this device only.';
+		var confirmBtn = tr.logout_other_devices_confirm_btn || 'Yes, logout other devices';
+		var cancelBtn = tr.cancel || 'Cancel';
+
+		btn.addEventListener('click', function() {
+			Swal.fire({
+				icon: 'warning',
+				title: confirmTitle,
+				text: confirmText,
+				showCancelButton: true,
+				confirmButtonText: confirmBtn,
+				cancelButtonText: cancelBtn,
+				confirmButtonColor: '#f59e0b',
+				allowOutsideClick: true,
+			}).then(function(result) {
+				if (!result.isConfirmed) return;
+				$.ajax({
+					url: url,
+					type: 'POST',
+					data: {
+						_token: $('meta[name="csrf-token"]').attr('content'),
+					},
+					dataType: 'json',
+					success: function(data) {
+						if (data.is_success === 1) {
+							Swal.fire({
+								icon: data.icon || 'success',
+								title: (tr.success || 'Success').toUpperCase(),
+								text: data.message || (tr.logout_other_devices_success || 'Other devices have been signed out.'),
+								confirmButtonText: tr.ok || 'OK',
+							});
+						} else {
+							Swal.fire({
+								icon: data.icon || 'error',
+								title: (tr.error || 'Error').toUpperCase(),
+								text: data.message || (tr.something_went_wrong || 'Something went wrong.'),
+								confirmButtonText: tr.ok || 'OK',
+							});
+						}
+					},
+					error: function(xhr) {
+						var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (tr.something_went_wrong || 'Something went wrong.');
+						Swal.fire({
+							icon: 'error',
+							title: (tr.error || 'Error').toUpperCase(),
+							text: msg,
+							confirmButtonText: tr.ok || 'OK',
+						});
+					},
+				});
+			});
+		});
+	})();
 </script>
 @endpush

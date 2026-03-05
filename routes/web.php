@@ -655,6 +655,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
     Route::controller(HomeController::class)->group(function () {
         Route::get('/my-profile', 'myProfile')->name('myProfile');
         Route::post('/my-profile', 'myProfileUpdate')->name('myProfile.update');
+        Route::post('/my-profile/logout-other-devices', 'logoutOtherDevices')->name('myProfile.logoutOtherDevices');
     });
     
 });

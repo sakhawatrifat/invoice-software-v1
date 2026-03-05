@@ -254,7 +254,7 @@
     data-kt-drawer-toggle="#kt_flight_list_toggle"
     data-kt-drawer-close="#kt_flight_list_close"
 >
-    <div class="card shadow-none border-0 rounded-0">
+    <div class="card shadow-none border-0 rounded-0 w-100">
         <!--begin::Header-->
         <div class="card-header" id="kt_flight_list_header">
             <h3 class="card-title fw-bold text-gray-900">{{ $getCurrentTranslation['upcomming_flights'] ?? 'upcomming_flights' }}</h3>
@@ -437,7 +437,7 @@
     data-kt-drawer-toggle="#kt_notification_toggle"
     data-kt-drawer-close="#kt_notification_close"
 >
-    <div class="card shadow-none border-0 rounded-0">
+    <div class="card shadow-none border-0 rounded-0 w-100">
         <!--begin::Header-->
         <div class="card-header" id="kt_notification_header">
             <h3 class="card-title fw-bold text-gray-900">{{ $getCurrentTranslation['notifications'] ?? 'notifications' }}</h3>

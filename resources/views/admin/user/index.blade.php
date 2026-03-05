@@ -39,7 +39,7 @@
 					<thead>
 						<tr>
 							<th>#</th>
-							<th>{{ $getCurrentTranslation['id'] ?? 'ID' }}</th>
+							{{-- <th>{{ $getCurrentTranslation['id'] ?? 'ID' }}</th> --}}
 							<th>{{ $getCurrentTranslation['employee_uid'] ?? 'Employee UID' }}</th>
 							<th>{{ $getCurrentTranslation['company'] ?? 'company' }}</th>
 							<th>{{ $getCurrentTranslation['full_name'] ?? 'full_name' }}</th>
@@ -70,7 +70,7 @@ var dataTable = $('#datatable').DataTable({
 	dom: 'lfrtip',
 	columns: [
 		{ data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
-		{ data: 'id', name: 'id' },
+		// { data: 'id', name: 'id' },
 		{ data: 'employee_uid', name: 'employee_uid' },
 		{ data: 'company_id', name: 'company_id' },
 		{ data: 'name', name: 'name' },

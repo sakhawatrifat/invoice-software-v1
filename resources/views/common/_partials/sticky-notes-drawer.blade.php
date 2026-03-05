@@ -15,7 +15,7 @@
     data-kt-drawer-toggle="#kt_sticky_note_toggle"
     data-kt-drawer-close="#kt_sticky_note_close"
 >
-    <div class="card shadow-none border-0 rounded-0">
+    <div class="card shadow-none border-0 rounded-0 w-100">
         <!--begin::Header-->
         <div class="card-header" id="kt_sticky_note_header">
             <h3 class="card-title fw-bold text-gray-900">{{ $getCurrentTranslation['upcoming_sticky_notes'] ?? 'upcoming_sticky_notes' }}</h3>

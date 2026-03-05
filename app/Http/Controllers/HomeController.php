@@ -70,6 +70,43 @@ class HomeController extends Controller
         return $this->saveProfileData($request, $user->id);
     }
 
+    /**
+     * Logout from other devices (invalidate all sessions except current). Returns JSON.
+     */
+    public function logoutOtherDevices(Request $request)
+    {
+        if (!Auth::check()) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['unauthorized'] ?? 'Unauthorized',
+            ], 401);
+        }
+
+        $sessionTable = config('session.table', 'sessions');
+        $currentSessionId = Session::getId();
+        $userId = Auth::id();
+
+        if (!$currentSessionId || !$userId) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['something_went_wrong'] ?? 'something_went_wrong',
+            ]);
+        }
+
+        $deleted = DB::table($sessionTable)
+            ->where('user_id', $userId)
+            ->where('id', '!=', $currentSessionId)
+            ->delete();
+
+        return response()->json([
+            'is_success' => 1,
+            'icon' => 'success',
+            'message' => getCurrentTranslation()['logout_other_devices_success'] ?? 'logout_other_devices_success',
+        ]);
+    }
+
 
     public function saveProfileData(Request $request, $id = null)
     {
@@ -383,6 +420,20 @@ class HomeController extends Controller
             
 
             DB::commit();
+
+            // Logout from other devices if requested (invalidate other sessions, keep current)
+            if ($request->filled('logout_other_devices')) {
+                $sessionTable = config('session.table', 'sessions');
+                $currentSessionId = Session::getId();
+                $userId = Auth::id();
+                if ($currentSessionId && $userId) {
+                    DB::table($sessionTable)
+                        ->where('user_id', $userId)
+                        ->where('id', '!=', $currentSessionId)
+                        ->delete();
+                }
+            }
+
             return [
                 'is_success' => 1,
                 'icon' => 'success',

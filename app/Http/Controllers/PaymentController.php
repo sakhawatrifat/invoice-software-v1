@@ -2073,7 +2073,12 @@ class PaymentController extends Controller
                 if ($trackError === null) {
                     $trackError = $e->getMessage();
                 }
-                \Log::warning('FlightAPI track failed for segment: ' . $e->getMessage());
+                \Log::warning('FlightAPI track failed for segment', [
+                    'message' => $e->getMessage(),
+                    'airline_code' => $airlineCode,
+                    'flight_number' => $num,
+                    'date' => $date instanceof \DateTimeInterface ? $date->format('Y-m-d') : $date,
+                ]);
             }
         }
 
