@@ -45,20 +45,71 @@
         }
     }
 
-    // Get current location (optional). Calls callback with { lat, lng } or null. Used for pause/resume/check-in.
+    // Get current location (optional). Calls callback with { lat, lng, accuracy } or null.
+    // Uses a short watch to pick the best accuracy reading when available.
     function getCurrentLocation(callback) {
         if (!navigator.geolocation) {
             callback(null);
             return;
         }
+        const opts = { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 };
+        let best = null;
+        let watchId = null;
+        let done = false;
+
+        function finish(result) {
+            if (done) return;
+            done = true;
+            if (watchId !== null) {
+                try { navigator.geolocation.clearWatch(watchId); } catch (e) {}
+            }
+            callback(result);
+        }
+
+        function toLoc(position) {
+            return {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                accuracy: position.coords.accuracy
+            };
+        }
+
+        // Start with one immediate attempt
         navigator.geolocation.getCurrentPosition(
             function(position) {
-                callback({ lat: position.coords.latitude, lng: position.coords.longitude });
+                best = toLoc(position);
+                // If accuracy is good enough or we have no watch support, return immediately.
+                if (!best.accuracy || best.accuracy <= 500) {
+                    finish(best);
+                    return;
+                }
+                try {
+                    watchId = navigator.geolocation.watchPosition(
+                        function(p2) {
+                            const cand = toLoc(p2);
+                            if (!best || (cand.accuracy && best.accuracy && cand.accuracy < best.accuracy)) {
+                                best = cand;
+                            } else if (!best) {
+                                best = cand;
+                            }
+                            if (best && best.accuracy && best.accuracy <= 500) {
+                                finish(best);
+                            }
+                        },
+                        function() {
+                            finish(best);
+                        },
+                        { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
+                    );
+                } catch (e) {
+                    finish(best);
+                }
+                setTimeout(function() { finish(best); }, 5000);
             },
             function() {
-                callback(null);
+                finish(null);
             },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+            opts
         );
     }
 
@@ -66,6 +117,12 @@
     const dailyWorkTimeMinutes = dailyWorkTimeHours * 60;
     // Activity endpoint caches response. Backend clears cache on pause/resume; short delay so next fetch gets fresh data.
     const ACTIVITY_CACHE_MS = 500;
+    // If accuracy is worse than this, it's typically IP-based / unreliable on desktop.
+    const MAX_LOCATION_ACCURACY_METERS = 2000;
+
+    function isPoorAccuracy(loc) {
+        return !!(loc && typeof loc.accuracy === 'number' && isFinite(loc.accuracy) && loc.accuracy > MAX_LOCATION_ACCURACY_METERS);
+    }
 
     // Format time helper (HH:MM:SS). Clamp to non-negative so break/work never show minus.
     function formatTime(minutes) {
@@ -303,8 +360,8 @@
         }
     }
 
-    // Show check-in modal
-    function showCheckInModal() {
+    // Show check-in modal. Pass true to show "location unavailable" message and disable Confirm (user must Retry).
+    function showCheckInModal(locationUnavailable) {
         $('#check-in-info').hide();
         $('#check-in-location-info').hide();
         $('#break-time-info').hide();
@@ -312,6 +369,14 @@
         // Clear any error messages
         $('#overtime-task-description').removeClass('is-invalid');
         $('#overtime-task-error').hide();
+
+        if (locationUnavailable) {
+            $('#check-in-location-unavailable').show();
+            $('#confirm-attendance-action').prop('disabled', true).addClass('disabled');
+        } else {
+            $('#check-in-location-unavailable').hide();
+            $('#confirm-attendance-action').prop('disabled', false).removeClass('disabled');
+        }
         
         // Show previous work time if exists (multiple check-ins on same date)
         const previousTotalHours = parseFloat(attendanceStatus.previousTotalHours) || 0;
@@ -443,34 +508,74 @@
             toastr.error('{{ $getCurrentTranslation["location_not_supported_by_browser"] ?? "Location is not supported by your browser. You cannot check in." }}');
             return;
         }
+        // Always clear any previous location so we never reuse stale coordinates.
+        pendingCheckInLocation = null;
         const locationRequiredMsg = '{{ $getCurrentTranslation["please_allow_location_to_check_in"] ?? "Please allow location access to check in." }}';
         const locationUnavailableMsg = '{{ $getCurrentTranslation["location_unavailable"] ?? "Location is unavailable. Please enable location and try again." }}';
         const locationTimeoutMsg = '{{ $getCurrentTranslation["location_request_timed_out"] ?? "Location request timed out. Please try again." }}';
         const $btn = $('#btn-check-in');
         $btn.prop('disabled', true);
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                pendingCheckInLocation = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                };
-                $btn.prop('disabled', false);
-                if (typeof toastr !== 'undefined' && toastr.clear) toastr.clear();
-                showCheckInModal();
-            },
-            function(err) {
-                $btn.prop('disabled', false);
-                if (err.code === 1 || err.code === err.PERMISSION_DENIED) {
-                    toastr.error(locationRequiredMsg);
-                } else if (err.code === 2 || err.code === err.POSITION_UNAVAILABLE) {
-                    toastr.error(locationUnavailableMsg);
-                } else {
-                    toastr.error(locationTimeoutMsg);
-                }
-            },
-            { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 }
-        );
+        getCurrentLocation(function(loc) {
+            $btn.prop('disabled', false);
+            if (!loc) {
+                pendingCheckInLocation = null;
+                showCheckInModal(true);
+                if (typeof toastr !== 'undefined') toastr.warning(locationUnavailableMsg);
+                return;
+            }
+            // If accuracy is too poor, warn user and allow retry/continue.
+            if (isPoorAccuracy(loc)) {
+                const km = Math.round((loc.accuracy / 1000) * 10) / 10;
+                Swal.fire({
+                    title: '{{ $getCurrentTranslation["location"] ?? "Location" }}',
+                    text: 'Location accuracy is low (~' + km + ' km). This can cause a wrong address. Turn off VPN and enable Windows Location for better accuracy. Continue anyway?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    confirmButtonText: '{{ $getCurrentTranslation["confirm"] ?? "Confirm" }}',
+                    cancelButtonColor: '#d33',
+                    cancelButtonText: '{{ $getCurrentTranslation["retry"] ?? "Retry" }}',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        pendingCheckInLocation = loc;
+                        if (typeof toastr !== 'undefined' && toastr.clear) toastr.clear();
+                        showCheckInModal();
+                    } else {
+                        pendingCheckInLocation = null;
+                        // Retry: request again (fresh, non-cached)
+                        requestLocationAndShowCheckInModal();
+                    }
+                });
+                return;
+            }
+
+            pendingCheckInLocation = loc;
+            if (typeof toastr !== 'undefined' && toastr.clear) toastr.clear();
+            showCheckInModal();
+        });
     }
+
+    // Retry location from inside the check-in modal (when location was unavailable)
+    $(document).on('click', '#btn-retry-location', function() {
+        var $retryBtn = $(this);
+        if ($retryBtn.prop('disabled')) return;
+        $retryBtn.prop('disabled', true).text('{{ $getCurrentTranslation["getting_location"] ?? "Getting location..." }}');
+        getCurrentLocation(function(loc) {
+            $retryBtn.prop('disabled', false).text('{{ $getCurrentTranslation["retry"] ?? "Retry" }} {{ $getCurrentTranslation["location"] ?? "Location" }}');
+            if (!loc) {
+                if (typeof toastr !== 'undefined') toastr.error('{{ $getCurrentTranslation["location_unavailable"] ?? "Location is unavailable. Please enable location and try again." }}');
+                return;
+            }
+            if (isPoorAccuracy(loc)) {
+                var km = Math.round((loc.accuracy / 1000) * 10) / 10;
+                if (typeof toastr !== 'undefined') toastr.warning('Location accuracy is low (~' + km + ' km). You can still continue.');
+            }
+            pendingCheckInLocation = loc;
+            $('#check-in-location-unavailable').hide();
+            $('#confirm-attendance-action').prop('disabled', false).removeClass('disabled');
+            if (typeof toastr !== 'undefined') toastr.success('{{ $getCurrentTranslation["location_obtained"] ?? "Location obtained. You can confirm check-in." }}');
+        });
+    });
 
     // Check-in button click (requires location first)
     $('#btn-check-in').on('click', function() {
@@ -503,9 +608,14 @@
             }
             getCurrentLocation(function(loc) {
                 var pauseData = {};
-                if (loc) {
+                // Avoid overwriting saved attendance location with an unreliable reading.
+                if (loc && !isPoorAccuracy(loc)) {
                     pauseData.latitude = loc.lat;
                     pauseData.longitude = loc.lng;
+                    pauseData.accuracy = loc.accuracy;
+                } else if (loc && isPoorAccuracy(loc)) {
+                    const km = Math.round((loc.accuracy / 1000) * 10) / 10;
+                    toastr.warning('Location accuracy is low (~' + km + ' km). Skipping location update for pause.');
                 }
                 $('.r-preloader').show();
                 $.ajax({
@@ -565,9 +675,14 @@
             }
             getCurrentLocation(function(loc) {
                 var resumeData = {};
-                if (loc) {
+                // Avoid overwriting saved attendance location with an unreliable reading.
+                if (loc && !isPoorAccuracy(loc)) {
                     resumeData.latitude = loc.lat;
                     resumeData.longitude = loc.lng;
+                    resumeData.accuracy = loc.accuracy;
+                } else if (loc && isPoorAccuracy(loc)) {
+                    const km = Math.round((loc.accuracy / 1000) * 10) / 10;
+                    toastr.warning('Location accuracy is low (~' + km + ' km). Skipping location update for resume.');
                 }
                 $('.r-preloader').show();
                 $.ajax({
@@ -644,7 +759,8 @@
                         },
                         data: {
                             latitude: pendingCheckInLocation.lat,
-                            longitude: pendingCheckInLocation.lng
+                            longitude: pendingCheckInLocation.lng,
+                            accuracy: pendingCheckInLocation.accuracy
                         },
                         success: function(response) {
                             $('.r-preloader').hide();

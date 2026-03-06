@@ -590,6 +590,11 @@
 			</div>
 			<div class="modal-body">
 				<div id="attendance-info">
+					<div id="check-in-location-unavailable" class="alert alert-warning mb-3" style="display: none;">
+						<strong>{{ $getCurrentTranslation['location_unavailable'] ?? 'Location is unavailable' }}</strong>
+						<p class="mb-2 small">{{ $getCurrentTranslation['location_unavailable_retry_hint'] ?? 'Please ensure location is enabled (Windows + browser) and try again. You can also try using HTTPS or a different browser.' }}</p>
+						<button type="button" class="btn btn-sm btn-primary" id="btn-retry-location">{{ $getCurrentTranslation['retry'] ?? 'Retry' }} {{ $getCurrentTranslation['location'] ?? 'Location' }}</button>
+					</div>
 					<div class="mb-3">
 						<strong>{{ $getCurrentTranslation['date'] ?? 'Date' }}:</strong> <span id="modal-date"></span>
 					</div>

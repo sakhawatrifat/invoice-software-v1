@@ -126,6 +126,8 @@ class AttendanceController extends Controller
             'is_checked_in' => $isCheckedIn,
             'is_paused' => $isPaused,
             'current_pause_id' => $currentPauseId,
+            'attendance_id' => $attendance ? $attendance->id : null,
+            'attendance_date' => $attendance ? $attendance->date->format('Y-m-d') : null,
             'check_in_time' => $currentSessionCheckInTime ? $currentSessionCheckInTime->format('Y-m-d H:i:s') : ($checkInTime ? $checkInTime->format('Y-m-d H:i:s') : null),
             'current_pause_start' => $currentPauseStart ? $currentPauseStart->format('Y-m-d H:i:s') : null,
             'total_work_minutes' => $totalWorkMinutes,
@@ -135,6 +137,8 @@ class AttendanceController extends Controller
             'forgot_clock_out' => $attendance && $attendance->forgot_clock_out ? true : false,
             'check_in_location' => $checkInLocation,
             'check_in_location_url' => $checkInLocationUrl,
+            // Raw stored location (lat/lng/name) for debugging and UI use
+            'location' => $attendance ? $attendance->location : null,
         ]);
     }
 
@@ -192,6 +196,9 @@ class AttendanceController extends Controller
                 'lat' => $lat,
                 'lng' => $lng,
             ];
+            if ($request->has('accuracy') && is_numeric($request->accuracy)) {
+                $location['accuracy'] = (float) $request->accuracy;
+            }
             $locationName = Attendance::getLocationNameFromCoordinates($lat, $lng);
             if ($locationName !== null) {
                 $location['name'] = $locationName;
@@ -243,6 +250,9 @@ class AttendanceController extends Controller
             // Refresh attendance to get updated data
             $attendance->refresh();
 
+            // Ensure UI reflects latest attendance/location immediately (activity endpoint caches briefly)
+            Cache::forget('chat_activity_' . $user->id);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Checked in successfully.',
@@ -250,6 +260,7 @@ class AttendanceController extends Controller
                     'check_in_time' => $attendance->check_in->format('Y-m-d H:i:s'),
                     'date' => $attendance->date->format('Y-m-d'),
                     'previous_total_hours' => $attendance->total_hours ?? 0,
+                    'location' => $attendance->location,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -522,6 +533,9 @@ class AttendanceController extends Controller
 
             DB::commit();
 
+            // Ensure UI reflects latest attendance immediately (activity endpoint caches briefly)
+            Cache::forget('chat_activity_' . $user->id);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Checked out successfully.',
@@ -533,6 +547,7 @@ class AttendanceController extends Controller
                     'total_work_minutes' => $totalWorkMinutes,
                     'total_pause_minutes' => $totalPauseMinutes,
                     'net_work_minutes' => $netWorkMinutes,
+                    'location' => $attendance->location,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -597,6 +612,9 @@ class AttendanceController extends Controller
                 $lng = (float) $request->longitude;
                 if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
                     $location = ['lat' => $lat, 'lng' => $lng];
+                    if ($request->has('accuracy') && is_numeric($request->accuracy)) {
+                        $location['accuracy'] = (float) $request->accuracy;
+                    }
                     $locationName = Attendance::getLocationNameFromCoordinates($lat, $lng);
                     if ($locationName !== null) {
                         $location['name'] = $locationName;
@@ -684,6 +702,9 @@ class AttendanceController extends Controller
                 $lng = (float) $request->longitude;
                 if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
                     $location = ['lat' => $lat, 'lng' => $lng];
+                    if ($request->has('accuracy') && is_numeric($request->accuracy)) {
+                        $location['accuracy'] = (float) $request->accuracy;
+                    }
                     $locationName = Attendance::getLocationNameFromCoordinates($lat, $lng);
                     if ($locationName !== null) {
                         $location['name'] = $locationName;
