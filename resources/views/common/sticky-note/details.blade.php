@@ -58,11 +58,11 @@
 						<div class="row">
 							<div class="col-md-6">
 								<label class="form-label fw-bold">{{ $getCurrentTranslation['deadline'] ?? 'deadline' }}</label>
-								<div>{{ $note->deadline ? $note->deadline->format('Y-m-d H:i') : '—' }}</div>
+								<div>{{ $note->deadline ? $note->deadline->format('Y-m-d g:i A') : '—' }}</div>
 							</div>
 							<div class="col-md-6">
 								<label class="form-label fw-bold">{{ $getCurrentTranslation['reminder_datetime'] ?? 'reminder_datetime' }}</label>
-								<div>{{ $note->reminder_datetime ? $note->reminder_datetime->format('Y-m-d H:i') : '—' }}</div>
+								<div>{{ $note->reminder_datetime ? $note->reminder_datetime->format('Y-m-d g:i A') : '—' }}</div>
 							</div>
 							<div class="col-md-6 mt-4">
 								<label class="form-label fw-bold">{{ $getCurrentTranslation['created_by'] ?? 'created_by' }}</label>

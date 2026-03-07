@@ -76,19 +76,19 @@
 								</div>
 								<div class="col-md-6">
 									<div class="form-item mb-5">
+										<label class="form-label">{{ $getCurrentTranslation['deadline'] ?? 'deadline' }} <span class="text-danger">*</span></label>
+										<input type="text" class="form-control datetimepicker" name="deadline" id="sticky_note_deadline" readonly required
+											placeholder="{{ $getCurrentTranslation['deadline_placeholder'] ?? 'deadline_placeholder' }}"
+											value="{{ old('deadline', isset($editData) && $editData->deadline ? $editData->deadline->format('Y-m-d H:i') : '') }}">
+									</div>
+								</div>
+								<div class="col-md-6">
+									<div class="form-item mb-5">
 										<label class="form-label">{{ $getCurrentTranslation['reminder_datetime'] ?? 'reminder_datetime' }} <span class="text-danger">*</span></label>
 										<input type="text" class="form-control datetimepicker" name="reminder_datetime" id="sticky_note_reminder_datetime" readonly required
 											placeholder="{{ $getCurrentTranslation['reminder_datetime_placeholder'] ?? 'reminder_datetime_placeholder' }}"
 											value="{{ old('reminder_datetime', isset($editData) && $editData->reminder_datetime ? $editData->reminder_datetime->format('Y-m-d H:i') : '') }}">
 										<small class="text-muted">{{ $getCurrentTranslation['reminder_before_deadline_help'] ?? 'Reminder must be on or before the deadline.' }}</small>
-									</div>
-								</div>
-								<div class="col-md-6">
-									<div class="form-item mb-5">
-										<label class="form-label">{{ $getCurrentTranslation['deadline'] ?? 'deadline' }} <span class="text-danger">*</span></label>
-										<input type="text" class="form-control datetimepicker" name="deadline" id="sticky_note_deadline" readonly required
-											placeholder="{{ $getCurrentTranslation['deadline_placeholder'] ?? 'deadline_placeholder' }}"
-											value="{{ old('deadline', isset($editData) && $editData->deadline ? $editData->deadline->format('Y-m-d H:i') : '') }}">
 									</div>
 								</div>
 								<div class="col-md-12">

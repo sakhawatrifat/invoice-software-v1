@@ -23,6 +23,7 @@ use App\Http\Controllers\StaffController as CommonStaffController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\EmailMarketingController;
 use App\Http\Controllers\WhatsAppMarketingController;
+use App\Http\Controllers\MarketingSendController;
 
 use App\Http\Controllers\IntroductionSourceController as CommonIntroductionSourceController;
 use App\Http\Controllers\IssuedSupplierController as CommonIssuedSupplierController;
@@ -382,6 +383,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
     //Common Ticket Routes
     Route::controller(CommonTicketController::class)->group(function () {
         Route::get('/ticket-list', 'index')->name('ticket.index');
+        Route::get('/missing-ticket-payments', 'missingTicketPayments')->name('ticket.missing_payments');
         Route::get('/ticket-datatble', 'datatable')->name('ticket.datatable');
 
         Route::get('/ticket/create', 'create')->name('ticket.create');
@@ -627,6 +629,16 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
     Route::controller(WhatsAppMarketingController::class)->group(function () {
         Route::get('/whatsapp-marketing', 'form')->name('marketing.whatsapp.form');
         Route::post('/whatsapp-marketing/send', 'send')->name('marketing.whatsapp.send');
+    });
+
+    // Sent marketing lists and details
+    Route::controller(MarketingSendController::class)->group(function () {
+        Route::get('/sent-emails', 'sentEmailsIndex')->name('marketing.sent.emails.index');
+        Route::get('/sent-emails/datatable', 'sentEmailsDatatable')->name('marketing.sent.emails.datatable');
+        Route::get('/sent-emails/{id}', 'sentEmailShow')->name('marketing.sent.emails.show');
+        Route::get('/sent-whatsapp-messages', 'sentWhatsAppIndex')->name('marketing.sent.whatsapp.index');
+        Route::get('/sent-whatsapp-messages/datatable', 'sentWhatsAppDatatable')->name('marketing.sent.whatsapp.datatable');
+        Route::get('/sent-whatsapp-messages/{id}', 'sentWhatsAppShow')->name('marketing.sent.whatsapp.show');
     });
 
     //Common Notification Routes

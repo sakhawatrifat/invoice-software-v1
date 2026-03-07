@@ -57,7 +57,7 @@ class PaymentController extends Controller
     {
         $user = Auth::user();
 
-        $query = Payment::with('ticket', 'paymentDocuments', 'introductionSource', 'country', 'issuedBy', 'airline', 'transferTo', 'paymentMethod', 'issuedCardType', 'cardOwner', 'creator', 'updater', 'deleter');
+        $query = Payment::with('ticket', 'ticket.passengers', 'paymentDocuments', 'introductionSource', 'country', 'issuedBy', 'airline', 'transferTo', 'paymentMethod', 'issuedCardType', 'cardOwner', 'creator', 'updater', 'deleter');
 
         // ✅ Detect if any filter applied
         $hasFilter =
@@ -78,6 +78,7 @@ class PaymentController extends Controller
             (request()->filled('payment_status') && request()->payment_status != 0) ||
             (request()->filled('under_loss') && request()->under_loss != 0) ||
             (request()->filled('under_due') && request()->under_due != 0) ||
+            (request()->filled('gender') && request()->gender != 0) ||
             request()->filled('payment_date_range') ||
             request()->filled('next_payment_date_range') ||
             (request()->filled('refund_type') && request()->refund_type != 0) ||
@@ -194,16 +195,20 @@ class PaymentController extends Controller
 
                 if (!empty(request()->flight_date_range) && request()->flight_date_range != 0) {
                     $flightDateRange = request()->flight_date_range;
-                    // Split the string into start and end dates
-                    [$start, $end] = explode('-', $flightDateRange);
+                    $parts = explode('-', $flightDateRange, 2);
+                    $start = trim($parts[0] ?? '');
+                    $end = trim($parts[1] ?? '');
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', $start)->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', $end)->endOfDay();
+                    $todayStart = \Carbon\Carbon::today()->startOfDay();
 
-                    // Convert to Carbon instances (optional but safer)
-                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
-                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
-
-                    $query->where(function ($q) use ($startDate, $endDate) {
-                        $q->whereBetween('departure_date_time', [$startDate, $endDate])
-                            ->orWhereBetween('return_date_time', [$startDate, $endDate]);
+                    // Only show payments whose ticket has an upcoming segment (next main flight) in this range
+                    $query->whereHas('ticket', function ($q) use ($startDate, $endDate, $todayStart) {
+                        $q->whereHas('allFlights', function ($f) use ($startDate, $endDate, $todayStart) {
+                            $f->whereNull('parent_id')
+                                ->where('departure_date_time', '>=', $todayStart)
+                                ->whereBetween('departure_date_time', [$startDate, $endDate]);
+                        }, '>=', 1);
                     });
                 }
 
@@ -251,6 +256,12 @@ class PaymentController extends Controller
                          FROM JSON_TABLE(paymentData, '$[*]' COLUMNS (p JSON PATH '$')) AS t)
                          < total_selling_price
                     ");
+                }
+
+                if (!empty(request()->gender) && request()->gender != 0) {
+                    $query->whereHas('ticket.passengers', function ($q) {
+                        $q->where('gender', request()->gender);
+                    });
                 }
 
 
@@ -346,10 +357,13 @@ class PaymentController extends Controller
                 $name = $row->client_name ?? 'N/A';
                 $phone = $row->client_phone ?? 'N/A';
                 $email = $row->client_email ?? 'N/A';
+                $countsLine = passengerCountsLineHtml($row->ticket?->passengers ?? []);
+                $countsBlock = $countsLine !== '' ? "<div class=\"mb-1\">{$countsLine}</div>" : '';
 
                 return "
                     <div>
                         <strong>{$nameLabel}:</strong> {$name}<br>
+                        {$countsBlock}
                         <strong>{$phoneLabel}:</strong> {$phone}<br>
                         <strong>{$emailLabel}:</strong> {$email}
                     </div>
@@ -1283,6 +1297,7 @@ class PaymentController extends Controller
             request()->filled('next_payment_date_range') ||
             (request()->filled('refund_type') && request()->refund_type != 0) ||
             (request()->filled('refund_payment_status') && request()->refund_payment_status != 0) ||
+            (request()->filled('gender') && request()->gender != 0) ||
             (request()->has('search') && !empty(request('search')['value']));
 
         // ✅ Conditional order (from payments table itself)
@@ -1374,16 +1389,20 @@ class PaymentController extends Controller
 
                 if (!empty(request()->flight_date_range) && request()->flight_date_range != 0) {
                     $flightDateRange = request()->flight_date_range;
-                    // Split the string into start and end dates
-                    [$start, $end] = explode('-', $flightDateRange);
+                    $parts = explode('-', $flightDateRange, 2);
+                    $start = trim($parts[0] ?? '');
+                    $end = trim($parts[1] ?? '');
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', $start)->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', $end)->endOfDay();
+                    $todayStart = \Carbon\Carbon::today()->startOfDay();
 
-                    // Convert to Carbon instances (optional but safer)
-                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
-                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
-
-                    $query->where(function ($q) use ($startDate, $endDate) {
-                        $q->whereBetween('departure_date_time', [$startDate, $endDate])
-                            ->orWhereBetween('return_date_time', [$startDate, $endDate]);
+                    // Only show payments whose ticket has an upcoming segment (next main flight) in this range
+                    $query->whereHas('ticket', function ($q) use ($startDate, $endDate, $todayStart) {
+                        $q->whereHas('allFlights', function ($f) use ($startDate, $endDate, $todayStart) {
+                            $f->whereNull('parent_id')
+                                ->where('departure_date_time', '>=', $todayStart)
+                                ->whereBetween('departure_date_time', [$startDate, $endDate]);
+                        }, '>=', 1);
                     });
                 }
 
@@ -1479,8 +1498,11 @@ class PaymentController extends Controller
                 $airline       = $row->airline->name ?? 'N/A';
                 $ticketInvoice = $row->ticket->invoice_id ?? 'N/A';
 
+                $countsLine = passengerCountsLineHtml($row->ticket?->passengers ?? []);
+                $countsBlock = $countsLine !== '' ? '<div class="mb-1">' . $countsLine . '</div>' : '';
                 return '<div style="max-width: 280px; line-height: 1.6; text-align: left;">
                     <strong>' . $passengerNameLabel . ':</strong> ' . $row->client_name . '<br>
+                    ' . $countsBlock . '
                     <strong>' . $passengerPhoneLabel . ':</strong> ' . ($row->client_phone ?? 'N/A') . '<br>
                     <strong>' . $passengerEmailLabel . ':</strong> ' . ($row->client_email ?? 'N/A') . '<br>
                     <strong>' . $paymentInvoiceLabel . ':</strong> ' . $row->payment_invoice_id . '<br>
@@ -1611,7 +1633,7 @@ class PaymentController extends Controller
         $user = Auth::user();
 
         $query = Payment::with([
-            'ticket', 'ticket.allFlights', 'paymentDocuments', 'introductionSource', 'country',
+            'ticket', 'ticket.passengers', 'ticket.allFlights', 'paymentDocuments', 'introductionSource', 'country',
             'issuedBy', 'airline', 'transferTo', 'paymentMethod',
             'issuedCardType', 'cardOwner'
         ]);
@@ -1637,6 +1659,7 @@ class PaymentController extends Controller
             request()->filled('next_payment_date_range') ||
             (request()->filled('refund_type') && request()->refund_type != 0) ||
             (request()->filled('refund_payment_status') && request()->refund_payment_status != 0) ||
+            (request()->filled('gender') && request()->gender != 0) ||
             (request()->has('search') && !empty(request('search')['value']));
 
         // ✅ Conditional order (from payments table itself)
@@ -1728,16 +1751,20 @@ class PaymentController extends Controller
 
                 if (!empty(request()->flight_date_range) && request()->flight_date_range != 0) {
                     $flightDateRange = request()->flight_date_range;
-                    // Split the string into start and end dates
-                    [$start, $end] = explode('-', $flightDateRange);
+                    $parts = explode('-', $flightDateRange, 2);
+                    $start = trim($parts[0] ?? '');
+                    $end = trim($parts[1] ?? '');
+                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', $start)->startOfDay();
+                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', $end)->endOfDay();
+                    $todayStart = \Carbon\Carbon::today()->startOfDay();
 
-                    // Convert to Carbon instances (optional but safer)
-                    $startDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($start))->startOfDay();
-                    $endDate = \Carbon\Carbon::createFromFormat('Y/m/d', trim($end))->endOfDay();
-
-                    $query->where(function ($q) use ($startDate, $endDate) {
-                        $q->whereBetween('departure_date_time', [$startDate, $endDate])
-                            ->orWhereBetween('return_date_time', [$startDate, $endDate]);
+                    // Only show payments whose ticket has an upcoming segment (next main flight) in this range
+                    $query->whereHas('ticket', function ($q) use ($startDate, $endDate, $todayStart) {
+                        $q->whereHas('allFlights', function ($f) use ($startDate, $endDate, $todayStart) {
+                            $f->whereNull('parent_id')
+                                ->where('departure_date_time', '>=', $todayStart)
+                                ->whereBetween('departure_date_time', [$startDate, $endDate]);
+                        }, '>=', 1);
                     });
                 }
 
@@ -1813,6 +1840,12 @@ class PaymentController extends Controller
                         $q->whereBetween('next_payment_deadline', [$startDate, $endDate]);
                     });
                 }
+
+                if (!empty(request()->gender) && request()->gender != 0) {
+                    $query->whereHas('ticket.passengers', function ($q) {
+                        $q->where('gender', request()->gender);
+                    });
+                }
             })
             ->addIndexColumn()
 
@@ -1829,16 +1862,26 @@ class PaymentController extends Controller
                 $flightStatusMailCountLabel = $getCurrentTranslation['flight_status_mail_count'] ?? 'flight_status_mail_count';
 
                 $upcomingDeparture = $row->ticket?->upcoming_departure_date;
+                $segmentBadge = $row->ticket?->upcoming_segment_badge;
+                $segmentBadgeLabel = $segmentBadge === 'Return'
+                    ? ($getCurrentTranslation['segment_return'] ?? 'Return')
+                    : ($segmentBadge === 'Outbound' ? ($getCurrentTranslation['segment_outbound'] ?? 'Outbound') : '');
+                $badgeHtml = $segmentBadgeLabel
+                    ? ' <span class="badge badge-' . ($segmentBadge === 'Return' ? 'info' : 'primary') . ' ms-1">' . e($segmentBadgeLabel) . '</span>'
+                    : '';
                 $departureLine = ($upcomingDeparture !== null)
-                    ? '<strong>' . $departureLabel . ':</strong> ' . \Carbon\Carbon::parse($upcomingDeparture)->format('Y-m-d, H:i') . '<br>'
+                    ? '<strong>' . $departureLabel . ':</strong> ' . \Carbon\Carbon::parse($upcomingDeparture)->format('Y-m-d, H:i') . $badgeHtml . '<br>'
                     : '';
                 $return    = $row->return_date_time ? date('Y-m-d, H:i', strtotime($row->return_date_time)) : 'N/A';
                 $airline   = $row->airline->name ?? 'N/A';
                 $introductionSource = $row->introductionSource?->name ?? 'N/A';
                 $flightStatusMailCount = (int) ($row->flight_status_mail_count ?? 0);
+                $countsLine = passengerCountsLineHtml($row->ticket?->passengers ?? []);
+                $countsBlock = $countsLine !== '' ? '<div class="mb-1">' . $countsLine . '</div>' : '';
 
                 return '<div style="max-width: 280px; line-height: 1.6; text-align: left;">
                     <strong>' . $passengerNameLabel . ':</strong> ' . $row->client_name . '<br>
+                    ' . $countsBlock . '
                     <strong>' . $passengerPhoneLabel . ':</strong> ' . ($row->client_phone ?? 'N/A') . '<br>
                     <strong>' . $passengerEmailLabel . ':</strong> ' . ($row->client_email ?? 'N/A') . '<br>
                     <strong>' . $tripTypeLabel . ':</strong> ' . $row->trip_type . '<br>

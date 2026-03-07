@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use App\Models\TicketPassenger;
+use App\Models\MarketingSend;
 
 class WhatsAppMarketingController extends Controller
 {
@@ -96,7 +97,7 @@ class WhatsAppMarketingController extends Controller
 
     public function form(Request $request)
     {
-        if (!hasPermission('whatsapp_marketing')) {
+        if (!hasPermission('send_whatsapp_marketing')) {
             if ($request->ajax()) {
                 return response()->json([
                     'is_success' => 0,
@@ -118,7 +119,7 @@ class WhatsAppMarketingController extends Controller
 
     public function send(Request $request)
     {
-        if (!hasPermission('whatsapp_marketing')) {
+        if (!hasPermission('send_whatsapp_marketing')) {
             return response()->json([
                 'is_success' => 0,
                 'icon' => 'error',
@@ -146,7 +147,8 @@ class WhatsAppMarketingController extends Controller
 
         $passengerIds = $request->user_ids;
         $subject = $request->subject;
-        $content = strip_tags($request->content);
+        $contentRaw = $request->content;
+        $content = strip_tags($contentRaw);
         $bodyText = $subject . "\n\n" . $content;
         $passengers = TicketPassenger::whereIn('id', $passengerIds)
             ->whereNotNull('phone')
@@ -163,6 +165,19 @@ class WhatsAppMarketingController extends Controller
             }
             $seenPhone[$key] = $p;
             $toSend[] = $p;
+        }
+
+        // Store attachment in storage if present (for record/details)
+        $attachmentPath = null;
+        $documentName = null;
+        if ($request->hasFile('attachment') && $request->file('attachment')->isValid()) {
+            $file = $request->file('attachment');
+            $ext = strtolower($file->getClientOriginalExtension());
+            $allowed = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+            if (in_array($ext, $allowed)) {
+                $attachmentPath = $file->store('marketing-attachments', 'public');
+                $documentName = $file->getClientOriginalName();
+            }
         }
 
         $apiUrl = rtrim(env('WHATSAPP_API_URL', ''), '/');
@@ -222,6 +237,33 @@ class WhatsAppMarketingController extends Controller
             } catch (\Exception $e) {
                 $errors[] = $passenger->name . ': ' . $e->getMessage();
             }
+        }
+
+        if ($sent > 0) {
+            // Store marketing send record (customers JSON, optional document)
+            $customers = collect($toSend)->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'email' => $p->email ?? null,
+                    'phone' => $p->phone ?? null,
+                    'pax_type' => $p->pax_type ?? null,
+                    'gender' => $p->gender ?? null,
+                    'date_of_birth' => $p->date_of_birth ?? null,
+                    'nationality' => $p->nationality ?? null,
+                ];
+            })->values()->toArray();
+
+            MarketingSend::create([
+                'type' => 'whatsapp',
+                'subject' => $subject,
+                'content' => $contentRaw,
+                'customers' => $customers,
+                'document_path' => $attachmentPath,
+                'document_name' => $documentName,
+                'sent_date_time' => now(),
+                'created_by' => Auth::id(),
+            ]);
         }
 
         if ($sent > 0 && empty($errors)) {

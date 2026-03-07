@@ -33,6 +33,22 @@ class StickyNoteController extends Controller
         $user = Auth::user();
         $query = StickyNote::with('user', 'creator', 'updater', 'assignedUsers')->visibleToUser($user)->latest();
 
+        // Deadline date range filter (format: YYYY/MM/DD-YYYY/MM/DD)
+        $deadlineRange = request('deadline_date_range');
+        if (!empty($deadlineRange) && preg_match('/^(\d{4}\/\d{2}\/\d{2})-(\d{4}\/\d{2}\/\d{2})$/', $deadlineRange, $m)) {
+            $start = Carbon::createFromFormat('Y/m/d', $m[1])->startOfDay();
+            $end = Carbon::createFromFormat('Y/m/d', $m[2])->endOfDay();
+            $query->whereBetween('deadline', [$start, $end]);
+        }
+
+        // Reminder date range filter (format: YYYY/MM/DD-YYYY/MM/DD)
+        $reminderRange = request('reminder_date_range');
+        if (!empty($reminderRange) && preg_match('/^(\d{4}\/\d{2}\/\d{2})-(\d{4}\/\d{2}\/\d{2})$/', $reminderRange, $m)) {
+            $start = Carbon::createFromFormat('Y/m/d', $m[1])->startOfDay();
+            $end = Carbon::createFromFormat('Y/m/d', $m[2])->endOfDay();
+            $query->whereBetween('reminder_datetime', [$start, $end]);
+        }
+
         return DataTables::of($query)
             ->filter(function ($query) {
                 $search = request('search')['value'] ?? null;
@@ -41,7 +57,7 @@ class StickyNoteController extends Controller
                         $q->where('note_title', 'like', "%{$search}%")
                             ->orWhere('note_description', 'like', "%{$search}%");
                     });
-                    $creatorIds = User::where('name', 'like', "%{$search}%")->pluck('id')->toArray();
+                    $creatorIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id')->toArray();
                     if (!empty($creatorIds)) {
                         $query->orWhereIn('created_by', $creatorIds);
                     }
@@ -81,13 +97,13 @@ class StickyNoteController extends Controller
                 );
                 $html = '';
                 if (hasPermission('sticky_note.show')) {
-                    $html .= '<a href="' . route('sticky_note.show', $row->id) . '" class="btn btn-sm btn-icon btn-light-info"><i class="fa-solid fa-eye"></i></a> ';
+                    $html .= '<a href="' . route('sticky_note.show', $row->id) . '" class="btn btn-sm btn-icon btn-info"><i class="fa-solid fa-eye"></i></a> ';
                 }
                 if (hasPermission('sticky_note.edit')) {
-                    $html .= '<a href="' . route('sticky_note.edit', $row->id) . '" class="btn btn-sm btn-icon btn-light-primary"><i class="fa-solid fa-pen"></i></a> ';
+                    $html .= '<a href="' . route('sticky_note.edit', $row->id) . '" class="btn btn-sm btn-icon btn-primary"><i class="fa-solid fa-pen"></i></a> ';
                 }
                 if ($canDelete) {
-                    $html .= '<button type="button" class="btn btn-sm btn-icon btn-light-danger delete-table-data-btn" data-url="' . route('sticky_note.destroy', $row->id) . '" title="' . ($getCurrentTranslation['delete'] ?? 'delete') . '"><i class="fa-solid fa-trash"></i></button>';
+                    $html .= '<button type="button" class="btn btn-sm btn-icon btn-danger delete-table-data-btn" data-url="' . route('sticky_note.destroy', $row->id) . '" title="' . ($getCurrentTranslation['delete'] ?? 'delete') . '"><i class="fa-solid fa-trash"></i></button>';
                 }
                 return $html ?: '—';
             })
@@ -153,8 +169,8 @@ class StickyNoteController extends Controller
         $note->updated_by = $user->id;
         $note->save();
 
-        $assignedIds = $request->assigned_user_ids ?? [];
-        $note->assignedUsers()->sync(array_filter($assignedIds));
+        $assignedIds = array_filter($request->assigned_user_ids ?? []);
+        $this->syncAssignedUsersWithReadStatus($note, $assignedIds);
 
         $this->logStickyNoteActivity($note, StickyNoteActivity::ACTION_CREATE, $this->buildCreateChanges($note), $request);
 
@@ -181,7 +197,7 @@ class StickyNoteController extends Controller
             abort(404);
         }
 
-        $note->update(['read_status' => true]);
+        $this->markNoteAsReadByUser($note, $user->id);
 
         $listRoute = route('sticky_note.index');
         $editRoute = hasPermission('sticky_note.edit') ? route('sticky_note.edit', $id) : '';
@@ -260,8 +276,8 @@ class StickyNoteController extends Controller
         $note->updated_by = $user->id;
         $note->save();
 
-        $assignedIds = $request->assigned_user_ids ?? [];
-        $note->assignedUsers()->sync(array_filter($assignedIds));
+        $assignedIds = array_filter($request->assigned_user_ids ?? []);
+        $this->syncAssignedUsersWithReadStatus($note, $assignedIds);
 
         $updateChanges = $this->buildUpdateChanges($note, $oldSnapshot);
         if ($updateChanges !== null) {
@@ -346,15 +362,15 @@ class StickyNoteController extends Controller
         if (!in_array($status, $allowed)) {
             return response()->json([
                 'is_success' => 0,
-                'message' => 'Invalid status',
+                'message' => getCurrentTranslation()['invalid_status'] ?? 'Invalid status.',
             ]);
         }
 
         $oldStatus = $note->status;
         $note->status = $status;
-        $note->read_status = true;
         $note->updated_by = $user->id;
         $note->save();
+        $this->markNoteAsReadByUser($note, $user->id);
 
         $this->logStickyNoteActivity($note, StickyNoteActivity::ACTION_STATUS, $this->buildStatusChanges($note, $oldStatus, $status), $request);
 
@@ -375,6 +391,9 @@ class StickyNoteController extends Controller
         $now = Carbon::now();
         $end = Carbon::now()->addDays(7);
         $upcomingStickyNotes = StickyNote::visibleToUser(Auth::user())
+            ->with(['assignedUsers' => function ($q) {
+                $q->where('users.id', Auth::id())->withPivot('read_status');
+            }])
             ->where(function ($q) use ($now, $end) {
                 $q->whereBetween('reminder_datetime', [$now, $end])
                     ->orWhereBetween('deadline', [$now, $end]);
@@ -383,7 +402,7 @@ class StickyNoteController extends Controller
             ->orderByRaw('COALESCE(reminder_datetime, deadline) ASC')
             ->limit(20)
             ->get();
-        $unreadCount = $upcomingStickyNotes->where('read_status', 0)->count();
+        $unreadCount = $upcomingStickyNotes->filter(fn ($n) => !$n->read_status)->count();
         $totalCount = $upcomingStickyNotes->count();
         $getCurrentTranslation = getCurrentTranslation();
         $countText = str_replace(':count', (string) $totalCount, $getCurrentTranslation['you_have_count_notes'] ?? 'You have :count notes.');
@@ -399,10 +418,14 @@ class StickyNoteController extends Controller
     {
         $user = Auth::user();
         if ($user->user_type === 'admin' && $user->is_staff != 1) {
-            return User::whereNull('deleted_at')->orderBy('name')->get(['id', 'name', 'email']);
+            return User::excludeAutomationChatbot()->whereNull('deleted_at')
+                ->where('id', '!=', $user->id)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email']);
         }
         $bid = $user->business_id;
-        return User::whereNull('deleted_at')
+        return User::excludeAutomationChatbot()->whereNull('deleted_at')
+            ->where('id', '!=', $user->id)
             ->where(function ($q) use ($bid) {
                 $q->where('id', $bid)->orWhere('parent_id', $bid);
             })
@@ -549,6 +572,29 @@ class StickyNoteController extends Controller
     {
         $role = $this->stickyNoteActorRole($note);
         return "{$role} deleted note (title: " . $this->formatValue($note->note_title) . ').';
+    }
+
+    /**
+     * Mark a note as read for a given user (updates sticky_note_user pivot).
+     */
+    protected function markNoteAsReadByUser(StickyNote $note, int $userId): void
+    {
+        if ($note->assignedUsers()->where('user_id', $userId)->exists()) {
+            $note->assignedUsers()->updateExistingPivot($userId, ['read_status' => true]);
+        }
+    }
+
+    /**
+     * Sync assigned users preserving existing read_status for current assignees; new assignees get read_status 0.
+     */
+    protected function syncAssignedUsersWithReadStatus(StickyNote $note, array $assignedIds): void
+    {
+        $current = $note->assignedUsers()->get()->pluck('pivot.read_status', 'id')->all();
+        $sync = [];
+        foreach ($assignedIds as $id) {
+            $sync[$id] = ['read_status' => (int) ($current[$id] ?? 0)];
+        }
+        $note->assignedUsers()->sync($sync);
     }
 
     /**

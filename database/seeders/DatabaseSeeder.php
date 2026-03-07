@@ -41,6 +41,24 @@ class DatabaseSeeder extends Seeder
             $company->save();
         }
 
+        // Automation Chatbot user (pinned at top of chat list)
+        $chatbot = User::where('email', 'chatbot@system')->first();
+        if (is_null($chatbot)) {
+            $chatbot = new User();
+            $chatbot->user_type = 'admin';
+            $chatbot->is_automation_chatbot = 1;
+            $chatbot->uid = 'chatbot-' . uniqid();
+            $chatbot->image = null;
+            $chatbot->name = 'Automation Chatbot';
+            $chatbot->email = 'chatbot@system';
+            $chatbot->password = bcrypt(str()->random(32));
+            $chatbot->email_verified_at = date('Y-m-d H:i:s');
+            $chatbot->device_token = null;
+            $chatbot->ip_address = null;
+            $chatbot->status = 'Active';
+            $chatbot->save();
+        }
+
         $this->call(CurrencySeeder::class);
         $this->call(LanguageSeeder::class);
         $this->call(TranslationSeeder::class);

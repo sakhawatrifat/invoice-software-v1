@@ -270,31 +270,83 @@
 				</div>
 				@endif
 
-				@if(hasPermission('email_marketing') || hasPermission('whatsapp_marketing'))
+				@php
+					$hasEmailMarketing = hasPermission('send_marketing_email') || hasPermission('sent_mail_list');
+					$hasWhatsAppMarketing = hasPermission('send_whatsapp_marketing') || hasPermission('sent_whatsapp_messages');
+					$emailMarketingRoutes = ['marketing.email.form', 'marketing.sent.emails.index', 'marketing.sent.emails.show'];
+					$whatsAppMarketingRoutes = ['marketing.whatsapp.form', 'marketing.sent.whatsapp.index', 'marketing.sent.whatsapp.show'];
+				@endphp
+				@if($hasEmailMarketing || $hasWhatsAppMarketing)
 				<!-- Marketing -->
 				<div class="menu-item">
 					<div class="menu-content pt-8 pb-2">
 						<span class="menu-section text-uppercase fs-8 ls-1 px-3 py-2 rounded" style="background-color: #f1f1f2; color: #5e6278; display: inline-block; width: 100%;"><strong>{{ $getCurrentTranslation['marketing'] ?? 'Marketing' }}</strong></span>
 					</div>
 				</div>
-				@if(hasPermission('email_marketing'))
-				<div class="menu-item">
-					<a class="menu-link {{ getCurrentRouteName() == 'marketing.email.form' ? 'active' : '' }}" href="{{ route('marketing.email.form') }}">
+				@if($hasEmailMarketing)
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($emailMarketingRoutes, 'hover show') }}">
+					<span class="menu-link">
 						<span class="menu-icon">
 							<i class="fa-solid fa-envelope h4 mb-0"></i>
 						</span>
 						<span class="menu-title">{{ $getCurrentTranslation['email_marketing'] ?? 'Email Marketing' }}</span>
-					</a>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($emailMarketingRoutes, 'show') }}">
+						@if(hasPermission('send_marketing_email'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'marketing.email.form' ? 'active' : '' }}" href="{{ route('marketing.email.form') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['send_marketing_email'] ?? 'Send Marketing Email' }}</span>
+							</a>
+						</div>
+						@endif
+						@if(hasPermission('sent_mail_list'))
+						<div class="menu-item">
+							<a class="menu-link {{ in_array(getCurrentRouteName(), ['marketing.sent.emails.index','marketing.sent.emails.show']) ? 'active' : '' }}" href="{{ route('marketing.sent.emails.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['sent_mail_list'] ?? 'Sent Mail List' }}</span>
+							</a>
+						</div>
+						@endif
+					</div>
 				</div>
 				@endif
-				@if(hasPermission('whatsapp_marketing'))
-				<div class="menu-item">
-					<a class="menu-link {{ getCurrentRouteName() == 'marketing.whatsapp.form' ? 'active' : '' }}" href="{{ route('marketing.whatsapp.form') }}">
+				@if($hasWhatsAppMarketing)
+				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($whatsAppMarketingRoutes, 'hover show') }}">
+					<span class="menu-link">
 						<span class="menu-icon">
 							<i class="fa-brands fa-whatsapp h4 mb-0"></i>
 						</span>
 						<span class="menu-title">{{ $getCurrentTranslation['whatsapp_marketing'] ?? 'WhatsApp Marketing' }}</span>
-					</a>
+						<span class="menu-arrow"></span>
+					</span>
+					<div class="menu-sub menu-sub-accordion {{ getActiveClass($whatsAppMarketingRoutes, 'show') }}">
+						@if(hasPermission('send_whatsapp_marketing'))
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'marketing.whatsapp.form' ? 'active' : '' }}" href="{{ route('marketing.whatsapp.form') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['send_whatsapp_marketing'] ?? 'Send WhatsApp Message' }}</span>
+							</a>
+						</div>
+						@endif
+						@if(hasPermission('sent_whatsapp_messages'))
+						<div class="menu-item">
+							<a class="menu-link {{ in_array(getCurrentRouteName(), ['marketing.sent.whatsapp.index','marketing.sent.whatsapp.show']) ? 'active' : '' }}" href="{{ route('marketing.sent.whatsapp.index') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['sent_whatsapp_messages'] ?? 'Sent WhatsApp Messages' }}</span>
+							</a>
+						</div>
+						@endif
+					</div>
 				</div>
 				@endif
 				@endif

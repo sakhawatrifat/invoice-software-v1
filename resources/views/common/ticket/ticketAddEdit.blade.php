@@ -75,6 +75,16 @@
 						{{ $getCurrentTranslation['import_ticket_data'] ?? 'import_ticket_data' }}
 					</a>
                 @endif
+
+				@if(isset($editData) && hasPermission('payment.show'))
+					@php $ticketPayment = \App\Models\Payment::where('ticket_id', $editData->id)->first(); @endphp
+					@if($ticketPayment)
+						<a href="{{ route('payment.show', $ticketPayment->id) }}" class="btn btn-sm fw-bold btn-primary">
+							<i class="fa-solid fa-money-bill-wave"></i>
+							{{ $getCurrentTranslation['payment_view'] ?? 'Payment View' }}
+						</a>
+					@endif
+				@endif
 				
 				@if(isset($listRoute) && !empty($listRoute))
 					<a href="{{ $listRoute }}" class="btn btn-sm fw-bold btn-primary">

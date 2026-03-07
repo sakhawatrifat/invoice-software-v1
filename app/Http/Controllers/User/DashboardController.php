@@ -29,7 +29,7 @@ class DashboardController extends Controller
         $user = Auth::user();
         $userId = $user->id;
 
-        $totalUser = User::get();
+        $totalUser = User::excludeAutomationChatbot()->get();
         $totalAirline = Airline::get();
         $allTicket = Ticket::where('user_id', $userId)->get();
         $allPassengers = TicketPassenger::where('user_id', $userId)->get();

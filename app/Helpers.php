@@ -892,6 +892,18 @@ function extractPrimaryCity($text=null) {
         return 'N/A';
     }
 
+    $raw = is_string($text) ? $text : (string) $text;
+    // Airport-to-city overrides: match known airport name patterns and return display city
+    $airportCityOverrides = [
+        // Hazrat Shahjalal International Airport (DAC) -> Dhaka (flexible spelling)
+        '/hazrat\s*shah\s*jalal|shahjalal|shah\s*jalal/i' => 'Dhaka',
+    ];
+    foreach ($airportCityOverrides as $pattern => $city) {
+        if (preg_match($pattern, $raw)) {
+            return $city;
+        }
+    }
+
     // Step 1: Remove anything in parentheses (e.g., (NRT), (DAC))
     $text = preg_replace('/\s*\([^)]*\)/', '', $text);
 
@@ -1300,8 +1312,10 @@ if (!function_exists('getPermissionList')) {
                 'title' => 'manage_marketing',
                 'for' => 'all_user',
                 'permissions' => [
-                    ['title' => 'email_marketing', 'key' => 'email_marketing'],
-                    ['title' => 'whatsapp_marketing', 'key' => 'whatsapp_marketing'],
+                    ['title' => 'send_marketing_email', 'key' => 'send_marketing_email'],
+                    ['title' => 'sent_mail_list', 'key' => 'sent_mail_list'],
+                    ['title' => 'send_whatsapp_marketing', 'key' => 'send_whatsapp_marketing'],
+                    ['title' => 'sent_whatsapp_messages', 'key' => 'sent_whatsapp_messages'],
                 ],
             ],
             [
@@ -2216,30 +2230,44 @@ if (!function_exists('flightListData')) {
     {
         $startDate = Carbon::now()->toDateString();
         $endDate = Carbon::today()->addDays(30)->toDateString();
-        
+
         if (isset($date_range)) {
             $dateRange = $date_range;
-            list($startDateString, $endDateString) = explode("-", $dateRange);
-            $startDate = date("Y-m-d", strtotime($startDateString));
-            $endDate = date("Y-m-d 23:59:59", strtotime($endDateString));
+            $parts = explode('-', $dateRange, 2);
+            $startDateString = trim($parts[0] ?? '');
+            $endDateString = trim($parts[1] ?? '');
+            if ($startDateString) {
+                $startDate = date('Y-m-d', strtotime($startDateString));
+            }
+            if ($endDateString) {
+                $endDate = date('Y-m-d 23:59:59', strtotime($endDateString));
+            }
         }
-        
-        $rangeType = determineRangeType($startDate, $endDate);
-        
+
+        $todayStart = Carbon::today()->startOfDay();
+
         $toDoData = Payment::with('ticket', 'ticket.allFlights', 'ticket.passengers', 'country', 'issuedBy', 'airline', 'introductionSource')
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('departure_date_time', [$startDate, $endDate])
-                    ->orWhereBetween('return_date_time', [$startDate, $endDate]);
+            ->whereHas('ticket', function ($q) use ($startDate, $endDate, $todayStart) {
+                $q->whereHas('allFlights', function ($f) use ($startDate, $endDate, $todayStart) {
+                    $f->whereNull('parent_id')
+                        ->where('departure_date_time', '>=', $todayStart)
+                        ->whereBetween('departure_date_time', [$startDate, $endDate]);
+                }, '>=', 1);
             })
-            ->orderByRaw("
-                CASE
-                    WHEN departure_date_time >= ? THEN departure_date_time
-                    WHEN return_date_time >= ? THEN return_date_time
-                    ELSE departure_date_time
-                END ASC
-            ", [$startDate, $startDate])
-            ->get();
-            
+            ->get()
+            ->filter(function ($payment) use ($startDate, $endDate) {
+                $upcoming = $payment->ticket?->upcoming_departure_date;
+                if (!$upcoming) {
+                    return false;
+                }
+                $ts = Carbon::parse($upcoming);
+                return $ts->between($startDate, $endDate);
+            })
+            ->sortBy(function ($payment) {
+                return $payment->ticket?->upcoming_departure_date;
+            })
+            ->values();
+
         return $toDoData;
     }
 }
@@ -2326,5 +2354,48 @@ if (!function_exists('getNotifications')) {
         }
 
         return $query->get();
+    }
+}
+
+if (!function_exists('passengerCountsLineHtml')) {
+    /**
+     * Return one-line HTML for Total Men, Women, Child, Infant (FontAwesome icon + number).
+     * Only shows each type when count > 0. Empty string if all counts are 0.
+     * @param \Illuminate\Support\Collection|array|null $passengers
+     * @return string
+     */
+    function passengerCountsLineHtml($passengers)
+    {
+        $sep = '<span class="passenger-count-sep text-muted opacity-75 mx-1">|</span>';
+        $item = function ($iconClass, $count) {
+            return '<span class="passenger-count-item d-inline-flex align-items-center gap-1"><i class="fa-solid ' . e($iconClass) . '"></i> ' . (int) $count . '</span>';
+        };
+        if (!$passengers) {
+            $passengers = collect();
+        }
+        if (is_array($passengers)) {
+            $passengers = collect($passengers);
+        }
+        $male = $passengers->where('gender', 'Male')->count();
+        $female = $passengers->where('gender', 'Female')->count();
+        $child = $passengers->where('pax_type', 'Child')->count();
+        $infant = $passengers->where('pax_type', 'Infant')->count();
+        $parts = [];
+        if ($male > 0) {
+            $parts[] = $item('fa-person', $male);
+        }
+        if ($female > 0) {
+            $parts[] = $item('fa-person-dress', $female);
+        }
+        if ($child > 0) {
+            $parts[] = $item('fa-child', $child);
+        }
+        if ($infant > 0) {
+            $parts[] = $item('fa-baby', $infant);
+        }
+        if (empty($parts)) {
+            return '';
+        }
+        return '<span class="passenger-counts-line d-inline-flex align-items-center flex-wrap fs-7 text-muted">' . implode($sep, $parts) . '</span>';
     }
 }

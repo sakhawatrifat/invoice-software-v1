@@ -878,7 +878,7 @@ class AttendanceController extends Controller
             $employeeIdsWithAttendance = $attendances->pluck('employee_id')->unique()->toArray();
             
             // Get all active employees (is_staff == 1 or id == 1) with status = 'Active'
-            $activeEmployees = User::where(function($q) {
+            $activeEmployees = User::excludeAutomationChatbot()->where(function($q) {
                 $q->where('is_staff', 1)->orWhere('id', 1);
             })
             ->where('status', 'Active')
@@ -911,7 +911,7 @@ class AttendanceController extends Controller
         $dailyWorkTime = (float) env('DAILY_WORK_TIME', 8);
         
         // Get all users (staff and others) for summary
-        $allUsers = User::where(function($q) {
+        $allUsers = User::excludeAutomationChatbot()->where(function($q) {
             $q->where('is_staff', 1)->orWhere('id', 1);
         })
         ->with('designation')
@@ -1327,7 +1327,7 @@ class AttendanceController extends Controller
         $statusCounts = $attendances->groupBy('status')->map->count();
         
         // Get all users for summary
-        $allUsers = User::where(function($q) {
+        $allUsers = User::excludeAutomationChatbot()->where(function($q) {
             $q->where('is_staff', 1)->orWhere('id', 1);
         })->with('designation')->get();
         

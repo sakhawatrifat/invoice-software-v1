@@ -60,13 +60,13 @@ class ExpenseController extends Controller
             }
 
             // Search by user name (for_user_id)
-            $userIds = User::where('name', 'like', "%{$search}%")->pluck('id')->toArray();
+            $userIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id')->toArray();
             if (!empty($userIds)) {
                 $query->orWhereIn('for_user_id', $userIds);
             }
 
             // Search by creator
-            $creatorIds = User::where('name', 'like', "%{$search}%")->pluck('id')->toArray();
+            $creatorIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id')->toArray();
             if (!empty($creatorIds)) {
                 $query->orWhereIn('created_by', $creatorIds);
             }
@@ -158,7 +158,7 @@ class ExpenseController extends Controller
         $saveRoute = route('admin.expense.store');
 
         // Get all active users for "for" dropdown
-        $users = User::where('status', 'Active')
+        $users = User::excludeAutomationChatbot()->where('status', 'Active')
             ->with('designation')
             ->orderBy('name')
             ->get();
@@ -236,7 +236,7 @@ class ExpenseController extends Controller
         }
 
         // Get all active users for "for" dropdown
-        $users = User::where('status', 'Active')
+        $users = User::excludeAutomationChatbot()->where('status', 'Active')
             ->with('designation')
             ->orderBy('name')
             ->get();
@@ -523,7 +523,7 @@ class ExpenseController extends Controller
             ->get();
         
         // Get all active users for dropdown
-        $users = User::where('status', 'Active')
+        $users = User::excludeAutomationChatbot()->where('status', 'Active')
             ->with('designation')
             ->orderBy('name')
             ->get();

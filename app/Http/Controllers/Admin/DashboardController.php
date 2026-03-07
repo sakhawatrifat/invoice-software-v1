@@ -28,7 +28,7 @@ class DashboardController extends Controller
     public function dashboard(){
         $user = Auth::user();
 
-        $totalUser = User::get();
+        $totalUser = User::excludeAutomationChatbot()->get();
         $totalAirline = Airline::get();
         $allTicket = Ticket::get();
         $allPassengers = TicketPassenger::get();

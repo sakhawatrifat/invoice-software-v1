@@ -88,7 +88,7 @@ class HotelInvoiceController extends Controller
                     });
 
                     // ✅ Search by creator name as well
-                    $creatorIds = User::where('name', 'like', "%{$search}%")->pluck('id')->toArray();
+                    $creatorIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id')->toArray();
                     if (!empty($creatorIds)) {
                         $query->orWhereIn('created_by', $creatorIds);
                     }

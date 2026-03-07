@@ -1,4 +1,4 @@
-Invoice Software New Features (January 2026):
+Invoice Software New Features (January 2026 To March 2026):
 
 ======================
 
@@ -15,6 +15,7 @@ Invoice Software New Features (January 2026):
 	-Staff Details Page (Admin can check Specific staff Attendance & Salary History From Details Page)
 	-Attendance functionality. Example: Check In, Pause (Break), Check Out (Overtime hours Count, Forgot Option if not Checkout in time) including timezone based.
 	-After check in, admin can track user location. (From where the staff signed in on duty)
+	-Clock-In Popup: Auto show once daily between 8:00 AM – 5:00 PM.
 	-Salary Generate (Also can add bonus, deduct salary as punishment)
 	-HR Report -> Attendance Report (Everyting covered in one with details page)
 	-Attendance Export PDF Option
@@ -54,6 +55,7 @@ Invoice Software New Features (January 2026):
 01. Sticky Note
 	-User Can Assign Anyone single or multiple user
 	-Reminder With Popup
+	-Read/Unread Status for each user 
 	-Reminder With Email Notification (Cron Job)
 	-Activity log in note details page for each note (create,status change, update data)
 
@@ -88,7 +90,13 @@ Invoice Software New Features (January 2026):
 
 05. Marketing
 	-Email Marketing with attachment (image,pdf)
+	-Sent Mail List Records With sent files
 	-WhatsApp Marketing with attachment (image,pdf)
+	-Sent WhatsApp Message Records With sent files
+
+06. Missing Payment Data of Tickets: Show tickets whices are not stored in "Manage Payment"
+
+07. Add Total Male, Female, Child, Infant With Icon & Number in all flight related pages and header upcomming flights drawer
 
 ======================
 

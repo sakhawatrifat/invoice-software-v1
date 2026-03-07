@@ -85,8 +85,8 @@ class ChatController extends Controller
         $userId = Auth::id();
         $users = User::where('id', '!=', $userId)
             ->whereNull('deleted_at')
-            ->select('id', 'uid', 'name', 'image', 'last_seen_at', 'status')
-            ->orderBy('name')
+            ->select('id', 'uid', 'name', 'image', 'last_seen_at', 'status', 'is_automation_chatbot')
+            ->orderByRaw('COALESCE(is_automation_chatbot, 0) DESC, name ASC')
             ->get();
 
         $conversations = [];
@@ -125,6 +125,7 @@ class ChatController extends Controller
                     'image_url' => $user->image_url,
                     'last_seen_at' => $this->toUtcIso8601($user->last_seen_at),
                     'status' => $user->status,
+                    'is_automation_chatbot' => (bool) ($user->is_automation_chatbot ?? false),
                 ],
                 'last_message' => $lastMessage ? $this->formatMessage($lastMessage, $userId) : null,
                 'unread_count' => $unread,
@@ -132,6 +133,10 @@ class ChatController extends Controller
         }
 
         usort($conversations, function ($a, $b) {
+            $botA = (bool) ($a['user']['is_automation_chatbot'] ?? false);
+            $botB = (bool) ($b['user']['is_automation_chatbot'] ?? false);
+            if ($botA && !$botB) return -1;
+            if (!$botA && $botB) return 1;
             $t1 = $a['last_message']['created_at'] ?? null;
             $t2 = $b['last_message']['created_at'] ?? null;
             if (!$t1) return 1;

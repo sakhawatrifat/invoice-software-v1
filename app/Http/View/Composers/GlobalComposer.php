@@ -53,6 +53,9 @@ class GlobalComposer
         $reminderDueStickyNotes = collect();
         if (Auth::check() && function_exists('hasPermission') && hasPermission('sticky_note.index')) {
             $upcomingStickyNotes = StickyNote::visibleToUser(Auth::user())
+                ->with(['assignedUsers' => function ($q) {
+                    $q->where('users.id', Auth::id())->withPivot('read_status');
+                }])
                 ->where(function ($q) {
                     $now = Carbon::now();
                     $end = Carbon::now()->addDays(7);

@@ -20,6 +20,7 @@ class Ticket extends Model
         'departure_datetime',
         'return_datetime',
         'upcoming_departure_date',
+        'upcoming_segment_badge',
     ];
 
     public function allFlights()
@@ -197,19 +198,46 @@ class Ticket extends Model
     }
 
     /**
-     * Upcoming departure: first non-transit flight with departure_date_time >= today.
-     * Used for Trip Info and Upcoming Flights (hide departure when all legs are in the past).
+     * Upcoming departure: first main flight (non-transit) with departure_date_time >= today.
+     * For Round Trip / Multi City, when the first leg is done, this is the next leg's departure.
      */
     public function getUpcomingDepartureDateAttribute()
     {
         $today = \Carbon\Carbon::today()->startOfDay();
-        $nonTransitFlights = $this->allFlights->filter(function ($flight) {
-            return ($flight->is_transit != 1) && $flight->departure_date_time;
-        });
-        $next = $nonTransitFlights->filter(function ($flight) use ($today) {
+        $mainFlights = $this->allFlights->filter(function ($flight) {
+            return is_null($flight->parent_id) && $flight->departure_date_time;
+        })->sortBy('departure_date_time')->values();
+
+        $next = $mainFlights->first(function ($flight) use ($today) {
             return \Carbon\Carbon::parse($flight->departure_date_time)->gte($today);
-        })->sortBy('departure_date_time')->first();
+        });
 
         return $next ? $next->departure_date_time : null;
+    }
+
+    /**
+     * Badge for the upcoming segment: "Return" when Round Trip and first flight is done (next is return leg), else "Outbound".
+     */
+    public function getUpcomingSegmentBadgeAttribute()
+    {
+        $today = \Carbon\Carbon::today()->startOfDay();
+        $mainFlights = $this->allFlights->filter(function ($flight) {
+            return is_null($flight->parent_id) && $flight->departure_date_time;
+        })->sortBy('departure_date_time')->values();
+
+        $nextIndex = $mainFlights->search(function ($flight) use ($today) {
+            return \Carbon\Carbon::parse($flight->departure_date_time)->gte($today);
+        });
+
+        if ($nextIndex === false) {
+            return null;
+        }
+
+        // Round Trip and next segment is 2nd (or later) main flight => "Return"
+        if ($this->trip_type === 'Round Trip' && $nextIndex >= 1) {
+            return 'Return';
+        }
+
+        return 'Outbound';
     }
 }

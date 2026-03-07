@@ -47,6 +47,7 @@
         noConversations: @json($getCurrentTranslation['no_conversations'] ?? 'No conversations'),
         deletedAt: @json($getCurrentTranslation['deleted_at'] ?? 'Deleted at'),
         updatedAt: @json($getCurrentTranslation['updated_at_label'] ?? 'Updated at'),
+        chatbot: @json($getCurrentTranslation['chatbot'] ?? 'Chatbot'),
     };
 
     let currentOtherUserId = null;
@@ -160,6 +161,7 @@
         (list || []).forEach(c => {
             const name = (c.user?.name || '').toLowerCase();
             if (search && !name.includes(search)) return;
+            const isChatbot = !!(c.user?.is_automation_chatbot);
             const last = c.last_message;
             const unread = c.unread_count || 0;
             const avatar = c.user?.image_url ? `<img src="${escapeHtml(c.user.image_url)}" alt="">` : '';
@@ -167,8 +169,9 @@
             const lastText = last ? (last.deleted_for_everyone ? (CHAT_STR.thisMessageWasDeleted || 'This message was deleted') : (last.type === 'file' ? (last.file_name || 'File') : (last.body || '').substring(0, 40))) : 'No messages yet';
             const time = last ? formatTime(last.created_at) : '';
             const status = c.user?.last_seen_at ? (isRecent(c.user.last_seen_at) ? 'Active' : ('Last seen ' + formatTime(c.user.last_seen_at))) : '';
-            const nameWithStatus = status === 'Active' ? (escapeHtml(c.user?.name || '') + ' <span class="badge badge-sm badge-success ms-1">Active</span>') : (status ? (escapeHtml(c.user?.name || '') + ' · ' + status) : (escapeHtml(c.user?.name || '')));
-            html += `<div class="chat-conv-item p-3 border-bottom cursor-pointer d-flex align-items-center" data-user-id="${c.user?.id}" data-unread="${unread}">
+            let nameWithStatus = status === 'Active' ? (escapeHtml(c.user?.name || '') + ' <span class="badge badge-sm badge-success ms-1">Active</span>') : (status ? (escapeHtml(c.user?.name || '') + ' · ' + status) : (escapeHtml(c.user?.name || '')));
+            if (isChatbot) nameWithStatus = '<i class="fa-solid fa-thumbtack text-primary me-1" title="' + (CHAT_STR.chatbot || 'Chatbot') + '"></i>' + nameWithStatus + ' <span class="badge badge-sm badge-info ms-1">' + (CHAT_STR.chatbot || 'Chatbot') + '</span>';
+            html += `<div class="chat-conv-item p-3 border-bottom cursor-pointer d-flex align-items-center ${isChatbot ? 'chat-conv-item-chatbot' : ''}" data-user-id="${c.user?.id}" data-unread="${unread}">
                 <div class="symbol symbol-45px me-3">${avatar || `<span class="symbol-label bg-primary text-inverse-primary fw-bold">${initial}</span>`}</div>
                 <div class="flex-grow-1 min-w-0">
                     <div class="d-flex justify-content-between align-items-center">

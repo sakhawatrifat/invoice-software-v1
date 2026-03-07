@@ -161,7 +161,7 @@
 			        <!--begin::Drawer toggle-->
 			        <div class="menu-link px-3 py-2 cursor-pointer sticky-note-toggle" id="kt_sticky_note_toggle" title="{{ $getCurrentTranslation['upcoming_sticky_notes'] ?? 'upcoming_sticky_notes' }}">
 			            <i class="fa-solid fa-note-sticky fa-2x"></i>
-			            <span class="sticky-note-count">{{ isset($upcomingStickyNotes) ? $upcomingStickyNotes->where('read_status', 0)->count() : 0 }}</span>
+			            <span class="sticky-note-count">{{ isset($upcomingStickyNotes) ? $upcomingStickyNotes->filter(fn($n) => !$n->read_status)->count() : 0 }}</span>
 			        </div>
 			        <!--end::Drawer toggle-->
 			    </div>
@@ -272,7 +272,7 @@
         <!--end::Header-->
 
         <!--begin::Body-->
-        <div class="card-body position-relative" id="kt_flight_list_body">
+        <div class="card-body position-relative pt-4" id="kt_flight_list_body">
             <!--begin::Content-->
             <div
                 id="kt_flight_list_scroll"
@@ -327,18 +327,52 @@
                                 </div> --}}
                             </div>
 
-                            <div class="overflow-auto pb-5">
+							<!--begin::Flight list search-->
+							<div class="px-0 mt-2 pb-3 pt-0 border-bottom border-gray-200">
+								<input type="text"
+									   id="kt_flight_list_search"
+									   class="form-control form-control-solid"
+									   placeholder="{{ $getCurrentTranslation['search'] ?? 'Search' }}..."
+									   autocomplete="off" />
+							</div>
+							<style>#kt_flight_list_items_wrapper .kt-flight-search-hidden { display: none !important; }</style>
+							<!--end::Flight list search-->
+
+                            <div class="overflow-auto pb-5" id="kt_flight_list_items_wrapper">
 							    @if(count($flightListData))
 							        @foreach($flightListData as $flight)
+									    @php
+									        $segmentBadge = $flight->ticket?->upcoming_segment_badge ?? '';
+									        $segmentLabel = $segmentBadge === 'Return' ? ($getCurrentTranslation['segment_return'] ?? 'Return') : ($getCurrentTranslation['segment_outbound'] ?? 'Outbound');
+									        $searchParts = [
+									            $flight->client_name ?? '',
+									            $flight->client_phone ?? '',
+									            $flight->client_email ?? '',
+									            $flight->trip_type ?? '',
+									            $flight->airline->name ?? '',
+									            $flight->flight_route ?? '',
+									            $flight->introductionSource->name ?? '',
+									            $segmentBadge,
+									            $segmentLabel,
+									            $flight->ticket?->upcoming_departure_date ? \Carbon\Carbon::parse($flight->ticket->upcoming_departure_date)->format('Y-m-d H:i') : '',
+									            $flight->return_date_time ? \Carbon\Carbon::parse($flight->return_date_time)->format('Y-m-d H:i') : '',
+									        ];
+									        $searchText = strtolower(implode(' ', array_filter($searchParts)));
+									    @endphp
 									    <div 
-									        class="d-flex align-items-center border rounded min-w-750px px-7 py-3 mb-3 position-relative 
+									        class="kt-flight-list-item d-flex align-items-center border rounded min-w-750px px-7 py-3 mb-3 position-relative 
 									               transition-all duration-200 bg-light hover-shadow-sm hover-border-primary"
+									        data-search="{{ $searchText }}"
 									    >
 									        <div>
 									            <div class="fs-5 fw-semibold text-gray-800 mb-1">
 									                <b>{{ $getCurrentTranslation['passenger_name_label'] ?? 'passenger_name_label' }}:</b> 
 									                {{ $flight->client_name ?? 'N/A' }}{{ ($g = $flight->ticket?->passengers?->first()?->gender) ? ' (' . e($g) . ')' : '' }}
 									            </div>
+									            @php $flightCountsLine = passengerCountsLineHtml($flight->ticket?->passengers ?? []); @endphp
+									            @if($flightCountsLine !== '')
+									            <div class="mb-1">{!! $flightCountsLine !!}</div>
+									            @endif
 									            <div class="fs-7 text-gray-800 mb-0">
 									                <b>{{ $getCurrentTranslation['passenger_phone_label'] ?? 'passenger_phone_label' }}:</b> 
 									                {{ $flight->client_phone ?? 'N/A' }}
@@ -361,8 +395,14 @@
 									            </div>
 									            @if($flight->ticket?->upcoming_departure_date)
 									            <div class="fs-7 text-gray-800 mb-0">
-									                <b>{{ $getCurrentTranslation['departure_label'] ?? 'departure_label' }}:</b> 
+									                <b>{{ $getCurrentTranslation['departure_label'] ?? 'departure_label' }}:</b>
 									                {{ \Carbon\Carbon::parse($flight->ticket->upcoming_departure_date)->format('Y-m-d, H:i') }}
+									                @if($flight->ticket->upcoming_segment_badge)
+									                    @php
+									                        $segmentLabel = $flight->ticket->upcoming_segment_badge === 'Return' ? ($getCurrentTranslation['segment_return'] ?? 'Return') : ($getCurrentTranslation['segment_outbound'] ?? 'Outbound');
+									                    @endphp
+									                    <span class="badge badge-{{ $flight->ticket->upcoming_segment_badge === 'Return' ? 'info' : 'primary' }} ms-1">{{ $segmentLabel }}</span>
+									                @endif
 									            </div>
 									            @endif
 									            <div class="fs-7 text-gray-800 mb-0">
@@ -644,3 +684,79 @@
 	</div>
 </div>
 <!--end::Attendance Modal-->
+
+@push('script')
+<script>
+(function() {
+    function initFlightListSearch() {
+        var $search = $('#kt_flight_list_search');
+        var $wrapper = $('#kt_flight_list_items_wrapper');
+        var $items = $wrapper.find('.kt-flight-list-item');
+        if (!$items.length) return;
+
+        var originalOrder = $items.toArray();
+
+        function scoreMatch(text, query) {
+            if (!query) return { score: 0, position: 0 };
+            var pos = text.indexOf(query);
+            if (pos === -1) return null;
+            var words = text.split(/\s+/);
+            var exactWord = false;
+            var wordStartsWith = false;
+            var bestPosition = text.length;
+            var wordStart = 0;
+            for (var i = 0; i < words.length; i++) {
+                var w = words[i];
+                if (w === query) {
+                    exactWord = true;
+                    if (wordStart < bestPosition) bestPosition = wordStart;
+                } else if (w.length >= query.length && w.indexOf(query) === 0) {
+                    wordStartsWith = true;
+                    if (wordStart < bestPosition) bestPosition = wordStart;
+                }
+                wordStart += w.length + 1;
+            }
+            if (exactWord) return { score: 0, position: bestPosition };
+            if (wordStartsWith) return { score: 1, position: bestPosition };
+            return { score: 2, position: pos };
+        }
+
+        $search.off('input.ktFlightSearch').on('input.ktFlightSearch', function() {
+            var q = $.trim($(this).val()).toLowerCase();
+            if (q === '') {
+                $items.removeClass('kt-flight-search-hidden').css('display', '').show();
+                for (var i = 0; i < originalOrder.length; i++) {
+                    $wrapper.append(originalOrder[i]);
+                }
+                return;
+            }
+            var scored = [];
+            $items.each(function() {
+                var $el = $(this);
+                var text = ($el.attr('data-search') || '').toLowerCase();
+                if (!text) text = $el.text().toLowerCase();
+                var result = scoreMatch(text, q);
+                if (result === null) {
+                    $el.addClass('kt-flight-search-hidden').css('display', 'none');
+                } else {
+                    $el.removeClass('kt-flight-search-hidden').css('display', '');
+                    scored.push({ el: this, score: result.score, position: result.position });
+                }
+            });
+            scored.sort(function(a, b) {
+                if (a.score !== b.score) return a.score - b.score;
+                return a.position - b.position;
+            });
+            for (var i = scored.length - 1; i >= 0; i--) {
+                $wrapper.prepend(scored[i].el);
+            }
+        });
+    }
+    if (typeof jQuery !== 'undefined') {
+        jQuery(document).ready(initFlightListSearch);
+    } else {
+        document.addEventListener('DOMContentLoaded', initFlightListSearch);
+    }
+})();
+</script>
+@endpush

@@ -146,4 +146,14 @@ class User extends Authenticatable
         return $this->hasMany(ChatMessage::class, 'recipient_id', 'id');
     }
 
+    /**
+     * Scope to exclude automation chatbot from user lists (e.g. dropdowns).
+     */
+    public function scopeExcludeAutomationChatbot($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('is_automation_chatbot', '!=', 1)->orWhereNull('is_automation_chatbot');
+        });
+    }
+
 }

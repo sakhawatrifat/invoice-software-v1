@@ -66,13 +66,13 @@ class TicketController extends Controller
             });
 
             // Users by name
-            $userIds = User::where('name', 'like', "%{$search}%")->pluck('id');
+            $userIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id');
             if (!empty($userIds)) {
                 $query->orWhereIn('user_id', $userIds);
             }
 
             // Creators by name
-            $creatorIds = User::where('name', 'like', "%{$search}%")->pluck('id');
+            $creatorIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id');
             if (!empty($creatorIds)) {
                 $query->orWhereIn('created_by', $creatorIds);
             }

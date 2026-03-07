@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use App\Models\TicketPassenger;
+use App\Models\MarketingSend;
 
 class EmailMarketingController extends Controller
 {
@@ -38,7 +39,7 @@ class EmailMarketingController extends Controller
 
     public function form(Request $request)
     {
-        if (!hasPermission('email_marketing')) {
+        if (!hasPermission('send_marketing_email')) {
             if ($request->ajax()) {
                 return response()->json([
                     'is_success' => 0,
@@ -60,7 +61,7 @@ class EmailMarketingController extends Controller
 
     public function send(Request $request)
     {
-        if (!hasPermission('email_marketing')) {
+        if (!hasPermission('send_marketing_email')) {
             return response()->json([
                 'is_success' => 0,
                 'icon' => 'error',
@@ -118,6 +119,10 @@ class EmailMarketingController extends Controller
         }
 
         $fullAttachmentPath = $attachmentPath ? storage_path('app/public/' . $attachmentPath) : null;
+        $documentName = null;
+        if ($request->hasFile('attachment') && $request->file('attachment')->isValid()) {
+            $documentName = $request->file('attachment')->getClientOriginalName();
+        }
 
         $subject = $request->subject;
 
@@ -141,9 +146,31 @@ class EmailMarketingController extends Controller
                     }
                 });
             }
-            if ($fullAttachmentPath && file_exists($fullAttachmentPath)) {
-                @unlink($fullAttachmentPath);
-            }
+
+            // Store marketing send record (customers JSON, document in storage)
+            $customers = collect($toSend)->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'email' => $p->email ?? null,
+                    'phone' => $p->phone ?? null,
+                    'pax_type' => $p->pax_type ?? null,
+                    'gender' => $p->gender ?? null,
+                    'date_of_birth' => $p->date_of_birth ?? null,
+                    'nationality' => $p->nationality ?? null,
+                ];
+            })->values()->toArray();
+
+            MarketingSend::create([
+                'type' => 'email',
+                'subject' => $subject,
+                'content' => $content,
+                'customers' => $customers,
+                'document_path' => $attachmentPath,
+                'document_name' => $documentName,
+                'sent_date_time' => now(),
+                'created_by' => Auth::id(),
+            ]);
         } catch (\Exception $e) {
             if ($fullAttachmentPath && file_exists($fullAttachmentPath)) {
                 @unlink($fullAttachmentPath);

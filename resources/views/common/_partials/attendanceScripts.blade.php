@@ -115,6 +115,48 @@
 
     const dailyWorkTimeHours = {{ env('DAILY_WORK_TIME', 8) }};
     const dailyWorkTimeMinutes = dailyWorkTimeHours * 60;
+
+    // Clock-In popup: auto-show once daily between configured hours (user's local timezone, 24h)
+    const CLOCK_IN_POPUP_STORAGE_KEY = 'attendance_clock_in_popup_shown_date';
+    const CLOCK_IN_WINDOW_START_HOUR = {{ (int) (env('CLOCK_IN_POPUP_START_HOUR', 8)) }};   // e.g. 8 = 8:00 AM local
+    const CLOCK_IN_WINDOW_END_HOUR = {{ (int) (env('CLOCK_IN_POPUP_END_HOUR', 17)) }};     // e.g. 17 = 5:00 PM local (exclusive)
+
+    // All use browser local time (Date methods are local unless UTC suffix is used)
+    function isWithinClockInWindow() {
+        const now = new Date();
+        const hour = now.getHours(); // local hour 0–23
+        return hour >= CLOCK_IN_WINDOW_START_HOUR && hour < CLOCK_IN_WINDOW_END_HOUR;
+    }
+
+    function getTodayDateString() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + d; // local date
+    }
+
+    function hasShownClockInPopupToday() {
+        try {
+            return (localStorage.getItem(CLOCK_IN_POPUP_STORAGE_KEY) || '') === getTodayDateString();
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function markClockInPopupShownToday() {
+        try {
+            localStorage.setItem(CLOCK_IN_POPUP_STORAGE_KEY, getTodayDateString());
+        } catch (e) {}
+    }
+
+    function tryAutoShowClockInPopup() {
+        if (attendanceStatus.isCheckedIn) return;
+        if (!document.getElementById('attendanceModal')) return; // modal not in DOM (e.g. wrong layout)
+        if (!isWithinClockInWindow()) return;
+        if (hasShownClockInPopupToday()) return;
+        requestLocationAndShowCheckInModal(true); // true = auto-show: mark only when modal actually opens
+    }
     // Activity endpoint caches response. Backend clears cache on pause/resume; short delay so next fetch gets fresh data.
     const ACTIVITY_CACHE_MS = 500;
     // If accuracy is worse than this, it's typically IP-based / unreliable on desktop.
@@ -321,6 +363,13 @@
                 } else {
                     stopTimer();
                 }
+                // Auto-show Clock-In popup once daily (8:00 AM – 5:00 PM user local time); only on first fetch per page load
+                if (typeof tryAutoShowClockInPopup === 'function' && !window._clockInAutoShowAttempted) {
+                    window._clockInAutoShowAttempted = true;
+                    setTimeout(function() {
+                        tryAutoShowClockInPopup();
+                    }, 600);
+                }
             },
             error: function() {
                 console.error('Failed to fetch attendance status');
@@ -503,7 +552,9 @@
     });
 
     // Request location and show check-in modal only if user allows
-    function requestLocationAndShowCheckInModal() {
+    // isAutoShow: when true, mark "shown today" only when modal actually opens (so auto-show runs once per day)
+    function requestLocationAndShowCheckInModal(isAutoShow) {
+        isAutoShow = !!isAutoShow;
         if (!navigator.geolocation) {
             toastr.error('{{ $getCurrentTranslation["location_not_supported_by_browser"] ?? "Location is not supported by your browser. You cannot check in." }}');
             return;
@@ -519,6 +570,7 @@
             $btn.prop('disabled', false);
             if (!loc) {
                 pendingCheckInLocation = null;
+                if (isAutoShow) markClockInPopupShownToday();
                 showCheckInModal(true);
                 if (typeof toastr !== 'undefined') toastr.warning(locationUnavailableMsg);
                 return;
@@ -538,18 +590,20 @@
                 }).then((result) => {
                     if (result.isConfirmed) {
                         pendingCheckInLocation = loc;
+                        if (isAutoShow) markClockInPopupShownToday();
                         if (typeof toastr !== 'undefined' && toastr.clear) toastr.clear();
                         showCheckInModal();
                     } else {
                         pendingCheckInLocation = null;
                         // Retry: request again (fresh, non-cached)
-                        requestLocationAndShowCheckInModal();
+                        requestLocationAndShowCheckInModal(isAutoShow);
                     }
                 });
                 return;
             }
 
             pendingCheckInLocation = loc;
+            if (isAutoShow) markClockInPopupShownToday();
             if (typeof toastr !== 'undefined' && toastr.clear) toastr.clear();
             showCheckInModal();
         });

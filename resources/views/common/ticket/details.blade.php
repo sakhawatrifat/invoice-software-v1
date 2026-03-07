@@ -36,6 +36,13 @@
                         {{ $getCurrentTranslation['edit'] ?? 'edit' }}
                     </a>
                 @endif
+                @php $ticketPayment = \App\Models\Payment::where('ticket_id', $editData->id)->first(); @endphp
+                @if (hasPermission('payment.show') && $ticketPayment)
+                    <a href="{{ route('payment.show', $ticketPayment->id) }}" class="btn btn-sm fw-bold btn-primary">
+                        <i class="fa-solid fa-money-bill-wave"></i>
+                        {{ $getCurrentTranslation['payment_view'] ?? 'Payment View' }}
+                    </a>
+                @endif
 				@if(isset($listRoute) && !empty($listRoute))
 					<a href="{{ $listRoute }}" class="btn btn-sm fw-bold btn-primary">
 						<i class="fa-solid fa-arrow-left"></i>

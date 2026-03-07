@@ -14,7 +14,8 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->enum('user_type', ['admin', 'user'])->nullable()->default('user')->comment('admin, user');
-            $table->boolean('is_staff')->nullable()->default(0);
+            $table->boolean('is_staff')->nullable()->default(0)->comment('0, 1');
+            $table->boolean('is_automation_chatbot')->nullable()->default(0)->comment('0, 1');
             $table->bigInteger('parent_id')->nullable()->comment('For Staff');
             $table->string('uid')->nullable();
             $table->string('employee_uid')->nullable();

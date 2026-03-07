@@ -110,7 +110,7 @@
 				<div class="app-navbar-item me-2">
 			        <div class="menu-link px-3 py-2 cursor-pointer sticky-note-toggle" id="kt_sticky_note_toggle" title="{{ $getCurrentTranslation['upcoming_sticky_notes'] ?? 'upcoming_sticky_notes' }}">
 			            <i class="fa-solid fa-note-sticky fa-2x"></i>
-			            <span class="sticky-note-count">{{ isset($upcomingStickyNotes) ? $upcomingStickyNotes->where('read_status', 0)->count() : 0 }}</span>
+			            <span class="sticky-note-count">{{ isset($upcomingStickyNotes) ? $upcomingStickyNotes->filter(fn($n) => !$n->read_status)->count() : 0 }}</span>
 			        </div>
 			    </div>
 			    @endif

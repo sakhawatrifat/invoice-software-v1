@@ -29,7 +29,7 @@ class SendPassengerReminderMail extends Command
         // before 3 days
         $targetDate = $today->copy()->addDays(3)->toDateString();
 
-        $subscribedUserIds = User::where('is_staff', 0)->whereJsonContains('permissions', 'ticket.reminder')->pluck('id')->toArray();
+        $subscribedUserIds = User::excludeAutomationChatbot()->where('is_staff', 0)->whereJsonContains('permissions', 'ticket.reminder')->pluck('id')->toArray();
 
         // $subQuery = TicketFlight::select(
         //         'ticket_id',

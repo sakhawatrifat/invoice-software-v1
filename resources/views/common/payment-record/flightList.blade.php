@@ -136,6 +136,22 @@
 											</div>
 										</div>
 
+										<div class="col-md-3">
+											<div class="form-item mb-5">
+												@php
+													$genderOptions = ['Male', 'Female', 'Transgender', 'Non-binary', 'Genderqueer', 'Genderfluid', 'Agender', 'Bigender', 'Two-Spirit', 'Other', 'Prefer not to say'];
+													$selected = request()->gender ?? '';
+												@endphp
+												<label class="form-label">{{ $getCurrentTranslation['gender_label'] ?? 'gender_label' }}:</label>
+												<select class="form-select" data-control="select2" data-placeholder="{{ $getCurrentTranslation['gender_placeholder'] ?? 'gender_placeholder' }}" name="gender">
+													<option value="0">----</option>
+													@foreach($genderOptions as $option)
+														<option value="{{ $option }}" {{ $option == $selected ? 'selected' : '' }}>{{ $option }}</option>
+													@endforeach
+												</select>
+											</div>
+										</div>
+
 										<div class="col-md-12">
 											<div class="d-flex justify-content-end mt-0">
 												<button type="reset" class="btn btn-secondary btn-sm filter-reset-btn datatable-filter me-3">

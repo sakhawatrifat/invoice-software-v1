@@ -68,10 +68,34 @@ class TicketController extends Controller
         return view('common.ticket.index', get_defined_vars());
     }
 
+    /**
+     * Missing Ticket Payments: tickets that have no payment record yet.
+     * Same view and filters as ticket list, with document_type=ticket and missing_payment=1.
+     */
+    public function missingTicketPayments()
+    {
+        if (!hasPermission('ticket.index')) {
+            return [
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
+            ];
+        }
+
+        $createRoute = '';
+        $dataTableRoute = hasPermission('ticket.index') ? route('ticket.datatable') : '';
+        $listRoute = route('ticket.missing_payments');
+        $missingPaymentMode = true;
+        $defaultInvoiceDateRange = Carbon::now()->firstOfMonth()->format('Y/m/d') . '-' . Carbon::now()->endOfMonth()->format('Y/m/d');
+
+        return view('common.ticket.index', get_defined_vars());
+    }
+
     public function datatable()
     {   
         $user = Auth::user();
         $hasFilter =
+            (request()->filled('missing_payment') && request()->missing_payment == '1') ||
             (request()->filled('trip_type') && request()->trip_type != 0) ||
             (request()->filled('airline_id') && request()->airline_id != 0) ||
             (request()->filled('gender') && request()->gender != '0') ||
@@ -100,6 +124,12 @@ class TicketController extends Controller
 
         return DataTables::of($query)
             ->filter(function ($query) use ($user) {
+
+                // Missing Ticket Payments: only tickets that have no payment record, from January 2026 onwards
+                if (request()->filled('missing_payment') && request()->missing_payment == '1') {
+                    $query->whereNotIn('id', Payment::whereNotNull('ticket_id')->pluck('ticket_id'));
+                    $query->where('invoice_date', '>=', '2026-01-01');
+                }
 
                 // Restrict by user
                 if ($user->user_type != 'admin') {
@@ -211,13 +241,13 @@ class TicketController extends Controller
                         }
 
                         // Search users
-                        $userIds = User::where('name', 'like', "%{$search}%")->pluck('id');
+                        $userIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id');
                         if ($userIds->isNotEmpty()) {
                             $q->orWhereIn('user_id', $userIds);
                         }
 
                         // Search creators
-                        $creatorIds = User::where('name', 'like', "%{$search}%")->pluck('id');
+                        $creatorIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id');
                         if ($creatorIds->isNotEmpty()) {
                             $q->orWhereIn('created_by', $creatorIds);
                         }
@@ -284,6 +314,10 @@ class TicketController extends Controller
                         }
                     } else {
                         $passengerNames = '<br><strong>' . ($currentTranslation['passenger'] ?? 'passenger') . ' (' . $passengerCount . '):</strong> -';
+                    }
+                    $countsLine = passengerCountsLineHtml($row->passengers);
+                    if ($countsLine !== '') {
+                        $passengerNames .= '<br>' . $countsLine;
                     }
                 }
 

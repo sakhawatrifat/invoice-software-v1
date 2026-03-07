@@ -16,7 +16,9 @@
 						<a href="{{ route((Auth::user()->user_type == 'admin') ? 'admin.dashboard' : 'user.dashboard') }}" class="text-muted text-hover-primary">{{ $getCurrentTranslation['dashboard'] ?? 'dashboard' }}</a> &nbsp; - 
 					</li>
 					
-					@if(request()->document_type == 'ticket')
+					@if(isset($missingPaymentMode) && $missingPaymentMode)
+						<li class="breadcrumb-item">{{ $getCurrentTranslation['missing_ticket_payments'] ?? 'missing_ticket_payments' }}</li>
+					@elseif(request()->document_type == 'ticket')
 						<li class="breadcrumb-item">{{ $getCurrentTranslation['ticket_list'] ?? 'ticket_list' }}</li>
 					@elseif(request()->document_type == 'invoice')
 						<li class="breadcrumb-item">{{ $getCurrentTranslation['invoice_list'] ?? 'invoice_list' }}</li>
@@ -68,7 +70,10 @@
 							<div class="accordion-body">
 								<form class="filter-data-form">
 									<input class="fixed-value" type="hidden" name="data_for" value="{{ request()->data_for ?? '' }}">
-									<input class="fixed-value" type="hidden" name="document_type" value="{{ request()->document_type ?? '' }}">
+									<input class="fixed-value" type="hidden" name="document_type" value="{{ isset($missingPaymentMode) && $missingPaymentMode ? 'ticket' : (request()->document_type ?? '') }}">
+									@if(isset($missingPaymentMode) && $missingPaymentMode)
+									<input class="fixed-value" type="hidden" name="missing_payment" value="1">
+									@endif
 									<div class="row">
 										@if(request()->has('data_for') && request()->data_for == 'agent')
 											<div class="col-md-4">
@@ -183,13 +188,13 @@
 												<label class="form-label">{{ $getCurrentTranslation['invoice_date_range_label'] ?? 'invoice_date_range_label' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
 													@php
-														$selectedDateRange = request()->invoice_date_range ?? null;
+														$selectedDateRange = request()->invoice_date_range ?? ($defaultInvoiceDateRange ?? null);
 													@endphp
 													<div class="cursor-pointer dateRangePicker {{$selectedDateRange ? 'filled' : 'empty'}}">
 														<i class="fa fa-calendar"></i>&nbsp;
 														<span></span> <i class="fa fa-caret-down"></i>
 
-														<input autocomplete="off" class="col-sm-12 form-control dateRangeInput" name="invoice_date_range" data-value="{{$selectedDateRange ?? ''}}" style="position:absolute;top:0;left:0;width:100%;z-index:-999999;opacity:0;" />
+														<input autocomplete="off" class="col-sm-12 form-control dateRangeInput" name="invoice_date_range" value="{{ $selectedDateRange ?? '' }}" data-value="{{ $selectedDateRange ?? '' }}" style="position:absolute;top:0;left:0;width:100%;z-index:-999999;opacity:0;" />
 													</div>
 													<span class="clear-date-range"><i class="fa fa-times"></i></span>
 												</div>

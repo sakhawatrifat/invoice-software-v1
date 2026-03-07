@@ -14,7 +14,7 @@ class StickyNoteSeeder extends Seeder
      */
     public function run(): void
     {
-        $users = User::whereNull('deleted_at')->take(5)->get();
+        $users = User::excludeAutomationChatbot()->whereNull('deleted_at')->take(5)->get();
         if ($users->isEmpty()) {
             return;
         }

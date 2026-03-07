@@ -23,7 +23,7 @@ class SalaryController extends Controller
         $user = Auth::user();
         
         // Get all active users (both staff and non-staff)
-        $employees = User::where('status', 'Active')
+        $employees = User::excludeAutomationChatbot()->where('status', 'Active')
         ->with('designation')
         ->orderBy('name')
         ->get();
@@ -170,7 +170,7 @@ class SalaryController extends Controller
             ->get();
         
         // Get all active users (both staff and non-staff) for dropdown
-        $employees = User::where('status', 'Active')
+        $employees = User::excludeAutomationChatbot()->where('status', 'Active')
             ->with('designation')
             ->orderBy('name')
             ->get();
@@ -451,7 +451,7 @@ class SalaryController extends Controller
         });
         
         // Get all active users (both staff and non-staff) for dropdown
-        $employees = User::where('status', 'Active')
+        $employees = User::excludeAutomationChatbot()->where('status', 'Active')
             ->with('designation')
             ->orderBy('name')
             ->get();

@@ -20,7 +20,6 @@ return new class extends Migration
             $table->dateTime('reminder_datetime')->nullable();
             $table->dateTime('reminder_mail_sent_at')->nullable();
             $table->string('status', 50)->nullable()->default('Pending')->comment('Pending, In Progress, Completed, Cancelled');
-            $table->boolean('read_status')->nullable()->default(0)->comment('0/1');
             $table->bigInteger('created_by')->nullable();
             $table->bigInteger('updated_by')->nullable();
             $table->bigInteger('deleted_by')->nullable();
@@ -32,6 +31,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('sticky_note_id')->constrained('sticky_notes')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->boolean('read_status')->default(0)->comment('Per-assigned-user read state');
             $table->timestamps();
             $table->unique(['sticky_note_id', 'user_id']);
         });

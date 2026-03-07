@@ -154,7 +154,7 @@ class LeadController extends Controller
             ->get();
 
         //$users = User::where('user_type', 'admin')->orderBy('name')->get();
-        $users = User::orderBy('name')->get();
+        $users = User::excludeAutomationChatbot()->orderBy('name')->get();
 
         return view('common.crm.lead.addEdit', compact('layout', 'getCurrentTranslation', 'listRoute', 'saveRoute', 'leadSources', 'users'));
     }
@@ -200,7 +200,7 @@ class LeadController extends Controller
             ->get();
 
         //$users = User::where('user_type', 'admin')->orderBy('name')->get();
-        $users = User::orderBy('name')->get();
+        $users = User::excludeAutomationChatbot()->orderBy('name')->get();
 
         $listRoute = hasPermission('lead.index') ? route('lead.index') : '';
         $saveRoute = hasPermission('lead.edit') ? route('lead.update', $id) : '';

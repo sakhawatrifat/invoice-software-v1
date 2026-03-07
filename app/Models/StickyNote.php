@@ -18,7 +18,6 @@ class StickyNote extends Model
         'reminder_datetime',
         'reminder_mail_sent_at',
         'status',
-        'read_status',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -30,7 +29,6 @@ class StickyNote extends Model
             'deadline' => 'datetime',
             'reminder_datetime' => 'datetime',
             'reminder_mail_sent_at' => 'datetime',
-            'read_status' => 'boolean',
         ];
     }
 
@@ -57,7 +55,28 @@ class StickyNote extends Model
     public function assignedUsers()
     {
         return $this->belongsToMany(User::class, 'sticky_note_user', 'sticky_note_id', 'user_id')
+            ->withPivot('read_status')
             ->withTimestamps();
+    }
+
+    /**
+     * Read status for the current user (from sticky_note_user pivot).
+     * When assignedUsers is loaded with current user, returns pivot read_status; otherwise true (read).
+     */
+    public function getReadStatusAttribute(): bool
+    {
+        if (!\Auth::check()) {
+            return true;
+        }
+        $uid = \Auth::id();
+        if (!$this->relationLoaded('assignedUsers')) {
+            return true;
+        }
+        $assigned = $this->assignedUsers->firstWhere('id', $uid);
+        if ($assigned && $assigned->pivot && isset($assigned->pivot->read_status)) {
+            return (bool) $assigned->pivot->read_status;
+        }
+        return true;
     }
 
     public function activities()
