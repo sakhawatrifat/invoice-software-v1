@@ -47,6 +47,22 @@
         min-height: 0;
         overflow: hidden;
     }
+    .chat-page-wrap #chat-conversation-list-wrap {
+        min-width: 0;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    .chat-page-wrap #chat-conversation-list {
+        overflow-x: hidden;
+        min-width: 0;
+    }
+    .chat-page-wrap .chat-conv-item {
+        min-width: 0;
+    }
+    .chat-page-wrap .chat-conv-item .flex-grow-1 {
+        min-width: 0;
+    }
     .chat-page-wrap #chat-thread-wrap,
     .chat-page-wrap #chat-thread-panel {
         display: flex;
@@ -64,13 +80,14 @@
     }
     #chat-message-input-wrap {
         display: grid;
-        grid-template-columns: 1fr auto auto;
+        grid-template-columns: 1fr auto;
         gap: 0.5rem;
         align-items: end;
         width: 100%;
         min-width: 0;
     }
-    #chat-message-input-wrap .chat-input-field { min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box; }
+    #chat-message-input-wrap .chat-input-field { min-width: 0; width: 100%; max-width: 100%; box-sizing: border-box;}
+
     .chat-input-bar { padding-bottom: calc(0.5rem + 5px); flex-shrink: 0; }
     @media (min-width: 768px) {
         .chat-input-bar { padding-bottom: calc(1rem + 5px); }
@@ -105,6 +122,42 @@
         opacity: 1;
         color: var(--kt-danger);
     }
+    @keyframes chat-reply-target-bounce {
+        0%, 100% { box-shadow: 0 0 0 2px var(--kt-primary); transform: scale(1); }
+        25% { box-shadow: 0 0 0 4px var(--kt-primary); transform: scale(1.02); }
+        50% { box-shadow: 0 0 0 3px var(--kt-primary); transform: scale(1); }
+        75% { box-shadow: 0 0 0 4px var(--kt-primary); transform: scale(1.01); }
+    }
+    .chat-msg-row-reply-target .chat-msg-bubble { animation: chat-reply-target-bounce 2s ease-in-out; box-shadow: 0 0 0 2px var(--kt-primary); }
+    .chat-reply-quote-wrap { display: flex; align-items: stretch; margin-bottom: 8px; border-radius: 4px; min-height: 36px; }
+    .chat-reply-quote-bar { width: 4px; min-width: 4px; flex-shrink: 0; align-self: stretch; border-radius: 2px; background: var(--kt-primary); opacity: 0.9; }
+    .chat-msg-bubble.bg-primary .chat-reply-quote-bar { background: rgba(255,255,255,0.85); }
+    .chat-reply-quote-inner { padding: 4px 8px 6px 8px; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+    .chat-reply-quote-sender { font-weight: 600; font-size: 0.8em; opacity: 0.95; display: block; }
+    .chat-reply-quote-sender:empty { display: none; }
+    .chat-reply-quote-body { font-size: 0.85em; opacity: 0.9; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-msg-reply-text { margin-top: 2px; }
+    .chat-reaction-badge { cursor: pointer; font-size: 20px; }
+    .chat-reaction-badge:hover { opacity: 0.9; }
+    .chat-msg-reactions .badge { padding: 0.15em 0.4em; }
+    /* Emoji picker (full dataset via emoji-picker-element) */
+    .chat-emoji-picker-popover {
+        padding: 0 !important;
+        overflow: hidden !important;
+        border-radius: 12px;
+    }
+    .chat-emoji-picker-popover emoji-picker {
+        width: min(360px, 92vw);
+        height: 360px;
+        display: block;
+        --num-columns: 9;
+        --emoji-size: 1.35rem;
+        --emoji-padding: 0.45rem;
+        --emoji-font-family: "Twemoji Country Flags","Twemoji Mozilla","Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji","EmojiOne Color","Android Emoji",sans-serif;
+    }
+    #chat-emoji-picker {
+        max-width: min(360px, 92vw);
+    }
 </style>
 <div class="chat-page-wrap d-flex flex-column flex-column-fluid">
     <div id="kt_app_toolbar" class="app-toolbar py-3 py-lg-6 flex-shrink-0">
@@ -126,7 +179,10 @@
                     <div class="row g-0 overflow-hidden h-100" id="chat-app-row">
                         <div class="col-12 col-md-4 border-end bg-light" id="chat-conversation-list-wrap">
                             <div class="p-3 border-bottom bg-white" id="chat-search-wrap">
-                                <input type="text" class="form-control form-control-solid" id="chat-search-user" placeholder="{{ $getCurrentTranslation['search'] ?? 'Search' }}..." autocomplete="off">
+                                <div class="d-flex gap-2">
+                                    <input type="text" class="form-control form-control-solid flex-grow-1" id="chat-search-user" placeholder="{{ $getCurrentTranslation['search'] ?? 'Search' }}..." autocomplete="off">
+                                    <button type="button" class="btn btn-sm btn-primary flex-shrink-0" id="chat-create-group-btn" title="{{ $getCurrentTranslation['create_group'] ?? 'Create group' }}"><i class="fa-solid fa-users"></i></button>
+                                </div>
                             </div>
                             <div id="chat-conversation-list" style="overflow-y: auto;"></div>
                         </div>
@@ -149,6 +205,8 @@
                                     <div class="dropdown ms-2">
                                         <button class="btn btn-icon btn-sm btn-light-primary" type="button" id="chat-thread-menu-btn" data-bs-toggle="dropdown" aria-expanded="false" title=""><i class="fa-solid fa-ellipsis-vertical"></i></button>
                                         <ul class="dropdown-menu dropdown-menu-end">
+                                            <li class="d-none" id="chat-group-info-item"><a class="dropdown-item" href="javascript:void(0)" id="chat-group-info"><i class="fa-solid fa-info-circle me-2"></i>{{ $getCurrentTranslation['group_info'] ?? 'Group info' }}</a></li>
+                                            <li class="d-none" id="chat-set-nicknames-item"><a class="dropdown-item" href="javascript:void(0)" id="chat-set-nicknames"><i class="fa-solid fa-tag me-2"></i>{{ $getCurrentTranslation['set_nicknames'] ?? 'Set nicknames' }}</a></li>
                                             <li><a class="dropdown-item" href="javascript:void(0)" id="chat-close-thread"><i class="fa-solid fa-xmark me-2"></i>{{ $getCurrentTranslation['close_chat'] ?? 'Close Chat' }}</a></li>
                                             <li><a class="dropdown-item text-danger" href="javascript:void(0)" id="chat-delete-conversation"><i class="fa-solid fa-trash me-2"></i>{{ $getCurrentTranslation['delete_chat'] ?? 'Delete Chat' }}</a></li>
                                         </ul>
@@ -165,9 +223,15 @@
                                     </div>
                                     <div id="chat-message-input-wrap">
                                         <textarea class="form-control form-control-solid chat-input-field" id="chat-message-input" rows="2" placeholder="{{ $getCurrentTranslation['type_message'] ?? 'Type a message' }}..." maxlength="10000" style="min-height: 42px; resize: none;"></textarea>
-                                        <input type="file" id="chat-file-input" class="d-none" accept="*">
-                                        <button type="button" class="btn btn-icon btn-light-primary" id="chat-attach-btn" title="{{ $getCurrentTranslation['attach_file'] ?? 'Attach file' }}"><i class="fa-solid fa-paperclip"></i></button>
-                                        <button type="button" class="btn btn-primary" id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <div class="position-relative">
+                                                <button type="button" class="btn btn-icon btn-light-primary" id="chat-emoji-btn" title="{{ $getCurrentTranslation['emoji'] ?? 'Emoji' }}"><i class="fa-regular fa-face-smile"></i></button>
+                                                <div id="chat-emoji-picker" class="d-none position-absolute bottom-100 end-0 mb-1 bg-white border shadow-lg" style="z-index: 1060;"></div>
+                                            </div>
+                                            <input type="file" id="chat-file-input" class="d-none" accept="*">
+                                            <button type="button" class="btn btn-icon btn-light-primary" id="chat-attach-btn" title="{{ $getCurrentTranslation['attach_file'] ?? 'Attach file' }}"><i class="fa-solid fa-paperclip"></i></button>
+                                            <button type="button" class="btn btn-primary" id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+                                        </div>
                                     </div>
                                     @if(config('chat.max_file_size_kb', 0) > 0)
                                     <div class="fs-8 text-muted mt-1">{{ $getCurrentTranslation['max_file_size'] ?? 'Max file size' }}: {{ round(config('chat.max_file_size_kb') / 1024, 1) }} MB</div>

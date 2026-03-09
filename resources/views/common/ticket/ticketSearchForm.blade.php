@@ -481,6 +481,7 @@
 						img.flight-segment-airline-icon, img.flight-result-card-header-logo { background: transparent !important; border-radius: 50%; flex-shrink: 0; }
 						.flight-segment-airline-name { font-weight: 600; font-size: 0.9375rem; color: #334155; }
 						.flight-segment-duration { font-size: 0.8125rem; color: #64748b; }
+						.flight-segment-fly-time { font-size: 0.8125rem; color: #64748b; margin-top: 0.1rem; }
 						.flight-segment-flight-num { font-size: 0.8125rem; color: #64748b; margin-left: 0.25rem; }
 						.flight-timeline { display: flex; gap: 1rem; align-items: stretch; }
 						.flight-timeline-line { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
@@ -2898,6 +2899,9 @@
 				}
 				var layoverSummary = layoverParts.join(', ');
 				var totalLayoverFormatted = totalLayoverMinutes > 0 ? formatDuration(totalLayoverMinutes) : '';
+				// Prefer API-derived fly/transit times (timezone-correct)
+				var totalFlyFormatted = flight.total_fly_time_formatted || '';
+				var totalTransitFormatted = flight.total_transit_formatted || (totalLayoverFormatted ? totalLayoverFormatted : '');
 				var hasPrice = flight.price != null && !isNaN(flight.price);
 				var hasRoute = !!(departureTime || arrivalTime || originCode || destCode);
 				var hasDuration = duration && duration !== '—';
@@ -2917,7 +2921,7 @@
 				cardHtml += '<div class="flight-result-col-1-text"><span class="flight-result-card-header-times">' + escapeHtml(timeRangeStr) + '</span><span class="flight-result-card-header-airline">' + airlineDisplay + '</span></div>';
 				cardHtml += '</div>';
 				cardHtml += '<div class="flight-result-col-2"><span class="flight-result-duration">' + (hasDuration ? escapeHtml(duration) : '') + '</span><span class="flight-result-route">' + (routeCodes ? escapeHtml(routeCodes) : '') + '</span></div>';
-				cardHtml += '<div class="flight-result-col-3"><span class="flight-result-stops">' + escapeHtml(stopsText) + '</span><span class="flight-result-total-layover">' + (totalLayoverFormatted ? escapeHtml(totalLayoverFormatted) : '') + '</span></div>';
+				cardHtml += '<div class="flight-result-col-3"><span class="flight-result-stops">' + escapeHtml(stopsText) + '</span>' + (totalFlyFormatted ? '<span class="flight-result-fly-time d-block small text-muted">' + escapeHtml('{{ $getCurrentTranslation["fly_time"] ?? "Fly time" }}: ' + totalFlyFormatted) + '</span>' : '') + (totalTransitFormatted ? '<span class="flight-result-transit-time d-block small text-muted">' + escapeHtml('{{ $getCurrentTranslation["total_transit_time_label"] ?? "Total transit time" }}: ' + totalTransitFormatted) + '</span>' : (totalLayoverFormatted ? '<span class="flight-result-total-layover">' + escapeHtml(totalLayoverFormatted) + '</span>' : '')) + '</div>';
 				cardHtml += '</div>';
 				cardHtml += '<div class="header-expanded">';
 				cardHtml += renderAirlineLogo(firstCarrierName, 'flight-result-card-header-logo', 32);
@@ -2943,7 +2947,7 @@
 						cardHtml += '<div class="flight-segment-block">';
 						cardHtml += '<div class="flight-segment-header">';
 						cardHtml += '<div class="flight-segment-airline">' + renderAirlineLogo(seg.airline || carrierStr, 'flight-segment-airline-icon', 24) + '<span class="flight-segment-airline-name">' + escapeHtml(seg.airline || carrierStr) + (segFlightNum ? '<span class="flight-segment-flight-num">' + escapeHtml(segFlightNum) + '</span>' : '') + '</span></div>';
-						if (segDuration) cardHtml += '<div class="flight-segment-duration">' + escapeHtml('{{ $getCurrentTranslation["travel_time"] ?? "Travel time" }}: ' + segDuration) + '</div>';
+						if (segDuration) cardHtml += '<div class="flight-segment-fly-time">' + escapeHtml('{{ $getCurrentTranslation["fly_time"] ?? "Fly time" }}: ' + segDuration) + '</div>';
 						cardHtml += '</div>';
 						cardHtml += '<div class="flight-timeline"><div class="flight-timeline-line"><span class="flight-timeline-dot"></span><div class="flight-timeline-vline"></div><span class="flight-timeline-dot"></span></div>';
 						cardHtml += '<div class="flight-timeline-points">';
@@ -2968,7 +2972,7 @@
 					cardHtml += '<div class="flight-segment-block">';
 					cardHtml += '<div class="flight-segment-header">';
 					cardHtml += '<div class="flight-segment-airline">' + renderAirlineLogo(carrierStr, 'flight-segment-airline-icon', 24) + '<span class="flight-segment-airline-name">' + escapeHtml(carrierStr) + '</span></div>';
-					if (hasDuration) cardHtml += '<div class="flight-segment-duration">' + escapeHtml('{{ $getCurrentTranslation["travel_time"] ?? "Travel time" }}: ' + duration) + '</div>';
+					if (hasDuration) cardHtml += '<div class="flight-segment-fly-time">' + escapeHtml('{{ $getCurrentTranslation["fly_time"] ?? "Fly time" }}: ' + duration) + '</div>';
 					cardHtml += '</div>';
 					cardHtml += '<div class="flight-timeline"><div class="flight-timeline-line"><span class="flight-timeline-dot"></span><div class="flight-timeline-vline"></div><span class="flight-timeline-dot"></span></div>';
 					cardHtml += '<div class="flight-timeline-points">';
@@ -3071,7 +3075,7 @@
 					going_to: flightData.search_destination || flightData.destination || searchParams.destination || '',
 					departure_date_time: formatDateTime(departureDate),
 					arrival_date_time: formatDateTime(arrivalDate),
-					total_fly_time: calculateDuration(departureDate, arrivalDate),
+					total_fly_time: flightData.total_fly_time_formatted || calculateDuration(departureDate, arrivalDate),
 					is_transit: 0,
 					transit: []
 				};
@@ -3109,7 +3113,7 @@
 					going_to: flightData.search_destination || flightData.destination || searchParams.destination || '',
 					departure_date_time: formatDateTime(flightData.departure_at || flightData.search_departure_at || searchParams.departure_at),
 					arrival_date_time: formatDateTime(flightData.return_at || flightData.arrival_at),
-					total_fly_time: calculateDuration(
+					total_fly_time: flightData.total_fly_time_formatted || calculateDuration(
 						flightData.departure_at || flightData.search_departure_at || searchParams.departure_at,
 						flightData.return_at || flightData.arrival_at
 					),
@@ -3154,7 +3158,7 @@
 								going_to: segmentData.destination || segmentFlight.destination || '',
 								departure_date_time: formatDateTime(segmentData.departure_at || segmentFlight.departure_at),
 								arrival_date_time: formatDateTime(segmentFlight.return_at || segmentFlight.departure_at),
-								total_fly_time: calculateDuration(
+								total_fly_time: segmentFlight.total_fly_time_formatted || calculateDuration(
 									segmentData.departure_at || segmentFlight.departure_at,
 									segmentFlight.return_at || segmentFlight.departure_at
 								),
@@ -3175,7 +3179,7 @@
 							going_to: segment.destination || segment.segment_destination || '',
 							departure_date_time: formatDateTime(segment.departure_at || segment.departure_at),
 							arrival_date_time: formatDateTime(segment.arrival_at),
-							total_fly_time: calculateDuration(segment.departure_at, segment.arrival_at),
+							total_fly_time: segment.duration || calculateDuration(segment.departure_at, segment.arrival_at),
 							is_transit: 0,
 							transit: []
 						};
@@ -3191,7 +3195,7 @@
 						going_to: flightData.search_destination || flightData.destination || searchParams.destination || '',
 						departure_date_time: formatDateTime(flightData.departure_at || flightData.search_departure_at || searchParams.departure_at),
 						arrival_date_time: formatDateTime(flightData.return_at || flightData.arrival_at),
-						total_fly_time: calculateDuration(
+						total_fly_time: flightData.total_fly_time_formatted || calculateDuration(
 							flightData.departure_at || flightData.search_departure_at || searchParams.departure_at,
 							flightData.return_at || flightData.arrival_at
 						),

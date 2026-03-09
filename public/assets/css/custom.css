@@ -804,6 +804,17 @@ a.brand-logo-min img {
 .chat-msg-seen-double-circle .fa-circle:last-child {
     margin-left: -4px;
 }
+
+/* Chat: green "active" dot beside name (conversation list) */
+.chat-active-dot{
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #50cd89; /* KT success */
+    vertical-align: middle;
+    box-shadow: 0 0 0 2px rgba(80, 205, 137, 0.18);
+}
 .chat-msg-status-icon {
     display: inline-flex;
     align-items: center;
@@ -811,6 +822,64 @@ a.brand-logo-min img {
 .chat-msg-status-icon .fa-check,
 .chat-msg-status-icon .fa-check-double {
     opacity: 0.9;
+}
+
+/* Sender bubble: ensure all text and links are white for visibility on primary background */
+.chat-msg-row[data-is-sent="1"] .chat-msg-bubble,
+.chat-msg-row[data-is-sent="1"] .chat-msg-bubble .chat-msg-body,
+.chat-msg-row[data-is-sent="1"] .chat-msg-bubble .chat-msg-body small,
+.chat-msg-row[data-is-sent="1"] .chat-msg-bubble .chat-msg-sender-name,
+.chat-msg-row[data-is-sent="1"] .chat-msg-bubble .chat-msg-forwarded,
+.chat-msg-row[data-is-sent="1"] .chat-msg-bubble .chat-reply-quote,
+.chat-msg-row[data-is-sent="1"] .chat-msg-bubble .d-flex span.opacity-75,
+.chat-msg-row[data-is-sent="1"] .chat-msg-bubble .chat-msg-status-icon {
+    color: #fff !important;
+}
+/* Sender bubble links: distinct color so they’re visible and different from bg */
+.chat-msg-row[data-is-sent="1"] .chat-msg-bubble .chat-msg-body a {
+    color: #fff9c4 !important;
+    text-decoration: underline;
+}
+.chat-msg-row[data-is-sent="1"] .chat-msg-bubble .chat-msg-body a:hover {
+    color: #fffde7 !important;
+    text-decoration: underline;
+}
+
+/* Chat: reactions under message – left for recipient, right for sender */
+.chat-msg-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-items: center;
+    margin-top: 0.25rem;
+}
+.chat-msg-row[data-is-sent="0"] .chat-msg-reactions {
+    justify-content: flex-start;
+}
+.chat-msg-row[data-is-sent="1"] .chat-msg-reactions {
+    justify-content: flex-end;
+}
+
+/* Reaction badge (already reacted emoji) */
+.chat-reaction-badge { font-size: 20px; }
+
+/* Recipient bubble is bg-light: give reaction badges a clearer background */
+.chat-msg-row[data-is-sent="0"] .chat-reaction-badge {
+    background-color: #fff !important;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: inherit;
+}
+.chat-msg-row[data-is-sent="0"] .chat-reaction-badge:hover {
+    background-color: #f5f5f5 !important;
+}
+
+/* Quick reaction menu: highlight the current user's selected reaction */
+.chat-quick-react-menu .chat-quick-react-selected {
+    background-color: rgba(var(--kt-primary-rgb, 63, 128, 234), 0.15);
+    font-weight: 600;
+}
+.chat-quick-react-menu .chat-quick-react-selected:hover {
+    background-color: rgba(var(--kt-primary-rgb, 63, 128, 234), 0.22);
 }
 
 /* Bounce highlight when scrolling to a replied-to message (WhatsApp-style) */
@@ -881,4 +950,59 @@ a.brand-logo-min img {
 .select2-container + .error-message.text-danger {
     display: block;
     margin-top: 0.25rem;
+}
+
+.chat-quick-react-menu.show {
+    display: flex!important;
+}
+
+/* Set Nickname Swal: ensure above chat widget and clickable/inputable */
+.chat-swal-nickname-modal.swal2-container {
+    z-index: 9999 !important;
+}
+.chat-swal-nickname-modal .swal2-popup,
+.chat-swal-nickname-modal .swal2-title,
+.chat-swal-nickname-modal .swal2-input {
+    pointer-events: auto !important;
+}
+.chat-swal-nickname-modal .swal2-input:focus {
+    outline: none;
+    border-color: var(--bs-primary, #009ef7);
+}
+
+/* Group info modal footer: 50% buttons, 2 per row, Close on right */
+#chat-group-info-modal .chat-group-info-modal-footer {
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    background: #fafafa;
+}
+#chat-group-info-modal .chat-group-info-modal-footer .row {
+    margin-left: 0;
+    margin-right: 0;
+}
+#chat-group-info-modal .chat-group-info-modal-footer .btn {
+    min-width: 2.5rem;
+    font-weight: 500;
+}
+#chat-group-info-modal .chat-group-info-modal-footer .col-6 {
+    flex: 0 0 50%;
+    max-width: 50%;
+}
+#chat-message-input-wrap .chat-input-field,
+#chat-widget-message-input{
+    font-size: 18px;
+}
+.chat-msg-body,
+#chat-message-input,
+#chat-widget-message-input {
+    font-family: "Twemoji Country Flags", var(--bs-body-font-family, "Segoe UI", Arial, sans-serif);
+}
+.chat-msg-body {
+    font-size: 16px;
+}
+.dropdown-item.chat-quick-react {
+    font-size: 20px;
+}
+
+#chat-widget-conversation-list .chat-conv-item .symbol img{
+    width: 45px!important;
 }

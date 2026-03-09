@@ -2,8 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ChatContactEvent;
+use App\Models\ChatContactNickname;
+use App\Models\ChatGroup;
+use App\Models\ChatGroupEvent;
+use App\Models\ChatGroupMember;
 use App\Models\ChatMessage;
 use App\Models\ChatMessageHidden;
+use App\Models\ChatMessageReaction;
 use App\Models\ChatMessageRead;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -85,9 +91,11 @@ class ChatController extends Controller
         $userId = Auth::id();
         $users = User::where('id', '!=', $userId)
             ->whereNull('deleted_at')
-            ->select('id', 'uid', 'name', 'image', 'last_seen_at', 'status', 'is_automation_chatbot')
+            ->select('id', 'uid', 'name', 'image', 'last_seen_at', 'status', 'is_automation_chatbot', 'user_type')
             ->orderByRaw('COALESCE(is_automation_chatbot, 0) DESC, name ASC')
             ->get();
+        $contactNicknames = ChatContactNickname::where('user_id', $userId)->whereIn('contact_user_id', $users->pluck('id'))->get()->keyBy('contact_user_id');
+        $theirNicknamesForMe = ChatContactNickname::where('contact_user_id', $userId)->whereIn('user_id', $users->pluck('id'))->get()->keyBy('user_id');
 
         $conversations = [];
         foreach ($users as $user) {
@@ -117,7 +125,10 @@ class ChatController extends Controller
                     ->count();
             }
 
+            $contactNick = $contactNicknames->get($user->id)?->nickname;
+            $theirNickForMe = $theirNicknamesForMe->get($user->id)?->nickname;
             $conversations[] = [
+                'type' => 'user',
                 'user' => [
                     'id' => $user->id,
                     'uid' => $user->uid,
@@ -126,15 +137,70 @@ class ChatController extends Controller
                     'last_seen_at' => $this->toUtcIso8601($user->last_seen_at),
                     'status' => $user->status,
                     'is_automation_chatbot' => (bool) ($user->is_automation_chatbot ?? false),
+                    'user_type' => $user->user_type ?? 'user',
+                    'contact_nickname' => $contactNick ?: null,
+                    'their_nickname_for_me' => $theirNickForMe ?: null,
                 ],
-                'last_message' => $lastMessage ? $this->formatMessage($lastMessage, $userId) : null,
+                'group' => null,
+                'last_message' => $lastMessage ? $this->formatMessage($lastMessage, $userId, null, null, $contactNick) : null,
+                'unread_count' => $unread,
+            ];
+        }
+
+        // Add groups the user is a member of (with members and roles for admin display)
+        $groupIds = ChatGroupMember::where('user_id', $userId)->pluck('group_id');
+        foreach (ChatGroup::whereIn('id', $groupIds)->with(['creator:id,name,image', 'memberPivots.user:id,name'])->get() as $group) {
+            $lastMessage = ChatMessage::with(['sender:id,name,image', 'reads', 'replyTo.sender:id,name', 'reactions.user:id,name'])
+                ->whereNull('chat_messages.deleted_at')
+                ->where('group_id', $group->id)
+                ->whereNotIn('id', function ($q) use ($userId) {
+                    $q->select('message_id')->from('chat_message_hidden')->where('user_id', $userId);
+                })
+                ->orderByDesc('created_at')
+                ->first();
+            $unread = 0;
+            if ($lastMessage && $lastMessage->sender_id !== $userId) {
+                $unread = ChatMessage::where('group_id', $group->id)
+                    ->where('sender_id', '!=', $userId)
+                    ->whereNull('chat_messages.deleted_at')
+                    ->whereNotIn('id', function ($q) use ($userId) {
+                        $q->select('message_id')->from('chat_message_hidden')->where('user_id', $userId);
+                    })
+                    ->whereDoesntHave('reads', fn($q) => $q->where('user_id', $userId))
+                    ->count();
+            }
+            $members = $group->memberPivots->map(function ($pivot) {
+                return [
+                    'user_id' => $pivot->user_id,
+                    'name' => $pivot->user ? $pivot->user->name : null,
+                    'role' => $pivot->role ?? 'member',
+                    'nickname' => $pivot->nickname ?: null,
+                ];
+            })->values()->all();
+            $adminCount = collect($members)->where('role', 'admin')->count();
+            $conversations[] = [
+                'type' => 'group',
+                'user' => null,
+                'group' => [
+                    'id' => $group->id,
+                    'name' => $group->name,
+                    'image_url' => $group->image ? getUploadedUrl($group->image) : null,
+                    'created_by_user_id' => $group->created_by_user_id,
+                    'creator_name' => $group->creator ? $group->creator->name : null,
+                    'members' => $members,
+                    'member_count' => count($members),
+                    'admin_count' => $adminCount,
+                ],
+                'last_message' => $lastMessage ? $this->formatMessage($lastMessage, $userId, null, $group->memberPivots->keyBy('user_id')->map(fn($p) => $p->nickname)->all()) : null,
                 'unread_count' => $unread,
             ];
         }
 
         usort($conversations, function ($a, $b) {
-            $botA = (bool) ($a['user']['is_automation_chatbot'] ?? false);
-            $botB = (bool) ($b['user']['is_automation_chatbot'] ?? false);
+            $userA = $a['user'] ?? null;
+            $userB = $b['user'] ?? null;
+            $botA = $userA && (bool) ($userA['is_automation_chatbot'] ?? false);
+            $botB = $userB && (bool) ($userB['is_automation_chatbot'] ?? false);
             if ($botA && !$botB) return -1;
             if (!$botA && $botB) return 1;
             $t1 = $a['last_message']['created_at'] ?? null;
@@ -158,7 +224,7 @@ class ChatController extends Controller
         $limit = min(max((int) $request->get('limit', 50), 1), 100);
         $beforeId = $request->get('before_id') ? (int) $request->get('before_id') : null;
 
-        $query = ChatMessage::with(['sender:id,name,image', 'recipient:id,name,image', 'reads', 'replyTo.sender:id,name'])
+        $query = ChatMessage::with(['sender:id,name,image', 'recipient:id,name,image', 'reads', 'replyTo.sender:id,name', 'reactions.user:id,name', 'forwardedFrom.sender:id,name'])
             ->whereNull('chat_messages.deleted_at')
             ->whereNotIn('id', $hiddenIds)
             ->where(function ($q) use ($userId, $otherUserId) {
@@ -177,8 +243,18 @@ class ChatController extends Controller
         }
 
         $hasMore = $messages->count() === $limit;
-        $list = $messages->map(fn($m) => $this->formatMessage($m, $userId))->all();
-        return response()->json(['messages' => $list, 'has_more' => $hasMore]);
+        $contactNick = ChatContactNickname::where('user_id', $userId)->where('contact_user_id', $otherUserId)->value('nickname');
+        $list = $messages->map(fn($m) => $this->formatMessage($m, $userId, null, null, $contactNick))->all();
+        $contactEvents = ChatContactEvent::where(function ($q) use ($userId, $otherUserId) {
+            $q->where('user_id', $userId)->where('contact_user_id', $otherUserId);
+        })->orWhere(function ($q) use ($userId, $otherUserId) {
+            $q->where('user_id', $otherUserId)->where('contact_user_id', $userId);
+        })
+            ->with(['user:id,name', 'contactUser:id,name'])
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn($e) => $this->formatContactEvent($e, $userId))->all();
+        return response()->json(['messages' => $list, 'has_more' => $hasMore, 'contact_events' => $contactEvents]);
     }
 
     public function send(Request $request)
@@ -297,7 +373,7 @@ class ChatController extends Controller
 
     public function markRead(Request $request)
     {
-        $request->validate(['message_ids' => 'array', 'message_ids.*' => 'integer', 'other_user_id' => 'nullable|exists:users,id']);
+        $request->validate(['message_ids' => 'array', 'message_ids.*' => 'integer', 'other_user_id' => 'nullable|exists:users,id', 'group_id' => 'nullable|exists:chat_groups,id']);
         $userId = Auth::id();
         $now = Carbon::now();
 
@@ -322,7 +398,27 @@ class ChatController extends Controller
                 );
             }
             $this->clearActivityCache($userId, $otherUserId);
-        } elseif (!empty($request->message_ids)) {
+        }
+        if ($request->group_id) {
+            $groupId = (int) $request->group_id;
+            if (ChatGroupMember::where('group_id', $groupId)->where('user_id', $userId)->exists()) {
+                $messages = ChatMessage::where('group_id', $groupId)
+                    ->where('sender_id', '!=', $userId)
+                    ->whereNull('deleted_at')
+                    ->pluck('id');
+                foreach ($messages as $mid) {
+                    ChatMessageRead::firstOrCreate(
+                        ['message_id' => $mid, 'user_id' => $userId],
+                        ['read_at' => $now]
+                    );
+                }
+                $this->clearActivityCache($userId);
+                foreach (ChatGroupMember::where('group_id', $groupId)->pluck('user_id') as $uid) {
+                    Cache::forget('chat_activity_' . $uid);
+                }
+            }
+        }
+        if (!empty($request->message_ids) && !$request->other_user_id && !$request->group_id) {
             $this->clearActivityCache($userId);
         }
         return response()->json(['ok' => true]);
@@ -370,7 +466,14 @@ class ChatController extends Controller
     {
         $userId = Auth::id();
         $msg = ChatMessage::withTrashed()->with(['sender:id,name,image', 'recipient:id,name,image'])->find($messageId);
-        if (!$msg || ($msg->sender_id !== $userId && $msg->recipient_id !== $userId)) {
+        if (!$msg) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+        $canAccess = $msg->sender_id === $userId || $msg->recipient_id === $userId;
+        if ($msg->group_id) {
+            $canAccess = ChatGroupMember::where('group_id', $msg->group_id)->where('user_id', $userId)->exists();
+        }
+        if (!$canAccess) {
             return response()->json(['error' => 'Not found'], 404);
         }
         $reads = ChatMessageRead::where('message_id', $messageId)->with('user:id,name')->get();
@@ -413,7 +516,11 @@ class ChatController extends Controller
         if (!$msg || $msg->type !== 'file' || !$msg->file_path) {
             abort(404);
         }
-        if ($msg->sender_id !== $userId && $msg->recipient_id !== $userId) {
+        $canAccess = $msg->sender_id === $userId || $msg->recipient_id === $userId;
+        if ($msg->group_id) {
+            $canAccess = ChatGroupMember::where('group_id', $msg->group_id)->where('user_id', $userId)->exists();
+        }
+        if (!$canAccess) {
             abort(403);
         }
         $disk = Storage::disk('public')->exists($msg->file_path)
@@ -506,19 +613,42 @@ class ChatController extends Controller
         }
     }
 
-    private function formatMessage(ChatMessage $m, int $currentUserId): array
+    /**
+     * Get sender's role in the group for group messages. Pass $groupRolesMap when formatting many messages to avoid N+1.
+     */
+    private function getSenderGroupRole(ChatMessage $m, ?array $groupRolesMap = null): ?string
+    {
+        if (!$m->group_id) {
+            return null;
+        }
+        if ($groupRolesMap !== null) {
+            return $groupRolesMap[$m->sender_id] ?? 'member';
+        }
+        return ChatGroupMember::where('group_id', $m->group_id)->where('user_id', $m->sender_id)->value('role') ?? 'member';
+    }
+
+    private function formatMessage(ChatMessage $m, int $currentUserId, ?array $groupRolesMap = null, ?array $groupNicknamesMap = null, ?string $contactNicknameForOther = null): array
     {
         $isSent = $m->sender_id === $currentUserId;
         $deletedForEveryone = $m->deleted_for_everyone_at !== null;
+        $senderDisplayName = null;
+        if ($m->group_id && $groupNicknamesMap !== null && isset($groupNicknamesMap[$m->sender_id]) && $groupNicknamesMap[$m->sender_id]) {
+            $senderDisplayName = $groupNicknamesMap[$m->sender_id];
+        } elseif ($m->recipient_id && !$isSent && $contactNicknameForOther) {
+            $senderDisplayName = $contactNicknameForOther;
+        }
 
-        $read = $deletedForEveryone ? null : ($m->relationLoaded('reads')
-            ? $m->reads->where('user_id', $m->recipient_id)->first()
-            : $m->reads()->where('user_id', $m->recipient_id)->first());
+        $read = null;
         $status = 'sent';
-        if ($read) {
-            $status = 'seen';
-        } elseif ($isSent && $m->recipient_id) {
-            $status = 'delivered';
+        if (!$deletedForEveryone && $m->recipient_id) {
+            $read = $m->relationLoaded('reads')
+                ? $m->reads->where('user_id', $m->recipient_id)->first()
+                : $m->reads()->where('user_id', $m->recipient_id)->first();
+            if ($read) {
+                $status = 'seen';
+            } elseif ($isSent) {
+                $status = 'delivered';
+            }
         }
 
         $fileUrl = null;
@@ -527,34 +657,801 @@ class ChatController extends Controller
         }
 
         $replyTo = null;
-        if (!$deletedForEveryone && $m->reply_to_message_id && $m->relationLoaded('replyTo') && $m->replyTo) {
-            $r = $m->replyTo;
+        if (!$deletedForEveryone && $m->reply_to_message_id) {
+            $r = $m->relationLoaded('replyTo') ? $m->replyTo : $m->replyTo()->with('sender:id,name')->first();
             $replyTo = [
-                'id' => $r->id,
-                'body' => $r->type === 'file' ? ($r->file_name ?? 'File') : ($r->body ?? ''),
-                'type' => $r->type,
-                'file_name' => $r->file_name,
-                'sender_name' => $r->sender ? $r->sender->name : null,
+                'id' => $m->reply_to_message_id,
+                'body' => $r ? ($r->type === 'file' ? ($r->file_name ?? 'File') : ($r->body ?? '')) : 'Message',
+                'type' => $r ? $r->type : 'text',
+                'file_name' => $r ? $r->file_name : null,
+                'sender_name' => $r && $r->sender ? $r->sender->name : null,
             ];
+        }
+
+        $reactions = [];
+        if (!$deletedForEveryone && ($m->relationLoaded('reactions') ? $m->reactions->isNotEmpty() : $m->reactions()->exists())) {
+            $reactionsList = $m->relationLoaded('reactions') ? $m->reactions : $m->reactions()->with('user:id,name')->get();
+            $byEmoji = [];
+            $otherUserId = $m->group_id ? null : ($isSent ? $m->recipient_id : $m->sender_id);
+            foreach ($reactionsList as $reaction) {
+                $emoji = $reaction->emoji;
+                if (!isset($byEmoji[$emoji])) {
+                    $byEmoji[$emoji] = ['emoji' => $emoji, 'count' => 0, 'user_ids' => [], 'users' => []];
+                }
+                $byEmoji[$emoji]['count']++;
+                $byEmoji[$emoji]['user_ids'][] = $reaction->user_id;
+                $name = $reaction->user ? $reaction->user->name : '';
+                $displayName = $name;
+                if ($m->group_id && $groupNicknamesMap !== null && isset($groupNicknamesMap[$reaction->user_id]) && $groupNicknamesMap[$reaction->user_id]) {
+                    $displayName = $groupNicknamesMap[$reaction->user_id];
+                } elseif ($otherUserId !== null && $reaction->user_id === $otherUserId && $contactNicknameForOther) {
+                    $displayName = $contactNicknameForOther;
+                }
+                $byEmoji[$emoji]['users'][] = ['id' => $reaction->user_id, 'name' => $name, 'display_name' => $displayName];
+            }
+            $reactions = array_values($byEmoji);
+        }
+
+        $forwarded_from = null;
+        if (!$deletedForEveryone && $m->forwarded_from_message_id && ($m->relationLoaded('forwardedFrom') && $m->forwardedFrom || $m->forwardedFrom)) {
+            $f = $m->relationLoaded('forwardedFrom') ? $m->forwardedFrom : $m->forwardedFrom()->with('sender:id,name')->first();
+            if ($f) {
+                $forwarded_from = [
+                    'message_id' => $f->id,
+                    'sender_name' => $f->sender ? $f->sender->name : null,
+                ];
+            }
         }
 
         return [
             'id' => $m->id,
             'sender_id' => $m->sender_id,
             'recipient_id' => $m->recipient_id,
+            'group_id' => $m->group_id,
             'body' => $deletedForEveryone ? null : $m->body,
             'type' => $m->type,
             'file_name' => $deletedForEveryone ? null : $m->file_name,
             'file_size' => $deletedForEveryone ? null : $m->file_size,
             'file_url' => $fileUrl,
+            'reply_to_message_id' => $m->reply_to_message_id,
             'reply_to' => $replyTo,
+            'forwarded_from' => $forwarded_from,
+            'reactions' => $reactions,
             'created_at' => $this->toUtcIso8601($m->created_at),
             'updated_at' => $this->toUtcIso8601($m->updated_at),
             'is_sent' => $isSent,
             'status' => $status,
             'read_at' => $this->toUtcIso8601($read?->read_at),
             'sender' => $m->sender ? ['id' => $m->sender->id, 'name' => $m->sender->name, 'image_url' => $m->sender->image_url] : null,
+            'sender_display_name' => $senderDisplayName,
+            'sender_group_role' => $this->getSenderGroupRole($m, $groupRolesMap),
             'deleted_for_everyone' => $deletedForEveryone,
         ];
+    }
+
+    /**
+     * Add or update reaction on a message (one reaction per user per message).
+     */
+    public function react(Request $request)
+    {
+        $request->validate([
+            'message_id' => 'required|exists:chat_messages,id',
+            'emoji' => 'required|string|max:32',
+        ]);
+        $userId = Auth::id();
+        $msg = ChatMessage::find($request->message_id);
+        if (!$msg || $msg->deleted_at) {
+            return response()->json(['error' => 'Message not found'], 404);
+        }
+        $canAccess = $msg->recipient_id && ($msg->sender_id === $userId || $msg->recipient_id === $userId);
+        if ($msg->group_id) {
+            $canAccess = ChatGroupMember::where('group_id', $msg->group_id)->where('user_id', $userId)->exists();
+        }
+        if (!$canAccess) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        $reaction = ChatMessageReaction::updateOrCreate(
+            ['message_id' => $msg->id, 'user_id' => $userId],
+            ['emoji' => $request->emoji]
+        );
+        $msg->load(['reactions.user:id,name']);
+        return response()->json(['ok' => true, 'reactions' => $this->formatReactions($msg->reactions)]);
+    }
+
+    /**
+     * Remove reaction from a message.
+     */
+    public function removeReaction(Request $request)
+    {
+        $request->validate(['message_id' => 'required|exists:chat_messages,id']);
+        $userId = Auth::id();
+        $msg = ChatMessage::find($request->message_id);
+        if (!$msg) {
+            return response()->json(['error' => 'Message not found'], 404);
+        }
+        $canAccess = $msg->recipient_id && ($msg->sender_id === $userId || $msg->recipient_id === $userId);
+        if ($msg->group_id) {
+            $canAccess = ChatGroupMember::where('group_id', $msg->group_id)->where('user_id', $userId)->exists();
+        }
+        if (!$canAccess) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        ChatMessageReaction::where('message_id', $msg->id)->where('user_id', $userId)->delete();
+        $msg->load(['reactions.user:id,name']);
+        return response()->json(['ok' => true, 'reactions' => $this->formatReactions($msg->reactions)]);
+    }
+
+    private function formatReactions($reactions): array
+    {
+        $byEmoji = [];
+        foreach ($reactions as $r) {
+            $emoji = $r->emoji;
+            if (!isset($byEmoji[$emoji])) {
+                $byEmoji[$emoji] = ['emoji' => $emoji, 'count' => 0, 'user_ids' => [], 'users' => []];
+            }
+            $byEmoji[$emoji]['count']++;
+            $byEmoji[$emoji]['user_ids'][] = $r->user_id;
+            $byEmoji[$emoji]['users'][] = ['id' => $r->user_id, 'name' => $r->user ? $r->user->name : ''];
+        }
+        return array_values($byEmoji);
+    }
+
+    /**
+     * Forward a message to a user or to a group.
+     */
+    public function forward(Request $request)
+    {
+        $request->validate([
+            'message_id' => 'required|exists:chat_messages,id',
+            'recipient_id' => 'nullable|exists:users,id',
+            'group_id' => 'nullable|exists:chat_groups,id',
+        ]);
+        $userId = Auth::id();
+        if (!$request->recipient_id && !$request->group_id) {
+            return response()->json(['error' => 'Provide recipient_id or group_id'], 422);
+        }
+        if ($request->recipient_id && $request->group_id) {
+            return response()->json(['error' => 'Provide only one of recipient_id or group_id'], 422);
+        }
+        $source = ChatMessage::find($request->message_id);
+        if (!$source || $source->deleted_at || $source->deleted_for_everyone_at) {
+            return response()->json(['error' => 'Message not found'], 404);
+        }
+        $canAccessSource = $source->recipient_id && ($source->sender_id === $userId || $source->recipient_id === $userId);
+        if ($source->group_id) {
+            $canAccessSource = ChatGroupMember::where('group_id', $source->group_id)->where('user_id', $userId)->exists();
+        }
+        if (!$canAccessSource) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        if ($request->recipient_id) {
+            if ((int) $request->recipient_id === $userId) {
+                return response()->json(['error' => 'Invalid recipient'], 422);
+            }
+            $msg = ChatMessage::create([
+                'sender_id' => $userId,
+                'recipient_id' => $request->recipient_id,
+                'body' => $source->body,
+                'type' => $source->type,
+                'file_path' => $source->file_path,
+                'file_name' => $source->file_name,
+                'file_size' => $source->file_size,
+                'forwarded_from_message_id' => $source->id,
+            ]);
+            $msg->load(['sender:id,name,image', 'recipient:id,name,image', 'reads', 'replyTo.sender:id,name', 'reactions.user:id,name', 'forwardedFrom.sender:id,name']);
+            $this->clearActivityCache($userId, (int) $request->recipient_id);
+            return response()->json(['message' => $this->formatMessage($msg, $userId)]);
+        }
+        $groupId = (int) $request->group_id;
+        if (!ChatGroupMember::where('group_id', $groupId)->where('user_id', $userId)->exists()) {
+            return response()->json(['error' => 'Not a group member'], 403);
+        }
+        $msg = ChatMessage::create([
+            'sender_id' => $userId,
+            'group_id' => $groupId,
+            'body' => $source->body,
+            'type' => $source->type,
+            'file_path' => $source->file_path,
+            'file_name' => $source->file_name,
+            'file_size' => $source->file_size,
+            'forwarded_from_message_id' => $source->id,
+        ]);
+        $msg->load(['sender:id,name,image', 'reads', 'replyTo.sender:id,name', 'reactions.user:id,name', 'forwardedFrom.sender:id,name']);
+        $this->clearActivityCache($userId);
+        Cache::forget('chat_activity_' . $userId);
+        foreach (ChatGroupMember::where('group_id', $groupId)->pluck('user_id') as $uid) {
+            Cache::forget('chat_activity_' . $uid);
+        }
+        $groupNicknamesMap = ChatGroupMember::where('group_id', $groupId)->get()->keyBy('user_id')->map(fn($p) => $p->nickname)->all();
+        return response()->json(['message' => $this->formatMessage($msg, $userId, null, $groupNicknamesMap)]);
+    }
+
+    /**
+     * List groups the current user is in.
+     */
+    public function groups(Request $request)
+    {
+        $userId = Auth::id();
+        $groupIds = ChatGroupMember::where('user_id', $userId)->pluck('group_id');
+        $groups = ChatGroup::whereIn('id', $groupIds)->with('creator:id,name')->get()->map(function ($g) {
+            return [
+                'id' => $g->id,
+                'name' => $g->name,
+                'image_url' => $g->image ? getUploadedUrl($g->image) : null,
+                'created_by_user_id' => $g->created_by_user_id,
+                'creator_name' => $g->creator ? $g->creator->name : null,
+            ];
+        });
+        return response()->json(['groups' => $groups]);
+    }
+
+    /**
+     * Create a new group. Creator is added as admin. At least one other member required.
+     */
+    public function groupCreate(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'member_ids' => 'required|array',
+            'member_ids.*' => 'exists:users,id',
+        ]);
+        $userId = Auth::id();
+        $memberIds = array_unique(array_map('intval', $request->member_ids));
+        $memberIds = array_values(array_filter($memberIds, fn($id) => $id !== $userId));
+        $memberIds = User::whereIn('id', $memberIds)->where(function ($q) {
+            $q->where('is_automation_chatbot', '!=', 1)->orWhereNull('is_automation_chatbot');
+        })->pluck('id')->all();
+        if (empty($memberIds)) {
+            return response()->json(['error' => 'Add at least one other member'], 422);
+        }
+        $group = ChatGroup::create(['name' => $request->name, 'created_by_user_id' => $userId]);
+        ChatGroupMember::create(['group_id' => $group->id, 'user_id' => $userId, 'role' => 'admin']);
+        foreach ($memberIds as $mid) {
+            ChatGroupMember::create(['group_id' => $group->id, 'user_id' => $mid, 'role' => 'member']);
+        }
+        $this->clearActivityCache($userId);
+        foreach (array_merge($memberIds, [$userId]) as $uid) {
+            Cache::forget('chat_activity_' . $uid);
+        }
+        return response()->json([
+            'group' => [
+                'id' => $group->id,
+                'name' => $group->name,
+                'image_url' => null,
+                'created_by_user_id' => $group->created_by_user_id,
+                'creator_name' => Auth::user()->name,
+            ],
+        ]);
+    }
+
+    /**
+     * Add members to an existing group. Only admins or creator can add.
+     */
+    public function groupAddMembers(Request $request)
+    {
+        $request->validate([
+            'group_id' => 'required|exists:chat_groups,id',
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id',
+        ]);
+        $userId = Auth::id();
+        $group = ChatGroup::find($request->group_id);
+        $pivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $userId)->first();
+        if (!$pivot || $pivot->role !== 'admin') {
+            return response()->json(['error' => 'Only group admins can add members'], 403);
+        }
+        $userIds = array_unique(array_map('intval', $request->user_ids));
+        $userIds = User::whereIn('id', $userIds)->where(function ($q) {
+            $q->where('is_automation_chatbot', '!=', 1)->orWhereNull('is_automation_chatbot');
+        })->pluck('id')->all();
+        $existing = ChatGroupMember::where('group_id', $group->id)->pluck('user_id')->all();
+        $toAdd = array_diff($userIds, $existing);
+        foreach ($toAdd as $uid) {
+            ChatGroupMember::create(['group_id' => $group->id, 'user_id' => $uid, 'role' => 'member']);
+            ChatGroupEvent::create(['group_id' => $group->id, 'user_id' => $userId, 'action' => 'member_added', 'target_user_id' => $uid]);
+        }
+        foreach (array_merge($toAdd, $existing) as $uid) {
+            Cache::forget('chat_activity_' . $uid);
+        }
+        return response()->json(['ok' => true, 'added_count' => count($toAdd)]);
+    }
+
+    /**
+     * Update group (profile image and/or name). Only group admins can update.
+     */
+    public function groupUpdate(Request $request)
+    {
+        $request->validate([
+            'group_id' => 'required|exists:chat_groups,id',
+            'name' => 'nullable|string|max:255',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+        ]);
+        $userId = Auth::id();
+        $group = ChatGroup::find($request->group_id);
+        $pivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $userId)->first();
+        if (!$pivot || $pivot->role !== 'admin') {
+            return response()->json(['error' => 'Only group admins can update the group'], 403);
+        }
+        if ($request->hasFile('image')) {
+            $oldImage = $group->image;
+            $path = handleImageUpload($request->file('image'), 300, 300, 'chat-groups', 'group-' . $group->id, $oldImage);
+            if ($path) {
+                $group->image = $path;
+            }
+        }
+        if ($request->filled('name')) {
+            $group->name = $request->name;
+        }
+        $group->save();
+        $group->load('creator:id,name');
+        $this->clearActivityCache($userId);
+        foreach (ChatGroupMember::where('group_id', $group->id)->pluck('user_id') as $uid) {
+            Cache::forget('chat_activity_' . $uid);
+        }
+        return response()->json([
+            'group' => [
+                'id' => $group->id,
+                'name' => $group->name,
+                'image_url' => $group->image ? getUploadedUrl($group->image) : null,
+                'created_by_user_id' => $group->created_by_user_id,
+                'creator_name' => $group->creator ? $group->creator->name : null,
+            ],
+        ]);
+    }
+
+    /**
+     * Set member role (admin/member). Only group creator can change roles.
+     */
+    public function groupSetMemberRole(Request $request)
+    {
+        $request->validate([
+            'group_id' => 'required|exists:chat_groups,id',
+            'user_id' => 'required|exists:users,id',
+            'role' => 'required|in:admin,member',
+        ]);
+        $userId = Auth::id();
+        $group = ChatGroup::findOrFail($request->group_id);
+        if ($group->created_by_user_id !== $userId) {
+            return response()->json(['error' => 'Only the group creator can change roles'], 403);
+        }
+        $targetUserId = (int) $request->user_id;
+        if ($targetUserId === $userId) {
+            return response()->json(['error' => 'You cannot change your own role'], 422);
+        }
+        $pivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $targetUserId)->first();
+        if (!$pivot) {
+            return response()->json(['error' => 'User is not a member'], 404);
+        }
+        $pivot->role = $request->role;
+        $pivot->save();
+        ChatGroupEvent::create([
+            'group_id' => $group->id,
+            'user_id' => $userId,
+            'action' => $request->role === 'admin' ? 'admin_added' : 'admin_removed',
+            'target_user_id' => $targetUserId,
+        ]);
+        $this->clearActivityCache($userId);
+        foreach (ChatGroupMember::where('group_id', $group->id)->pluck('user_id') as $uid) {
+            Cache::forget('chat_activity_' . $uid);
+        }
+        return response()->json(['ok' => true, 'role' => $pivot->role]);
+    }
+
+    /**
+     * Remove a member from the group. Creator or admin. Admin cannot remove creator.
+     */
+    public function groupRemoveMember(Request $request)
+    {
+        $request->validate([
+            'group_id' => 'required|exists:chat_groups,id',
+            'user_id' => 'required|exists:users,id',
+        ]);
+        $userId = Auth::id();
+        $group = ChatGroup::findOrFail($request->group_id);
+        $myPivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $userId)->first();
+        if (!$myPivot) {
+            return response()->json(['error' => 'Not a group member'], 403);
+        }
+        $isCreator = $group->created_by_user_id === $userId;
+        if (!$isCreator && $myPivot->role !== 'admin') {
+            return response()->json(['error' => 'Only creator or admins can remove members'], 403);
+        }
+        $targetUserId = (int) $request->user_id;
+        if ($targetUserId === $group->created_by_user_id) {
+            return response()->json(['error' => 'The group creator cannot be removed'], 403);
+        }
+        $pivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $targetUserId)->first();
+        if (!$pivot) {
+            return response()->json(['error' => 'User is not a member'], 404);
+        }
+        ChatGroupEvent::create([
+            'group_id' => $group->id,
+            'user_id' => $userId,
+            'action' => 'member_removed',
+            'target_user_id' => $targetUserId,
+        ]);
+        $pivot->delete();
+        $this->clearActivityCache($userId);
+        foreach (ChatGroupMember::where('group_id', $group->id)->pluck('user_id') as $uid) {
+            Cache::forget('chat_activity_' . $uid);
+        }
+        Cache::forget('chat_activity_' . $targetUserId);
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Delete the group. Only group creator can delete.
+     * Permanently deletes all group chat data and deletes non-forwarded file attachments from storage.
+     */
+    public function groupDelete(Request $request)
+    {
+        $request->validate(['group_id' => 'required|exists:chat_groups,id']);
+        $userId = Auth::id();
+        $group = ChatGroup::findOrFail($request->group_id);
+        if ($group->created_by_user_id !== $userId) {
+            return response()->json(['error' => 'Only the group creator can delete the group'], 403);
+        }
+        $memberIds = ChatGroupMember::where('group_id', $group->id)->pluck('user_id')->all();
+        $messageIds = ChatMessage::where('group_id', $group->id)->pluck('id')->all();
+        // Delete files only for messages that are file type and NOT forwarded (forwarded files belong to original message)
+        ChatMessage::where('group_id', $group->id)
+            ->where('type', 'file')
+            ->whereNotNull('file_path')
+            ->whereNull('forwarded_from_message_id')
+            ->get()
+            ->each(function (ChatMessage $msg) {
+                if (Storage::disk('public')->exists($msg->file_path)) {
+                    Storage::disk('public')->delete($msg->file_path);
+                }
+                if (Storage::disk('local')->exists($msg->file_path)) {
+                    Storage::disk('local')->delete($msg->file_path);
+                }
+            });
+        ChatMessageReaction::whereIn('message_id', $messageIds)->delete();
+        ChatMessageRead::whereIn('message_id', $messageIds)->delete();
+        ChatMessageHidden::whereIn('message_id', $messageIds)->delete();
+        ChatMessage::where('group_id', $group->id)->forceDelete();
+        ChatGroupEvent::where('group_id', $group->id)->delete();
+        ChatGroupMember::where('group_id', $group->id)->delete();
+        if ($group->image) {
+            if (Storage::disk('public')->exists($group->image)) {
+                Storage::disk('public')->delete($group->image);
+            }
+            if (Storage::disk('local')->exists($group->image)) {
+                Storage::disk('local')->delete($group->image);
+            }
+        }
+        $group->delete();
+        $this->clearActivityCache($userId);
+        foreach (array_merge($memberIds, [$userId]) as $uid) {
+            Cache::forget('chat_activity_' . $uid);
+        }
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Set nickname: for group (group_id, user_id optional, nickname) or 1:1 (contact_user_id, nickname).
+     */
+    public function setNickname(Request $request)
+    {
+        $userId = Auth::id();
+        if ($request->filled('group_id')) {
+            $request->validate([
+                'group_id' => 'required|exists:chat_groups,id',
+                'user_id' => 'nullable|exists:users,id',
+                'nickname' => 'nullable|string|max:100',
+            ]);
+            $group = ChatGroup::findOrFail($request->group_id);
+            $targetUserId = $request->user_id ? (int) $request->user_id : $userId;
+            $pivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $targetUserId)->first();
+            if (!$pivot) {
+                return response()->json(['error' => 'Not a group member'], 404);
+            }
+            $myPivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $userId)->first();
+            if (!$myPivot) {
+                return response()->json(['error' => 'Not a group member'], 403);
+            }
+            $isCreator = $group->created_by_user_id === $userId;
+            $isAdmin = $myPivot->role === 'admin';
+            if (!$isCreator && !$isAdmin) {
+                return response()->json(['error' => 'Only creator or admins can set or clear nicknames in this group'], 403);
+            }
+            $nicknameValue = trim($request->nickname) ?: null;
+            $pivot->nickname = $nicknameValue;
+            $pivot->save();
+            ChatGroupEvent::create([
+                'group_id' => $group->id,
+                'user_id' => $userId,
+                'action' => $nicknameValue !== null ? 'nickname_set' : 'nickname_cleared',
+                'target_user_id' => $targetUserId,
+                'extra' => $nicknameValue ?? '',
+            ]);
+            $this->clearActivityCache($userId);
+            foreach (ChatGroupMember::where('group_id', $group->id)->pluck('user_id') as $uid) {
+                Cache::forget('chat_activity_' . $uid);
+            }
+            return response()->json(['ok' => true, 'nickname' => $pivot->nickname]);
+        }
+        $request->validate([
+            'contact_user_id' => 'required|exists:users,id',
+            'user_id' => 'nullable|exists:users,id',
+            'nickname' => 'nullable|string|max:100',
+        ]);
+        $contactUserId = (int) $request->contact_user_id;
+        $nickname = trim($request->nickname) ?: null;
+        if ($contactUserId === $userId) {
+            $viewerId = $request->user_id ? (int) $request->user_id : null;
+            if (!$viewerId || $viewerId === $userId) {
+                return response()->json(['error' => 'Invalid request'], 422);
+            }
+            $existing = ChatContactNickname::where('user_id', $viewerId)->where('contact_user_id', $userId)->first();
+            $previousNick = $existing && trim((string) $existing->nickname) !== '' ? trim($existing->nickname) : null;
+            ChatContactNickname::updateOrCreate(
+                ['user_id' => $viewerId, 'contact_user_id' => $userId],
+                ['nickname' => $nickname ?? '']
+            );
+            $shouldLogCleared = $nickname === null && $previousNick !== null;
+            $shouldLogSet = $nickname !== null && $nickname !== $previousNick;
+            if ($shouldLogCleared || $shouldLogSet) {
+                ChatContactEvent::create([
+                    'user_id' => $userId,
+                    'contact_user_id' => $viewerId,
+                    'action' => $nickname !== null ? 'my_nickname_set' : 'my_nickname_cleared',
+                    'extra' => $nickname ?? '',
+                ]);
+            }
+            $this->clearActivityCache($userId);
+            Cache::forget('chat_activity_' . $userId);
+            Cache::forget('chat_activity_' . $viewerId);
+            return response()->json(['ok' => true, 'nickname' => $nickname]);
+        }
+        $existingContact = ChatContactNickname::where('user_id', $userId)->where('contact_user_id', $contactUserId)->first();
+        $previousContactNick = $existingContact && trim((string) $existingContact->nickname) !== '' ? trim($existingContact->nickname) : null;
+        $newNormalized = ($nickname !== null && trim((string) $nickname) !== '') ? trim($nickname) : null;
+        ChatContactNickname::updateOrCreate(
+            ['user_id' => $userId, 'contact_user_id' => $contactUserId],
+            ['nickname' => $nickname ?? '']
+        );
+        $contactChanged = ($previousContactNick !== $newNormalized);
+        if ($contactChanged) {
+            ChatContactEvent::create([
+                'user_id' => $userId,
+                'contact_user_id' => $contactUserId,
+                'action' => $newNormalized !== null ? 'nickname_set' : 'nickname_cleared',
+                'extra' => $newNormalized ?? '',
+            ]);
+        }
+        $this->clearActivityCache($userId);
+        Cache::forget('chat_activity_' . $userId);
+        Cache::forget('chat_activity_' . $contactUserId);
+        return response()->json(['ok' => true, 'nickname' => $nickname]);
+    }
+
+    /**
+     * Get messages for a group. Query params: before_id, limit.
+     */
+    public function groupMessages(Request $request, int $groupId)
+    {
+        $userId = Auth::id();
+        if (!ChatGroupMember::where('group_id', $groupId)->where('user_id', $userId)->exists()) {
+            return response()->json(['error' => 'Not a group member'], 403);
+        }
+        $hiddenIds = ChatMessageHidden::where('user_id', $userId)->pluck('message_id');
+        $limit = min(max((int) $request->get('limit', 50), 1), 100);
+        $beforeId = $request->get('before_id') ? (int) $request->get('before_id') : null;
+
+        $query = ChatMessage::with(['sender:id,name,image', 'reads', 'replyTo.sender:id,name', 'reactions.user:id,name', 'forwardedFrom.sender:id,name'])
+            ->whereNull('chat_messages.deleted_at')
+            ->where('group_id', $groupId)
+            ->whereNotIn('id', $hiddenIds);
+
+        if ($beforeId) {
+            $query->where('id', '<', $beforeId)->orderByDesc('id')->limit($limit);
+            $messages = $query->get()->reverse()->values();
+        } else {
+            $messages = $query->orderByDesc('id')->limit($limit)->get()->reverse()->values();
+        }
+        $hasMore = $messages->count() === $limit;
+        $pivots = ChatGroupMember::where('group_id', $groupId)->get();
+        $groupRolesMap = $pivots->keyBy('user_id')->map(fn($p) => $p->role)->all();
+        $groupNicknamesMap = $pivots->keyBy('user_id')->map(fn($p) => $p->nickname)->all();
+        $list = $messages->map(fn($m) => $this->formatMessage($m, $userId, $groupRolesMap, $groupNicknamesMap))->all();
+        $events = ChatGroupEvent::where('group_id', $groupId)
+            ->with(['user:id,name', 'targetUser:id,name'])
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn($e) => $this->formatGroupEvent($e))->all();
+        return response()->json(['messages' => $list, 'has_more' => $hasMore, 'group_events' => $events]);
+    }
+
+    private function formatGroupEvent(ChatGroupEvent $e): array
+    {
+        $actorName = $e->user ? $e->user->name : '';
+        $targetName = $e->targetUser ? $e->targetUser->name : '';
+        $text = '';
+        switch ($e->action) {
+            case 'member_added':
+                $text = $actorName . ' added ' . $targetName;
+                break;
+            case 'member_removed':
+                $text = $actorName . ' removed ' . $targetName;
+                break;
+            case 'admin_added':
+                $text = $actorName . ' added ' . $targetName . ' as admin';
+                break;
+            case 'admin_removed':
+                $text = $actorName . ' removed ' . $targetName . '\'s admin access';
+                break;
+            case 'nickname_set':
+                $nickname = $e->extra ?: $targetName;
+                $text = $actorName . ' set ' . $targetName . '\'s nickname to ' . $nickname;
+                break;
+            case 'nickname_cleared':
+                $text = $actorName . ' Cleared ' . $targetName . '\'s nickname';
+                break;
+            default:
+                $text = $actorName . ' – ' . $e->action;
+        }
+        return [
+            'id' => 'event-' . $e->id,
+            'type' => 'event',
+            'action' => $e->action,
+            'user_id' => $e->user_id,
+            'user_name' => $actorName,
+            'target_user_id' => $e->target_user_id,
+            'target_user_name' => $targetName,
+            'extra' => $e->extra,
+            'created_at' => $this->toUtcIso8601($e->created_at),
+            'text' => $text,
+        ];
+    }
+
+    private function formatContactEvent(ChatContactEvent $e, int $viewerId): array
+    {
+        $actorName = $e->user ? $e->user->name : '';
+        $contactName = $e->contactUser ? $e->contactUser->name : '';
+        $isViewerActor = (int) $e->user_id === $viewerId;
+        $actorDisplay = $isViewerActor ? 'You' : $actorName;
+        $text = '';
+        switch ($e->action) {
+            case 'nickname_set':
+                $nickname = $e->extra ?: $contactName;
+                $text = $actorDisplay . ' set ' . $contactName . '\'s nickname to ' . $nickname;
+                break;
+            case 'nickname_cleared':
+                $text = $actorDisplay . ' cleared ' . $contactName . '\'s nickname';
+                break;
+            case 'my_nickname_set':
+                $nickname = $e->extra ?: '';
+                $text = $isViewerActor ? ('You set your nickname to ' . $nickname) : ($actorName . ' set their nickname to ' . $nickname);
+                break;
+            case 'my_nickname_cleared':
+                $text = $isViewerActor ? 'You cleared your nickname' : ($actorName . ' cleared their nickname');
+                break;
+            default:
+                $text = $actorDisplay . ' – ' . $e->action;
+        }
+        return [
+            'id' => 'contact-event-' . $e->id,
+            'type' => 'event',
+            'action' => $e->action,
+            'user_id' => $e->user_id,
+            'user_name' => $actorName,
+            'contact_user_id' => $e->contact_user_id,
+            'contact_user_name' => $contactName,
+            'extra' => $e->extra,
+            'created_at' => $this->toUtcIso8601($e->created_at),
+            'text' => $text,
+        ];
+    }
+
+    /**
+     * Send a text message to a group.
+     */
+    public function sendGroup(Request $request)
+    {
+        $request->validate([
+            'body' => 'required|string|max:10000',
+            'group_id' => 'required|exists:chat_groups,id',
+            'reply_to_message_id' => 'nullable|exists:chat_messages,id',
+        ]);
+        $userId = Auth::id();
+        if (!ChatGroupMember::where('group_id', $request->group_id)->where('user_id', $userId)->exists()) {
+            return response()->json(['error' => 'Not a group member'], 403);
+        }
+        $replyToId = $request->reply_to_message_id ? (int) $request->reply_to_message_id : null;
+        if ($replyToId) {
+            $replyMsg = ChatMessage::where('id', $replyToId)->where('group_id', $request->group_id)->first();
+            if (!$replyMsg || $replyMsg->deleted_at) {
+                return response()->json(['error' => 'Invalid reply message'], 422);
+            }
+        }
+        $msg = ChatMessage::create([
+            'sender_id' => $userId,
+            'group_id' => $request->group_id,
+            'body' => $request->body,
+            'type' => 'text',
+            'reply_to_message_id' => $replyToId,
+        ]);
+        $msg->load(['sender:id,name,image', 'reads', 'replyTo.sender:id,name', 'reactions.user:id,name', 'forwardedFrom.sender:id,name']);
+        $this->clearActivityCache($userId);
+        foreach (ChatGroupMember::where('group_id', $request->group_id)->pluck('user_id') as $uid) {
+            Cache::forget('chat_activity_' . $uid);
+        }
+        $groupNicknamesMap = ChatGroupMember::where('group_id', $request->group_id)->get()->keyBy('user_id')->map(fn($p) => $p->nickname)->all();
+        return response()->json(['message' => $this->formatMessage($msg, $userId, null, $groupNicknamesMap)]);
+    }
+
+    /**
+     * Send a file to a group.
+     */
+    public function sendGroupFile(Request $request)
+    {
+        $maxKb = config('chat.max_file_size_kb', 0);
+        $rules = [
+            'group_id' => 'required|exists:chat_groups,id',
+            'file' => ['required', 'file'],
+        ];
+        if ($maxKb > 0) {
+            $rules['file'][] = 'max:' . $maxKb;
+        }
+        $request->validate($rules, $maxKb > 0 ? [
+            'file.max' => 'File size must not exceed ' . round($maxKb / 1024, 1) . ' MB.',
+        ] : []);
+
+        $userId = Auth::id();
+        if (!ChatGroupMember::where('group_id', $request->group_id)->where('user_id', $userId)->exists()) {
+            return response()->json(['error' => 'Not a group member'], 403);
+        }
+
+        $file = $request->file('file');
+        $fileSize = $file->getSize();
+        if ($maxKb > 0 && (int) ceil($fileSize / 1024) > $maxKb) {
+            return response()->json(['error' => 'File too large.'], 422);
+        }
+
+        $originalName = $file->getClientOriginalName();
+        $ext = strtolower($file->getClientOriginalExtension());
+        $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic'];
+        $videoExts = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'm4v', 'wmv'];
+
+        if (in_array($ext, $imageExts)) {
+            $path = handleImageUpload($file, 1200, 1200, 'chat-files', 'chat', null);
+            if (!$path) {
+                return response()->json(['error' => 'Failed to process image.'], 422);
+            }
+        } elseif (in_array($ext, $videoExts)) {
+            $path = convertVideo($file, 'chat-files', 'chat', ['max_width' => 1280, 'max_height' => 720]);
+            if (!$path) {
+                return response()->json(['error' => 'Failed to process video.'], 422);
+            }
+            $ext = pathinfo($path, PATHINFO_EXTENSION) ?: $ext;
+        } else {
+            $path = $file->store('chat-files', 'local');
+        }
+
+        $appName = trim(preg_replace('/[\\\\\/:*?"<>|]/', '', config('app.name', env('APP_NAME', 'App'))));
+        $fileTypeLabel = in_array($ext, $imageExts) ? 'Image' : (in_array($ext, $videoExts) ? 'Video' : ($ext === 'pdf' ? 'PDF' : 'File'));
+        $tz = config('app.timezone', env('APP_TIMEZONE', 'UTC'));
+        $tzSafe = trim(str_replace(['/', '\\'], '-', $tz));
+        $uniqueSuffix = bin2hex(random_bytes(4));
+        $displayFileName = $appName . ' ' . $fileTypeLabel . '-' . Carbon::now()->format('Y-m-d \a\t g.i.s A') . ' (' . $tzSafe . ')-' . $uniqueSuffix . '.' . $ext;
+
+        $msg = ChatMessage::create([
+            'sender_id' => $userId,
+            'group_id' => $request->group_id,
+            'body' => null,
+            'type' => 'file',
+            'file_path' => $path,
+            'file_name' => $displayFileName,
+            'file_size' => $fileSize,
+        ]);
+        $msg->load(['sender:id,name,image', 'reads', 'reactions.user:id,name', 'forwardedFrom.sender:id,name']);
+        $this->clearActivityCache($userId);
+        foreach (ChatGroupMember::where('group_id', $request->group_id)->pluck('user_id') as $uid) {
+            Cache::forget('chat_activity_' . $uid);
+        }
+        $groupNicknamesMap = ChatGroupMember::where('group_id', $request->group_id)->get()->keyBy('user_id')->map(fn($p) => $p->nickname)->all();
+        return response()->json(['message' => $this->formatMessage($msg, $userId, null, $groupNicknamesMap)]);
     }
 }

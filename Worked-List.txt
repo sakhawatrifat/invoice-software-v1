@@ -70,22 +70,35 @@ Invoice Software New Features (January 2026 To March 2026):
 	-Mail Sending Option to Client With Updated Flight Datetime and Updated Ticket PDF
 
 
-04. Message (Internal Users chat system)
-	-Chat list with photo, name, last message, time, unread count
-	-Online / last seen status + search by name
-	-Send message (Enter) + reply with quote preview
-	-Attach files (size limit) – image, video, audio, documents
-	-Sent, delivered, read (double check) status
-	-Image popup, video/audio player, other files as download link
-	-3-dot menu: Reply, View time, Remove for me, Remove for everyone
-	-Auto refresh for new messages
-	-Load older messages on scroll up
-	-Loading animation on send/delete
-	-Fixed layout (only messages scroll), fully responsive
-	-Floating chat widget with unread badge
-	-Widget has same chat features (send, reply, attach, status, menu)
-	-View All, Minimize, Back options
-	-Config settings (file size, refresh time), translations, local time display
+04. Message (Internal Users Chat System)
+	- Chat list with user photo, name, last message, time, and unread count
+	- Online / last seen status with search by name
+	- Send message with Enter + reply with quote preview
+	- Attach files (size limit): image, video, audio, documents
+	- Message status: Sent, Delivered, Read (double check)
+	- Image popup viewer, video/audio player, other files as download link
+	- 3-dot message menu: Reply, View time, Remove for me, Remove for everyone
+	- Auto refresh for new messages
+	- Load older messages on scroll up
+	- Loading animation on send and delete actions
+	- Fixed layout (only messages scroll), fully responsive
+	- Floating chat widget with unread message badge
+	- Widget includes same chat features (send, reply, attach, status, menu)
+	- Widget controls: View All, Minimize, Back
+	- Config settings: file size limit, refresh time, translations, local time display
+	- Emoji picker in chatbox (similar to WhatsApp)
+	- Message reaction system for each message
+	- Message forwarding to other users or groups
+	- Chat users nickname system
+
+
+4.1 Group Chat System
+	- Any user can create a group and add members
+	- Supports all existing single chat features
+	- Separate emoji reactions for each message by each user
+	- Message forwarding supported in group chats
+	- Group members nickname system
+	- Group admin access/permissions to manage any member
 
 
 05. Marketing

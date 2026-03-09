@@ -527,7 +527,8 @@ class TravelSearchController extends Controller
                     $arrivalDateTime = $arr->format('Y-m-d H:i');
                 }
             }
-            $totalFlyTime = $this->calculateDuration($departureDateTime, $arrivalDateTime);
+            // Use API segment duration (timezone-correct) when available
+            $totalFlyTime = $firstSeg['duration'] ?? $this->calculateDuration($departureDateTime, $arrivalDateTime);
             $mainFlightNumber = $firstSeg['flight_number'] ?? $firstSeg['marketing_flight_number'] ?? $flightData['flight_number'] ?? '';
 
             $flight = [
@@ -572,10 +573,15 @@ class TravelSearchController extends Controller
                 $arrivalDateTime = $arr->format('Y-m-d H:i');
             }
         }
-        $totalFlyTime = $this->calculateDuration($departureDateTime, $arrivalDateTime);
+        // Use API total fly time (timezone-correct) when available
+        $totalFlyTime = $flightData['total_fly_time_formatted'] ?? $this->calculateDuration($departureDateTime, $arrivalDateTime);
         $mainFlightNumber = $flightData['flight_number'] ?? $flightData['number'] ?? '';
         if ($hasSegments && count($segments) === 1) {
             $mainFlightNumber = $segments[0]['flight_number'] ?? $segments[0]['marketing_flight_number'] ?? $mainFlightNumber;
+            // Prefer single segment's duration from API when present
+            if (!empty($segments[0]['duration'])) {
+                $totalFlyTime = $segments[0]['duration'];
+            }
         }
 
         $flight = [
@@ -717,8 +723,8 @@ class TravelSearchController extends Controller
                 }
             }
             
-            // Calculate transit flight time
-            $transitFlyTime = $this->calculateDuration($transitDeparture, $transitArrival);
+            // Use API segment duration (timezone-correct) when available
+            $transitFlyTime = $segment['duration'] ?? $this->calculateDuration($transitDeparture, $transitArrival);
             
             // Calculate transit time (layover) - time between previous arrival and this departure
             $transitTime = '';

@@ -14,12 +14,14 @@ class ChatMessage extends Model
     protected $fillable = [
         'sender_id',
         'recipient_id',
+        'group_id',
         'body',
         'type',
         'file_path',
         'file_name',
         'file_size',
         'reply_to_message_id',
+        'forwarded_from_message_id',
         'deleted_for_everyone_at',
     ];
 
@@ -46,6 +48,21 @@ class ChatMessage extends Model
     public function replyTo(): BelongsTo
     {
         return $this->belongsTo(ChatMessage::class, 'reply_to_message_id', 'id');
+    }
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(ChatGroup::class, 'group_id', 'id');
+    }
+
+    public function forwardedFrom(): BelongsTo
+    {
+        return $this->belongsTo(ChatMessage::class, 'forwarded_from_message_id', 'id');
+    }
+
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(ChatMessageReaction::class, 'message_id', 'id');
     }
 
     public function hiddenBy(): \Illuminate\Database\Eloquent\Relations\BelongsToMany

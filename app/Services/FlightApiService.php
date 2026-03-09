@@ -281,8 +281,32 @@ class FlightApiService
             $departureAt = $this->formatDateTimeForDisplay($departure);
             $arrivalAt = $this->formatDateTimeForDisplay($arrival);
 
-            $durationMinutes = 0;
-            if (!empty($departure) && !empty($arrival)) {
+            // Total fly time: sum of segment durations from API (timezone-correct elapsed flight time)
+            $totalFlyTimeMinutes = 0;
+            foreach ($legIds as $legId) {
+                $leg = $legs[$legId] ?? null;
+                if (!$leg) {
+                    continue;
+                }
+                foreach ($leg['segment_ids'] ?? [] as $segId) {
+                    $seg = $segments[$segId] ?? null;
+                    if ($seg !== null) {
+                        $totalFlyTimeMinutes += (int) ($seg['duration'] ?? 0);
+                    }
+                }
+            }
+
+            // Total itinerary duration: prefer sum of leg durations from API (timezone-correct)
+            $totalDurationFromApi = 0;
+            foreach ($legIds as $legId) {
+                $leg = $legs[$legId] ?? null;
+                if ($leg !== null && isset($leg['duration'])) {
+                    $totalDurationFromApi += (int) $leg['duration'];
+                }
+            }
+
+            $durationMinutes = $totalDurationFromApi > 0 ? $totalDurationFromApi : 0;
+            if ($durationMinutes === 0 && !empty($departure) && !empty($arrival)) {
                 try {
                     $depDt = new \DateTime($departure);
                     $arrDt = new \DateTime($arrival);
@@ -291,6 +315,12 @@ class FlightApiService
                     // ignore
                 }
             }
+
+            // Total transit (layover) time = total itinerary duration - total fly time
+            $totalTransitMinutes = ($durationMinutes > 0 && $totalFlyTimeMinutes >= 0)
+                ? max(0, $durationMinutes - $totalFlyTimeMinutes)
+                : 0;
+
             $stops = max(0, count($allSegmentIds) - count($legIds));
             $segmentList = $this->buildSegmentList($legIds, $legs, $segments, $places, $carriers, $placeDisplay, $carrierCodes);
             $transitAirports = $this->transitAirportsFromSegments($segmentList);
@@ -318,6 +348,10 @@ class FlightApiService
                 'arrival_time' => $this->formatArrivalTimeWithDayOffset($departure, $arrival, $durationMinutes),
                 'duration_formatted' => $this->formatDurationMinutes($durationMinutes),
                 'duration_minutes' => $durationMinutes,
+                'total_fly_time_minutes' => $totalFlyTimeMinutes,
+                'total_fly_time_formatted' => $this->formatDurationMinutes($totalFlyTimeMinutes),
+                'total_transit_minutes' => $totalTransitMinutes,
+                'total_transit_formatted' => $this->formatDurationMinutes($totalTransitMinutes),
                 'stops' => $stops,
                 'transit_airport_codes' => $transitAirports['codes'],
                 'transit_airports_display' => $transitAirports['display'],
@@ -385,6 +419,17 @@ class FlightApiService
             $departureAt = $this->formatDateTimeForDisplay($firstDep);
             $arrivalAt = $this->formatDateTimeForDisplay($lastArr);
 
+            // Total fly time from segment durations (API, timezone-correct)
+            $totalFlyTimeMinutes = 0;
+            foreach ($legs as $leg) {
+                if (!in_array($leg['id'] ?? '', $legIds)) {
+                    continue;
+                }
+                foreach ($leg['segments'] ?? [] as $seg) {
+                    $totalFlyTimeMinutes += (int) ($seg['durationMinutes'] ?? 0);
+                }
+            }
+
             $durationMinutes = 0;
             if (!empty($firstDep) && !empty($lastArr)) {
                 try {
@@ -395,6 +440,10 @@ class FlightApiService
                     // ignore
                 }
             }
+            $totalTransitMinutes = ($durationMinutes > 0 && $totalFlyTimeMinutes >= 0)
+                ? max(0, $durationMinutes - $totalFlyTimeMinutes)
+                : 0;
+
             $segmentList = $this->buildMultiTripSegmentList($legs, $legIds, $airlines, $airports);
             $stops = 0;
             foreach ($legs as $leg) {
@@ -427,6 +476,10 @@ class FlightApiService
                 'arrival_time' => $this->formatArrivalTimeWithDayOffset($firstDep, $lastArr, $durationMinutes),
                 'duration_formatted' => $this->formatDurationMinutes($durationMinutes),
                 'duration_minutes' => $durationMinutes,
+                'total_fly_time_minutes' => $totalFlyTimeMinutes,
+                'total_fly_time_formatted' => $this->formatDurationMinutes($totalFlyTimeMinutes),
+                'total_transit_minutes' => $totalTransitMinutes,
+                'total_transit_formatted' => $this->formatDurationMinutes($totalTransitMinutes),
                 'stops' => $stops,
                 'transit_airport_codes' => $transitAirports['codes'],
                 'transit_airports_display' => $transitAirports['display'],

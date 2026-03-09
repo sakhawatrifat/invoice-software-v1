@@ -4,6 +4,11 @@
     $wrap = $isWidget ? 'chat-widget' : 'chat-app';
     $getCurrentTranslation = $getCurrentTranslation ?? (function_exists('getCurrentTranslation') ? getCurrentTranslation() : []);
 @endphp
+<script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+<script type="module">
+    import { polyfillCountryFlagEmojis } from "https://cdn.skypack.dev/country-flag-emoji-polyfill";
+    polyfillCountryFlagEmojis();
+</script>
 <script>
 (function() {
     const isWidget = @json($isWidget);
@@ -24,8 +29,24 @@
         history: (id) => @json(route('chat.history', ['messageId' => ':id'])).replace(':id', id),
         lastSeen: @json(route('chat.lastSeen')),
         download: (id) => @json(route('chat.download', ['messageId' => ':id'])).replace(':id', id),
+        react: @json(route('chat.react')),
+        removeReaction: @json(route('chat.removeReaction')),
+        forward: @json(route('chat.forward')),
+        groups: @json(route('chat.groups')),
+        groupCreate: @json(route('chat.groupCreate')),
+        groupAddMembers: @json(route('chat.groupAddMembers')),
+        groupMessages: (gid) => @json(route('chat.groupMessages', ['groupId' => ':id'])).replace(':id', gid),
+        sendGroup: @json(route('chat.sendGroup')),
+        sendGroupFile: @json(route('chat.sendGroupFile')),
+        groupUpdate: @json(route('chat.groupUpdate')),
+        groupSetMemberRole: @json(route('chat.groupSetMemberRole')),
+        groupRemoveMember: @json(route('chat.groupRemoveMember')),
+        groupDelete: @json(route('chat.groupDelete')),
+        setNickname: @json(route('chat.setNickname')),
     };
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute?.('content') || '';
+    const currentUserId = @json(auth()->id());
+    const currentUserName = @json(auth()->user()->name ?? 'Me');
     const CHAT_FILE_MAX_SIZE_KB = {{ (int) config('chat.max_file_size_kb', 0) }};
     const CHAT_FILE_SIZE_LIMITED = CHAT_FILE_MAX_SIZE_KB > 0;
     const CHAT_FILE_MAX_SIZE_BYTES = CHAT_FILE_MAX_SIZE_KB * 1024;
@@ -48,15 +69,54 @@
         deletedAt: @json($getCurrentTranslation['deleted_at'] ?? 'Deleted at'),
         updatedAt: @json($getCurrentTranslation['updated_at_label'] ?? 'Updated at'),
         chatbot: @json($getCurrentTranslation['chatbot'] ?? 'Chatbot'),
+        forward: @json($getCurrentTranslation['forward'] ?? 'Forward'),
+        react: @json($getCurrentTranslation['react'] ?? 'React'),
+        createGroup: @json($getCurrentTranslation['create_group'] ?? 'Create group'),
+        groupName: @json($getCurrentTranslation['group_name'] ?? 'Group name'),
+        addMembers: @json($getCurrentTranslation['add_members'] ?? 'Add members'),
+        admin: @json($getCurrentTranslation['admin'] ?? 'Admin'),
+        admins: @json($getCurrentTranslation['admins'] ?? 'Admins'),
+        members: @json($getCurrentTranslation['members'] ?? 'Members'),
+        member: @json($getCurrentTranslation['member'] ?? 'Member'),
+        groupInfo: @json($getCurrentTranslation['group_info'] ?? 'Group info'),
+        changeGroupPhoto: @json($getCurrentTranslation['change_group_photo'] ?? 'Change group photo'),
+        makeAdmin: @json($getCurrentTranslation['make_admin'] ?? 'Make admin'),
+        removeAdmin: @json($getCurrentTranslation['remove_admin'] ?? 'Remove admin'),
+        removeFromGroup: @json($getCurrentTranslation['remove_from_group'] ?? 'Remove from group'),
+        deleteGroup: @json($getCurrentTranslation['delete_group'] ?? 'Delete group'),
+        deleteGroupConfirm: @json($getCurrentTranslation['delete_group_confirm'] ?? 'Permanently delete this group and all messages? This cannot be undone.'),
+        nickname: @json($getCurrentTranslation['nickname'] ?? 'Nickname'),
+        setNickname: @json($getCurrentTranslation['set_nickname'] ?? 'Set nickname'),
+        clearNickname: @json($getCurrentTranslation['clear_nickname'] ?? 'Clear nickname'),
+        setMyNickname: @json($getCurrentTranslation['set_my_nickname'] ?? 'Set my nickname'),
+        clearMyNickname: @json($getCurrentTranslation['clear_my_nickname'] ?? 'Clear my nickname'),
+        setNicknames: @json($getCurrentTranslation['set_nicknames'] ?? 'Set nicknames'),
+        originalName: @json($getCurrentTranslation['original_name'] ?? 'Original'),
+        me: @json($getCurrentTranslation['me'] ?? 'Me'),
+        clearNicknameConfirmTitle: @json($getCurrentTranslation['clear_nickname_confirm_title'] ?? 'Clear nickname?'),
+        clearNicknameConfirmText: @json($getCurrentTranslation['clear_nickname_confirm_text'] ?? 'Clear the nickname for %s?'),
+        clearMyNicknameConfirmText: @json($getCurrentTranslation['clear_my_nickname_confirm_text'] ?? 'Clear your nickname?'),
+        nicknameSaved: @json($getCurrentTranslation['nickname_saved'] ?? 'Nickname saved'),
+        nicknameCleared: @json($getCurrentTranslation['nickname_cleared'] ?? 'Nickname cleared.'),
+        removeFromGroupConfirm: @json($getCurrentTranslation['remove_from_group_confirm'] ?? 'Remove this member from the group?'),
+        confirm: @json($getCurrentTranslation['confirm'] ?? 'Confirm'),
+        cancel: @json($getCurrentTranslation['cancel'] ?? 'Cancel'),
+        close: @json($getCurrentTranslation['close'] ?? 'Close'),
     };
 
     let currentOtherUserId = null;
+    let currentGroupId = null;
+    let currentGroupData = null;
     let replyToMessage = null;
     let pollTimer = null;
     let conversationsCache = [];
     let messagesCache = [];
+    let groupEventsCache = [];
+    let contactEventsCache = [];
     let hasMoreMessages = false;
     let loadingMoreMessages = false;
+    const EMOJI_LIST = ['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😍','🥰','😘','😗','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','👍','👎','👌','✌️','🤞','🤟','🤘','🤙','👋','🤚','🖐️','✋','🖖','👏','🙌','🤲','🤝','🙏','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟'];
+    const QUICK_REACT_EMOJIS = ['👍','❤️','😂','😮','😢','🙏'];
 
     function el(id) { return document.getElementById(prefix + id) || document.getElementById(id); }
 
@@ -67,6 +127,25 @@
             opts.headers['Content-Type'] = options.contentType || 'application/json';
         }
         return fetch(url, { ...options, ...opts }).then(r => r.json());
+    }
+
+    function update1to1ThreadHeader() {
+        if (!currentOtherUserId || currentGroupId) return;
+        const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
+        if (!conv || !conv.user) return;
+        const contactNick = (conv.user.contact_nickname && String(conv.user.contact_nickname).trim()) ? String(conv.user.contact_nickname).trim() : '';
+        const theirNick = (conv.user.their_nickname_for_me && String(conv.user.their_nickname_for_me).trim()) ? String(conv.user.their_nickname_for_me).trim() : '';
+        const name = (conv.user.name && String(conv.user.name).trim()) ? String(conv.user.name).trim() : '';
+        const displayName = contactNick || theirNick || name || 'User';
+        const el1 = document.getElementById('chat-thread-name');
+        const el2 = document.getElementById('chat-widget-thread-name');
+        if (el1) el1.textContent = displayName;
+        if (el2) el2.textContent = displayName;
+        const initial = (displayName || 'U').charAt(0).toUpperCase();
+        const ai1 = document.getElementById('chat-thread-avatar-initial');
+        const ai2 = document.getElementById('chat-widget-thread-avatar-initial');
+        if (ai1) ai1.textContent = initial;
+        if (ai2) ai2.textContent = initial;
     }
 
     function hidePreloader() {
@@ -86,6 +165,30 @@
                 conversationsCache = data.chat.conversations;
                 renderConversationList(conversationsCache);
                 if (isWidget) updateWidgetBadge(data.chat.conversations);
+                if (currentGroupId) {
+                    var groupConv = (data.chat.conversations || []).find(function(c) { return c.type === 'group' && c.group && c.group.id === currentGroupId; });
+                    if (groupConv && groupConv.group) {
+                        currentGroupData = groupConv.group;
+                        var name = groupConv.group.name || 'Group';
+                        var avatar = groupConv.group.image_url || '';
+                        if (isWidget) {
+                            var avatarEl = document.getElementById('chat-widget-thread-avatar');
+                            var initialEl = document.getElementById('chat-widget-thread-avatar-initial');
+                            if (avatarEl) { avatarEl.src = avatar; avatarEl.style.display = avatar ? 'block' : 'none'; }
+                            if (initialEl) { initialEl.textContent = name.charAt(0).toUpperCase(); initialEl.style.display = avatar ? 'none' : 'flex'; }
+                            document.getElementById('chat-widget-thread-name').textContent = name;
+                        } else {
+                            var avatarEl = document.getElementById('chat-thread-avatar');
+                            var initialEl = document.getElementById('chat-thread-avatar-initial');
+                            if (avatarEl) { avatarEl.src = avatar; avatarEl.style.display = avatar ? 'block' : 'none'; }
+                            if (initialEl) { initialEl.textContent = name.charAt(0).toUpperCase(); initialEl.style.display = avatar ? 'none' : 'flex'; }
+                            document.getElementById('chat-thread-name').textContent = name;
+                        }
+                    }
+                }
+                if (currentOtherUserId && !currentGroupId) {
+                    update1to1ThreadHeader();
+                }
                 if (currentOtherUserId && messagesCache.length > 0) {
                     const conv = (data.chat.conversations || []).find(function(c) { return c.user && c.user.id === currentOtherUserId; });
                     if (conv && conv.last_message && conv.last_message.is_sent) {
@@ -99,7 +202,7 @@
                                 messagesCache[idx] = Object.assign({}, existing, { status: lm.status, read_at: lm.read_at });
                                 const cont = el(isWidget ? 'messages' : 'messages-container');
                                 if (cont && !cont.querySelector('.dropdown-menu.show')) {
-                                    renderMessages(messagesCache, cont, { scrollToBottom: false });
+                                    renderMessages(getMessagesToRender(), cont, getRenderOptions({ scrollToBottom: false }));
                                 }
                             }
                         }
@@ -107,14 +210,16 @@
                 }
             }
         }).catch(() => {});
-        if (currentOtherUserId) {
+        const activeId = currentGroupId ? ('g' + currentGroupId) : (currentOtherUserId ? String(currentOtherUserId) : null);
+        if (activeId && messagesCache.length > 0) {
             const syncingEl = el('thread-syncing');
             if (syncingEl) syncingEl.classList.remove('d-none');
-            const url = routes.messages(currentOtherUserId) + '?limit=50';
+            const url = currentGroupId ? (routes.groupMessages(currentGroupId) + '?limit=50') : (routes.messages(currentOtherUserId) + '?limit=50');
+            const markReadPayload = currentGroupId ? { group_id: currentGroupId } : { other_user_id: currentOtherUserId };
             fetchJson(url).then(data => {
                 const cont = el(isWidget ? 'messages' : 'messages-container');
                 if (!cont || document.getElementById(prefix + 'thread-panel')?.classList.contains('d-none') === true) return;
-                fetchJson(routes.markRead, { method: 'POST', body: JSON.stringify({ other_user_id: currentOtherUserId }) }).catch(function() {});
+                fetchJson(routes.markRead, { method: 'POST', body: JSON.stringify(markReadPayload) }).catch(function() {});
                 const incoming = data.messages || [];
                 const cacheById = {};
                 messagesCache.forEach(function(m) { cacheById[m.id] = m; });
@@ -126,18 +231,33 @@
                         hasNewMessages = true;
                         cacheById[inMsg.id] = inMsg;
                     } else {
-                        if ((String(existing.status || '') !== String(inMsg.status || '')) || (String(existing.read_at || '') !== String(inMsg.read_at || ''))) hasStatusUpdates = true;
+                        if ((String(existing.status || '') !== String(inMsg.status || '')) || (String(existing.read_at || '') !== String(inMsg.read_at || '')) || (JSON.stringify(existing.reactions || []) !== JSON.stringify(inMsg.reactions || []))) hasStatusUpdates = true;
                         cacheById[inMsg.id] = inMsg;
                     }
                 });
-                const hasAnyUpdates = hasNewMessages || hasStatusUpdates;
+                let hasEventsUpdates = false;
+                if (currentGroupId && (data.group_events || []).length >= 0) {
+                    const prevEventIds = (groupEventsCache || []).map(function(e) { return e.id; }).join(',');
+                    const newEvents = data.group_events || [];
+                    groupEventsCache = newEvents;
+                    const newEventIds = newEvents.map(function(e) { return e.id; }).join(',');
+                    if (prevEventIds !== newEventIds) hasEventsUpdates = true;
+                }
+                if (currentOtherUserId && (data.contact_events || []).length >= 0) {
+                    const prevContactIds = (contactEventsCache || []).map(function(e) { return e.id; }).join(',');
+                    const newContactEvents = data.contact_events || [];
+                    contactEventsCache = newContactEvents;
+                    const newContactIds = newContactEvents.map(function(e) { return e.id; }).join(',');
+                    if (prevContactIds !== newContactIds) hasEventsUpdates = true;
+                }
+                const hasAnyUpdates = hasNewMessages || hasStatusUpdates || hasEventsUpdates;
                 if (!hasAnyUpdates) return;
                 const pollIds = new Set(incoming.map(function(m) { return m.id; }));
                 const older = messagesCache.filter(function(m) { return !pollIds.has(m.id); });
                 messagesCache = older.concat(incoming);
                 if (messagesCache.length <= 50) hasMoreMessages = !!data.has_more;
                 if (cont.querySelector('.dropdown-menu.show')) return;
-                renderMessages(messagesCache, cont, { scrollToBottom: false });
+                renderMessages(getMessagesToRender(), cont, getRenderOptions({ scrollToBottom: false }));
             }).catch(() => {}).finally(function() {
                 if (syncingEl) syncingEl.classList.add('d-none');
             });
@@ -159,50 +279,95 @@
         const search = (el('search-user') || el('search-user'))?.value?.toLowerCase() || '';
         let html = '';
         (list || []).forEach(c => {
-            const name = (c.user?.name || '').toLowerCase();
+            const isGroup = c.type === 'group';
+            const userDisplayName = !isGroup && c.user ? ((c.user.contact_nickname && c.user.contact_nickname.trim()) ? c.user.contact_nickname.trim() : ((c.user.their_nickname_for_me && c.user.their_nickname_for_me.trim()) ? c.user.their_nickname_for_me.trim() : (c.user.name || ''))) : '';
+            const name = (isGroup ? (c.group?.name || '') : userDisplayName).toLowerCase();
             if (search && !name.includes(search)) return;
             const isChatbot = !!(c.user?.is_automation_chatbot);
             const last = c.last_message;
             const unread = c.unread_count || 0;
-            const avatar = c.user?.image_url ? `<img src="${escapeHtml(c.user.image_url)}" alt="">` : '';
-            const initial = (c.user?.name || '?').charAt(0).toUpperCase();
+            let avatar = '', initial = '?';
+            if (isGroup) {
+                initial = (c.group?.name || 'G').charAt(0).toUpperCase();
+                avatar = c.group?.image_url ? `<img src="${escapeHtml(c.group.image_url)}" alt="">` : '';
+            } else {
+                avatar = c.user?.image_url ? `<img src="${escapeHtml(c.user.image_url)}" alt="">` : '';
+                initial = (userDisplayName || '?').charAt(0).toUpperCase();
+            }
             const lastText = last ? (last.deleted_for_everyone ? (CHAT_STR.thisMessageWasDeleted || 'This message was deleted') : (last.type === 'file' ? (last.file_name || 'File') : (last.body || '').substring(0, 40))) : 'No messages yet';
             const time = last ? formatTime(last.created_at) : '';
-            const status = c.user?.last_seen_at ? (isRecent(c.user.last_seen_at) ? 'Active' : ('Last seen ' + formatTime(c.user.last_seen_at))) : '';
-            let nameWithStatus = status === 'Active' ? (escapeHtml(c.user?.name || '') + ' <span class="badge badge-sm badge-success ms-1">Active</span>') : (status ? (escapeHtml(c.user?.name || '') + ' · ' + status) : (escapeHtml(c.user?.name || '')));
-            if (isChatbot) nameWithStatus = '<i class="fa-solid fa-thumbtack text-primary me-1" title="' + (CHAT_STR.chatbot || 'Chatbot') + '"></i>' + nameWithStatus + ' <span class="badge badge-sm badge-info ms-1">' + (CHAT_STR.chatbot || 'Chatbot') + '</span>';
-            html += `<div class="chat-conv-item p-3 border-bottom cursor-pointer d-flex align-items-center ${isChatbot ? 'chat-conv-item-chatbot' : ''}" data-user-id="${c.user?.id}" data-unread="${unread}">
-                <div class="symbol symbol-45px me-3">${avatar || `<span class="symbol-label bg-primary text-inverse-primary fw-bold">${initial}</span>`}</div>
+            let nameWithStatus = escapeHtml(isGroup ? (c.group?.name || 'Group') : (userDisplayName || ''));
+            if (!isGroup) {
+                const isActive = !!(c.user?.last_seen_at && isRecent(c.user.last_seen_at));
+                nameWithStatus = escapeHtml(userDisplayName || '');
+                if (isActive) nameWithStatus += ' <span class="chat-active-dot ms-1" title="Active"></span>';
+                if (isChatbot) nameWithStatus = '<i class="fa-solid fa-thumbtack text-primary me-1" title="' + (CHAT_STR.chatbot || 'Chatbot') + '"></i>' + nameWithStatus + ' <span class="badge badge-sm badge-info ms-1">' + (CHAT_STR.chatbot || 'Chatbot') + '</span>';
+            } else {
+                nameWithStatus = '<i class="fa-solid fa-users me-1 text-muted"></i>' + nameWithStatus;
+                const memCount = c.group?.member_count || 0;
+                const admCount = c.group?.admin_count || 0;
+                if (memCount > 0 || admCount > 0) nameWithStatus += ' <span class="badge badge-sm badge-light ms-1" title="' + (CHAT_STR.members || 'Members') + '">' + memCount + ' ' + (CHAT_STR.members || 'members') + (admCount > 0 ? ' · ' + admCount + ' ' + (CHAT_STR.admins || 'admins') : '') + '</span>';
+            }
+            const dataAttrs = isGroup ? `data-group-id="${c.group?.id}" data-user-id=""` : `data-user-id="${c.user?.id}" data-group-id=""`;
+            html += `<div class="chat-conv-item p-3 border-bottom cursor-pointer d-flex align-items-center ${isChatbot ? 'chat-conv-item-chatbot' : ''}" ${dataAttrs} data-unread="${unread}">
+                <div class="symbol symbol-45px me-3 flex-shrink-0">${avatar || `<span class="symbol-label bg-secondary text-white fw-bold">${initial}</span>`}</div>
                 <div class="flex-grow-1 min-w-0">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="fw-bold text-gray-800 text-truncate me-2">${nameWithStatus}</span>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="fw-bold text-gray-800 text-truncate me-2 flex-grow-1 min-w-0">${nameWithStatus}</span>
                         <div class="d-flex align-items-center flex-shrink-0 gap-2">
                             <span class="fs-8 text-muted">${time}</span>
                             ${unread ? `<span class="badge badge-sm badge-danger">${unread}</span>` : ''}
                         </div>
                     </div>
-                    <div class="fs-7 text-muted text-truncate">${escapeHtml(lastText)}</div>
+                    <div class="fs-7 text-muted text-truncate mt-1">${escapeHtml(lastText)}</div>
                 </div>
             </div>`;
         });
         container.innerHTML = html || '<div class="p-3 text-muted text-center">' + (CHAT_STR.noConversations || 'No conversations') + '</div>';
         container.querySelectorAll('.chat-conv-item').forEach(node => {
-            node.addEventListener('click', () => openThread(parseInt(node.dataset.userId, 10)));
+            node.addEventListener('click', () => {
+                const gid = node.dataset.groupId ? parseInt(node.dataset.groupId, 10) : null;
+                const uid = node.dataset.userId ? parseInt(node.dataset.userId, 10) : null;
+                if (gid) openThread(null, gid); else openThread(uid, null);
+            });
         });
     }
 
-    function openThread(otherUserId) {
-        currentOtherUserId = otherUserId;
+    function openThread(otherUserId, groupId) {
+        currentOtherUserId = otherUserId || null;
+        currentGroupId = groupId || null;
         clearReply();
-        const conv = conversationsCache.find(c => c.user?.id === otherUserId);
+        const conv = conversationsCache.find(c => (groupId && c.type === 'group' && c.group?.id === groupId) || (otherUserId && c.user?.id === otherUserId));
         if (conv && (conv.unread_count || 0) > 0) {
             conv.unread_count = 0;
             renderConversationList(conversationsCache);
             if (isWidget) updateWidgetBadge(conversationsCache);
         }
-        const name = conv?.user?.name || 'User';
-        const avatar = conv?.user?.image_url || '';
-        const status = conv?.user?.last_seen_at ? (isRecent(conv.user.last_seen_at) ? 'Active now' : 'Last seen ' + formatTime(conv.user.last_seen_at)) : '';
+        let name = 'User', avatar = '', status = '';
+        if (currentGroupId && conv?.group) {
+            currentGroupData = conv.group;
+            name = conv.group.name || 'Group';
+            avatar = conv.group.image_url || '';
+            const parts = [];
+            if (conv.group.creator_name) parts.push('Created by ' + conv.group.creator_name);
+            const admins = (conv.group.members || []).filter(function(m) { return (m.role || '') === 'admin'; });
+            if (admins.length > 0) parts.push((CHAT_STR.admins || 'Admins') + ': ' + admins.map(function(a) { return a.name || ''; }).filter(Boolean).join(', '));
+            if (conv.group.member_count != null) parts.push(conv.group.member_count + ' ' + (CHAT_STR.members || 'members'));
+            status = parts.join(' · ');
+            const groupInfoItem = document.getElementById(isWidget ? 'chat-widget-group-info-item' : 'chat-group-info-item');
+            if (groupInfoItem) groupInfoItem.classList.remove('d-none');
+            const setNicknamesItem = document.getElementById(isWidget ? 'chat-widget-set-nicknames-item' : 'chat-set-nicknames-item');
+            if (setNicknamesItem) setNicknamesItem.classList.add('d-none');
+        } else if (conv?.user) {
+            currentGroupData = null;
+            name = (conv.user.contact_nickname && conv.user.contact_nickname.trim()) ? conv.user.contact_nickname.trim() : ((conv.user.their_nickname_for_me && conv.user.their_nickname_for_me.trim()) ? conv.user.their_nickname_for_me.trim() : (conv.user.name || 'User'));
+            avatar = conv.user.image_url || '';
+            status = conv.user.last_seen_at ? (isRecent(conv.user.last_seen_at) ? 'Active now' : 'Last seen ' + formatTime(conv.user.last_seen_at)) : '';
+            const groupInfoItem = document.getElementById(isWidget ? 'chat-widget-group-info-item' : 'chat-group-info-item');
+            if (groupInfoItem) groupInfoItem.classList.add('d-none');
+            const setNicknamesItem = document.getElementById(isWidget ? 'chat-widget-set-nicknames-item' : 'chat-set-nicknames-item');
+            if (setNicknamesItem) setNicknamesItem.classList.remove('d-none');
+        }
 
         if (isWidget) {
             document.getElementById('chat-widget-search-wrap')?.classList.add('d-none');
@@ -237,17 +402,32 @@
         messagesCache = [];
         hasMoreMessages = true;
         const cont = el(isWidget ? 'messages' : 'messages-container');
-        fetchJson(routes.messages(otherUserId) + '?limit=50').then(data => {
-            messagesCache = data.messages || [];
-            hasMoreMessages = !!data.has_more;
-            if (cont) renderMessages(messagesCache, cont);
-        });
-        fetchJson(routes.markRead, { method: 'POST', body: JSON.stringify({ other_user_id: otherUserId }) });
+        if (currentGroupId) {
+            contactEventsCache = [];
+            fetchJson(routes.groupMessages(currentGroupId) + '?limit=50').then(data => {
+                messagesCache = data.messages || [];
+                groupEventsCache = data.group_events || [];
+                hasMoreMessages = !!data.has_more;
+                if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions());
+            });
+            fetchJson(routes.markRead, { method: 'POST', body: JSON.stringify({ group_id: currentGroupId }) });
+        } else {
+            groupEventsCache = [];
+            fetchJson(routes.messages(currentOtherUserId) + '?limit=50').then(data => {
+                messagesCache = data.messages || [];
+                contactEventsCache = data.contact_events || [];
+                hasMoreMessages = !!data.has_more;
+                if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions());
+            });
+            fetchJson(routes.markRead, { method: 'POST', body: JSON.stringify({ other_user_id: currentOtherUserId }) });
+        }
         if (!isWidget && window.history && window.history.replaceState) {
-            const openParam = (conv?.user?.uid != null && conv.user.uid !== '') ? conv.user.uid : String(otherUserId);
+            let openParam = '';
+            if (currentGroupId) openParam = 'g' + currentGroupId;
+            else if (conv?.user) openParam = (conv.user.uid != null && conv.user.uid !== '') ? conv.user.uid : String(currentOtherUserId);
             const params = new URLSearchParams(window.location.search);
-            params.set('open', openParam);
-            const url = window.location.pathname + '?' + params.toString();
+            if (openParam) params.set('open', openParam); else params.delete('open');
+            const url = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
             window.history.replaceState({ open: openParam }, '', url);
         }
         if (typeof startPollTimer === 'function') startPollTimer();
@@ -326,11 +506,38 @@
         container.querySelector('.chat-messages-loading')?.remove();
     }
 
+    function mergeMessagesWithEvents(messages, events) {
+        const list = (messages || []).map(function(m) { return { type: 'message', created_at: m.created_at, sortKey: new Date(m.created_at).getTime(), data: m }; });
+        (events || []).forEach(function(e) { list.push({ type: 'event', created_at: e.created_at, sortKey: new Date(e.created_at).getTime(), data: e }); });
+        list.sort(function(a, b) { return a.sortKey - b.sortKey; });
+        return list.map(function(x) { return x.type === 'event' ? Object.assign({ type: 'event' }, x.data) : x.data; });
+    }
+    function getMessagesToRender() {
+        if (currentGroupId) return mergeMessagesWithEvents(messagesCache, groupEventsCache);
+        if (currentOtherUserId) return mergeMessagesWithEvents(messagesCache, contactEventsCache);
+        return messagesCache;
+    }
+    function getRenderOptions(opts) {
+        opts = opts || {};
+        if (currentGroupId) opts.isGroup = true;
+        return opts;
+    }
+    function refetchGroupMessagesIfOpen() {
+        if (!currentGroupId) return;
+        const cont = el(isWidget ? 'messages' : 'messages-container');
+        fetchJson(routes.groupMessages(currentGroupId) + '?limit=50').then(function(data) {
+            messagesCache = data.messages || [];
+            groupEventsCache = data.group_events || [];
+            if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions({ scrollToBottom: false }));
+        });
+    }
+
     function renderMessages(messages, container, options) {
         if (!container) return;
         options = options || {};
         const scrollToBottom = options.scrollToBottom !== false;
         const loadMorePrepend = !!options.loadMorePrepend;
+        const isGroup = !!options.isGroup;
         const inner = getMessagesInner(container);
         if (!inner) return;
         const prevScrollTop = container.scrollTop;
@@ -339,6 +546,10 @@
         const wasAtBottom = prevScrollHeight - (prevScrollTop + prevClientHeight) < 30;
         let html = '';
         messages.forEach(m => {
+            if (m.type === 'event') {
+                html += '<div class="d-flex justify-content-center mb-2 chat-msg-row chat-event-row" data-event-id="' + escapeHtml(m.id || '') + '"><span class="badge badge-light-secondary px-3 py-2 text-dark" style="font-size: 0.8rem;">' + escapeHtml(m.text || '') + '</span></div>';
+                return;
+            }
             const isSent = m.is_sent;
             const deletedForEveryone = !!m.deleted_for_everyone;
             const statusIcon = m.status === 'seen'
@@ -363,25 +574,50 @@
             } else if (m.type === 'file') {
                 body = escapeHtml(m.file_name || 'File');
             } else {
-                body = escapeHtml(m.body || '');
+                body = makeLinksClickable(m.body || '');
             }
-            const replyToId = (m.reply_to && m.reply_to.id) ? m.reply_to.id : '';
-            const replyQuote = !deletedForEveryone && (m.reply_to && (m.reply_to.sender_name || m.reply_to.body)) ? `<div class="chat-reply-quote mb-1 pb-1 opacity-75 cursor-pointer" style="font-size: 0.85em; border-bottom: 1px solid currentColor;"${replyToId ? ' data-reply-to-msg-id="' + replyToId + '"' : ''}>${escapeHtml(m.reply_to.sender_name ? m.reply_to.sender_name + ': ' : '')}${escapeHtml((m.reply_to.body || '').substring(0, 80))}${(m.reply_to.body || '').length > 80 ? '…' : ''}</div>` : '';
+            const replyToRef = m.reply_to || {};
+            const replyToId = (replyToRef.id != null && replyToRef.id !== '') ? String(replyToRef.id) : (m.reply_to_message_id != null ? String(m.reply_to_message_id) : '');
+            const replyToBody = (replyToRef.body || replyToRef.file_name || '').trim();
+            const replyToPreview = (replyToBody || 'Message').substring(0, 80) + (replyToBody.length > 80 ? '…' : '');
+            const replyToSender = (replyToRef.sender_name || '').trim();
+            const replyQuote = !deletedForEveryone && replyToId ? `<div class="chat-reply-quote-wrap cursor-pointer" data-reply-to-msg-id="${escapeHtml(replyToId)}" title="Jump to message"><span class="chat-reply-quote-bar"></span><div class="chat-reply-quote-inner"><span class="chat-reply-quote-sender">${escapeHtml(replyToSender)}</span><span class="chat-reply-quote-body">${escapeHtml(replyToPreview)}</span></div></div>` : '';
             const replyPreview = (m.type === 'file' ? (m.file_name || 'File') : (m.body || '')).substring(0, 60) + ((m.type === 'file' ? (m.file_name || 'File') : (m.body || '')).length > 60 ? '…' : '');
             const replySender = m.sender?.name || '';
             const menuItems = deletedForEveryone
                 ? '<li><a class="dropdown-item chat-action" href="#" data-action="history" data-id="' + m.id + '">History</a></li>'
-                : '<li><a class="dropdown-item chat-action" href="#" data-action="reply" data-id="' + m.id + '" data-reply-preview="' + escapeHtml(replyPreview) + '" data-reply-sender="' + escapeHtml(replySender) + '">Reply</a></li><li><a class="dropdown-item chat-action" href="#" data-action="history" data-id="' + m.id + '">History</a></li><li><a class="dropdown-item chat-action" href="#" data-action="deleteForMe" data-id="' + m.id + '">' + (CHAT_STR.removeForMe || 'Remove for me') + '</a></li>' + (isSent ? '<li><a class="dropdown-item chat-action text-danger" href="#" data-action="deleteForAll" data-id="' + m.id + '">' + (CHAT_STR.removeForEveryone || 'Remove for everyone') + '</a></li>' : '');
+                : '<li><a class="dropdown-item chat-action" href="#" data-action="reply" data-id="' + m.id + '" data-reply-preview="' + escapeHtml(replyPreview) + '" data-reply-sender="' + escapeHtml(replySender) + '">Reply</a></li><li><a class="dropdown-item chat-action chat-forward-btn" href="#" data-action="forward" data-id="' + m.id + '">' + (CHAT_STR.forward || 'Forward') + '</a></li><li><a class="dropdown-item chat-action" href="#" data-action="history" data-id="' + m.id + '">History</a></li><li><a class="dropdown-item chat-action" href="#" data-action="deleteForMe" data-id="' + m.id + '">' + (CHAT_STR.removeForMe || 'Remove for me') + '</a></li>' + (isSent ? '<li><a class="dropdown-item chat-action text-danger" href="#" data-action="deleteForAll" data-id="' + m.id + '">' + (CHAT_STR.removeForEveryone || 'Remove for everyone') + '</a></li>' : '');
             const canReply = deletedForEveryone ? '0' : '1';
+            const isGroup = !!(m.group_id);
+            const senderDisplayName = (m.sender_display_name && m.sender_display_name.trim()) ? m.sender_display_name.trim() : (m.sender ? m.sender.name : '');
+            const senderLabel = isGroup && (m.sender || senderDisplayName) ? '<div class="chat-msg-sender-name mb-1" style="font-size: 11px; opacity: 0.9;">' + escapeHtml(senderDisplayName) + '</div>' : '';
+            const forwardedLabel = !deletedForEveryone && m.forwarded_from ? '<div class="chat-msg-forwarded mb-1" style="font-size: 10px; opacity: 0.8;"><i class="fa-solid fa-share me-1"></i>' + (m.forwarded_from.sender_name ? escapeHtml(m.forwarded_from.sender_name) : '') + '</div>' : '';
+            let reactionsHtml = '';
+            if (!deletedForEveryone && (m.reactions || []).length > 0) {
+                reactionsHtml = '<div class="chat-msg-reactions mt-1 d-flex flex-wrap gap-1 align-items-center" data-msg-id="' + m.id + '">';
+                (m.reactions || []).forEach(function(r) {
+                    const isMine = (r.user_ids || []).indexOf(currentUserId) !== -1;
+                    const namesList = (r.users || []).map(function(u) { return (u.display_name && u.display_name.trim()) ? u.display_name.trim() : (u.name || ''); }).filter(Boolean).join(', ');
+                    reactionsHtml += '<span class="badge badge-light-primary chat-reaction-badge' + (isMine ? ' chat-reaction-mine' : '') + '" data-emoji="' + escapeHtml(r.emoji) + '" data-msg-id="' + m.id + '" data-my-reaction="' + (isMine ? '1' : '0') + '" data-bs-toggle="tooltip" data-bs-trigger="hover click" data-bs-placement="top" title="' + escapeHtml(namesList) + '">' + r.emoji + ' ' + (r.count > 1 ? r.count : '') + '</span>';
+                });
+                reactionsHtml += '</div>';
+            }
+            let myReactionEmoji = null;
+            (m.reactions || []).forEach(function(r) {
+                if ((r.user_ids || []).indexOf(currentUserId) !== -1) myReactionEmoji = r.emoji;
+            });
+            const reactionBtn = deletedForEveryone ? '' : '<div class="dropdown chat-reaction-trigger"><button class="btn btn-icon btn-sm p-0 min-w-auto opacity-50" type="button" data-bs-toggle="dropdown" data-msg-id="' + m.id + '" title="' + (CHAT_STR.react || 'React') + '"><i class="fa-regular fa-face-smile" style="font-size: 14px;"></i></button><ul class="dropdown-menu dropdown-menu-end chat-quick-react-menu">' + QUICK_REACT_EMOJIS.map(function(emo) { const isSelected = emo === myReactionEmoji; return '<li><a class="dropdown-item chat-quick-react' + (isSelected ? ' chat-quick-react-selected' : '') + '" href="#" data-msg-id="' + m.id + '" data-emoji="' + emo + '">' + emo + '</a></li>'; }).join('') + '</ul></div>';
             html += `<div class="d-flex ${isSent ? 'justify-content-end' : 'justify-content-start'} align-items-end mb-2 chat-msg-row" data-msg-id="${m.id}" data-reply-id="${m.id}" data-reply-preview="${escapeHtml(replyPreview)}" data-reply-sender="${escapeHtml(replySender)}" data-can-reply="${canReply}" data-is-sent="${isSent ? '1' : '0'}">
                 <div class="d-flex align-items-end gap-1 ${isSent ? 'flex-row-reverse' : ''}" style="max-width: 85%;">
                     <div class="p-2 rounded ${bubbleClass} chat-msg-bubble" style="max-width: 280px; touch-action: pan-y;">
-                        <div class="chat-msg-body">${replyQuote}${body}</div>
+                        ${senderLabel}${forwardedLabel}<div class="chat-msg-body">${replyQuote}${replyQuote ? '<div class="chat-msg-reply-text">' + body + '</div>' : body}</div>
                         <div class="d-flex align-items-center justify-content-end gap-1 mt-1">
                             <span class="opacity-75" style="font-size: 10px;">${formatTime(m.created_at)}</span>
                             ${isSent && !deletedForEveryone ? `<span class="chat-msg-status-icon" style="font-size: 10px;">${statusIcon}</span>` : ''}
                         </div>
+                        ${reactionsHtml}
                     </div>
+                    ${reactionBtn}
                     <div class="dropdown">
                         <button class="btn btn-icon btn-sm btn-light-primary p-1 min-w-auto opacity-50" type="button" data-bs-toggle="dropdown"><i class="fa-solid fa-ellipsis-vertical"></i></button>
                         <ul class="dropdown-menu dropdown-menu-end">${menuItems}</ul>
@@ -397,35 +633,37 @@
         } else {
             container.scrollTop = prevScrollTop;
         }
-        inner.querySelectorAll('.chat-action').forEach(btn => {
-            btn.addEventListener('click', function(e) {
+        inner.querySelectorAll('.chat-quick-react').forEach(link => {
+            link.addEventListener('click', function(e) {
                 e.preventDefault();
-                const action = this.dataset.action;
-                const id = parseInt(this.dataset.id, 10);
-                if (action === 'history') showHistory(id);
-                else if (action === 'deleteForMe') deleteForMe(id);
-                else if (action === 'deleteForAll') deleteForAll(id);
-                else if (action === 'reply') setReplyTo({ id, body: this.dataset.replyPreview || '', sender_name: this.dataset.replySender || '' });
+                const msgId = parseInt(this.dataset.msgId, 10);
+                const isSelected = this.classList.contains('chat-quick-react-selected');
+                if (isSelected) {
+                    removeReaction(msgId);
+                } else {
+                    const emoji = this.dataset.emoji || '👍';
+                    addReaction(msgId, emoji);
+                }
             });
         });
-        inner.querySelectorAll('.chat-reply-quote[data-reply-to-msg-id]').forEach(quoteEl => {
+        inner.querySelectorAll('.chat-reaction-badge').forEach(badge => {
+            badge.addEventListener('click', function() {
+                const msgId = parseInt(this.dataset.msgId, 10);
+                const emoji = this.dataset.emoji || '';
+                const isMine = this.dataset.myReaction === '1';
+                if (isMine) removeReaction(msgId); else addReaction(msgId, emoji);
+            });
+            if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                new bootstrap.Tooltip(badge, { trigger: 'hover click', placement: 'top' });
+            }
+        });
+        inner.querySelectorAll('.chat-reply-quote-wrap[data-reply-to-msg-id]').forEach(quoteEl => {
             quoteEl.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                const msgId = quoteEl.getAttribute('data-reply-to-msg-id');
+                var msgId = quoteEl.getAttribute('data-reply-to-msg-id');
                 if (!msgId) return;
-                const row = inner.querySelector('.chat-msg-row[data-msg-id="' + msgId + '"]');
-                if (!row || !container) return;
-                row.classList.remove('chat-msg-row-reply-target');
-                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                requestAnimationFrame(function() {
-                    requestAnimationFrame(function() {
-                        row.classList.add('chat-msg-row-reply-target');
-                        setTimeout(function() {
-                            row.classList.remove('chat-msg-row-reply-target');
-                        }, 1200);
-                    });
-                });
+                scrollToMessageIdOrLoadMore(msgId);
             });
         });
         initSlideToReply(inner);
@@ -506,27 +744,67 @@
     }
 
     function loadMoreMessages() {
-        if (!currentOtherUserId || loadingMoreMessages || !hasMoreMessages || messagesCache.length === 0) return;
+        const active = currentGroupId || currentOtherUserId;
+        if (!active || loadingMoreMessages || !hasMoreMessages || messagesCache.length === 0) return Promise.resolve();
         loadingMoreMessages = true;
         const cont = el(isWidget ? 'messages' : 'messages-container');
         showMessagesLoadMorePreloader(cont);
         const beforeId = messagesCache[0].id;
-        const url = routes.messages(currentOtherUserId) + '?before_id=' + beforeId + '&limit=50';
-        fetchJson(url).then(function(data) {
+        const url = currentGroupId ? (routes.groupMessages(currentGroupId) + '?before_id=' + beforeId + '&limit=50') : (routes.messages(currentOtherUserId) + '?before_id=' + beforeId + '&limit=50');
+        return fetchJson(url).then(function(data) {
             const older = data.messages || [];
             messagesCache = older.concat(messagesCache);
             hasMoreMessages = !!data.has_more;
-            if (cont) renderMessages(messagesCache, cont, { scrollToBottom: false, loadMorePrepend: true });
+            if (currentOtherUserId && data.contact_events) contactEventsCache = data.contact_events || [];
+            if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions({ scrollToBottom: false, loadMorePrepend: true }));
         }).catch(function() {}).finally(function() {
             loadingMoreMessages = false;
             hideMessagesLoadMorePreloader(cont);
         });
     }
 
+    function scrollToMessageRow(msgId) {
+        var cont = el(isWidget ? 'messages' : 'messages-container');
+        if (!cont) return false;
+        var inner = getMessagesInner(cont);
+        if (!inner) return false;
+        var row = inner.querySelector('.chat-msg-row[data-msg-id="' + msgId + '"]');
+        if (!row) return false;
+        row.classList.remove('chat-msg-row-reply-target');
+        if (cont.scrollHeight > cont.clientHeight) {
+            var rowRect = row.getBoundingClientRect();
+            var contRect = cont.getBoundingClientRect();
+            var scrollTop = cont.scrollTop + (rowRect.top - contRect.top) - (cont.clientHeight / 2) + (row.offsetHeight / 2);
+            scrollTop = Math.max(0, Math.min(scrollTop, cont.scrollHeight - cont.clientHeight));
+            cont.scrollTo({ top: scrollTop, behavior: 'smooth' });
+        } else {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                row.classList.add('chat-msg-row-reply-target');
+                setTimeout(function() { row.classList.remove('chat-msg-row-reply-target'); }, 2500);
+            });
+        });
+        return true;
+    }
+
+    function scrollToMessageIdOrLoadMore(msgId, retryCount) {
+        retryCount = retryCount || 0;
+        var targetId = parseInt(msgId, 10);
+        if (scrollToMessageRow(msgId)) return;
+        var oldestId = messagesCache.length ? Math.min.apply(null, messagesCache.map(function(m) { return m.id; })) : null;
+        if (oldestId === null || targetId >= oldestId || !hasMoreMessages || retryCount > 20) return;
+        loadMoreMessages().then(function() {
+            scrollToMessageIdOrLoadMore(msgId, retryCount + 1);
+        });
+    }
+
     function onMessagesScroll(ev) {
         const cont = ev.target;
         const contId = isWidget ? 'chat-widget-messages' : 'chat-messages-container';
-        if (cont.id !== contId || !currentOtherUserId || loadingMoreMessages || !hasMoreMessages) return;
+        const active = currentGroupId || currentOtherUserId;
+        if (cont.id !== contId || !active || loadingMoreMessages || !hasMoreMessages) return;
         if (cont.scrollTop < 80) loadMoreMessages();
     }
 
@@ -598,7 +876,7 @@
                         if (idx !== -1) messagesCache[idx] = data.message;
                         else messagesCache.push(data.message);
                         const cont = el(isWidget ? 'messages' : 'messages-container');
-                        if (cont) renderMessages(messagesCache, cont, { scrollToBottom: false });
+                        if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions({ scrollToBottom: false }));
                     }
                     if (currentOtherUserId) poll();
                 })
@@ -609,6 +887,885 @@
             Swal.fire({ title: CHAT_STR.removeForEveryoneConfirmTitle || 'Remove for everyone?', text: CHAT_STR.removeForEveryoneConfirmText || 'The message will show as deleted for everyone. This cannot be undone.', icon: 'warning', showCancelButton: true, confirmButtonText: CHAT_STR.yesRemove || 'Yes, remove', confirmButtonColor: '#d33' }).then((result) => { if (result.isConfirmed) doDelete(); });
         } else {
             if (confirm(CHAT_STR.removeForEveryoneConfirmTitle || 'Remove this message for everyone? This cannot be undone.')) doDelete();
+        }
+    }
+
+    function addReaction(messageId, emoji) {
+        fetch(routes.react, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ message_id: messageId, emoji: emoji }) })
+            .then(r => r.json())
+            .then(data => {
+                if (data.reactions !== undefined) {
+                    const idx = messagesCache.findIndex(m => m.id === messageId);
+                    if (idx !== -1) {
+                        messagesCache[idx] = Object.assign({}, messagesCache[idx], { reactions: data.reactions });
+                        const cont = el(isWidget ? 'messages' : 'messages-container');
+                        if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions({ scrollToBottom: false }));
+                    }
+                }
+            })
+            .catch(() => {});
+    }
+
+    function removeReaction(messageId) {
+        fetch(routes.removeReaction, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ message_id: messageId }) })
+            .then(r => r.json())
+            .then(data => {
+                if (data.reactions !== undefined) {
+                    const idx = messagesCache.findIndex(m => m.id === messageId);
+                    if (idx !== -1) {
+                        messagesCache[idx] = Object.assign({}, messagesCache[idx], { reactions: data.reactions });
+                        const cont = el(isWidget ? 'messages' : 'messages-container');
+                        if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions({ scrollToBottom: false }));
+                    }
+                }
+            })
+            .catch(() => {});
+    }
+
+    let forwardMessageId = null;
+    function openForwardModal(messageId) {
+        forwardMessageId = messageId;
+        const modal = document.getElementById('chat-forward-modal');
+        if (!modal) {
+            const m = document.createElement('div');
+            m.id = 'chat-forward-modal';
+            m.className = 'modal fade';
+            m.innerHTML = '<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">' + (CHAT_STR.forward || 'Forward') + '</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p class="text-muted small">Select one or more chats or groups to forward to:</p><div id="chat-forward-list" class="list-group list-group-flush"></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary" id="chat-forward-send-btn">Send</button></div></div></div>';
+            document.body.appendChild(m);
+            document.getElementById('chat-forward-send-btn').addEventListener('click', function(e) {
+                e.preventDefault();
+                const list = document.getElementById('chat-forward-list');
+                const checked = list.querySelectorAll('input.chat-forward-check:checked');
+                if (!forwardMessageId || !checked.length) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', text: 'Select at least one chat or group.' });
+                    else alert('Select at least one chat or group.');
+                    return;
+                }
+                const modalEl = document.getElementById('chat-forward-modal');
+                const modalInst = bootstrap.Modal.getInstance(modalEl);
+                if (modalInst) modalInst.hide();
+                showPreloader();
+                let done = 0;
+                const total = checked.length;
+                function onOneDone(data) {
+                    if (data && data.message) {
+                        messagesCache.push(data.message);
+                        const cont = el(isWidget ? 'messages' : 'messages-container');
+                        if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions({ scrollToBottom: false }));
+                    }
+                    done++;
+                    if (done >= total) {
+                        forwardMessageId = null;
+                        poll();
+                        hidePreloader();
+                    }
+                }
+                checked.forEach(function(cb) {
+                    const id = parseInt(cb.dataset.forwardId, 10);
+                    const type = cb.dataset.forwardType;
+                    const payload = { message_id: forwardMessageId };
+                    if (type === 'user') payload.recipient_id = id;
+                    else payload.group_id = id;
+                    fetch(routes.forward, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload) })
+                        .then(r => r.json())
+                        .then(data => onOneDone(data))
+                        .catch(() => { done++; if (done >= total) { forwardMessageId = null; hidePreloader(); } });
+                });
+            });
+        }
+        const list = document.getElementById('chat-forward-list');
+        list.innerHTML = '';
+        (conversationsCache || []).forEach(c => {
+            if (c.type === 'group') {
+                const img = (c.group?.image_url) ? '<img src="' + escapeHtml(c.group.image_url) + '" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:50%;">' : '<span class="symbol-label bg-secondary text-white d-flex align-items-center justify-content-center rounded-circle" style="width:40px;height:40px;font-size:1rem;">' + (c.group?.name || 'G').charAt(0) + '</span>';
+                list.innerHTML += '<label class="list-group-item d-flex align-items-center cursor-pointer mb-0 border"><input type="checkbox" class="form-check-input chat-forward-check me-2" data-forward-id="' + (c.group?.id || '') + '" data-forward-type="group"><span class="symbol symbol-40px me-2 flex-shrink-0">' + img + '</span><span><i class="fa-solid fa-users me-1 text-muted"></i>' + escapeHtml(c.group?.name || 'Group') + '</span></label>';
+            } else if (c.user) {
+                const img = (c.user?.image_url) ? '<img src="' + escapeHtml(c.user.image_url) + '" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:50%;">' : '<span class="symbol-label bg-primary text-white d-flex align-items-center justify-content-center rounded-circle" style="width:40px;height:40px;">' + (c.user?.name || '?').charAt(0) + '</span>';
+                list.innerHTML += '<label class="list-group-item d-flex align-items-center cursor-pointer mb-0 border"><input type="checkbox" class="form-check-input chat-forward-check me-2" data-forward-id="' + (c.user?.id || '') + '" data-forward-type="user"><span class="symbol symbol-40px me-2 flex-shrink-0">' + img + '</span><span>' + escapeHtml(c.user?.name || '') + '</span></label>';
+            }
+        });
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const modalEl = document.getElementById('chat-forward-modal');
+            const modalInst = new bootstrap.Modal(modalEl);
+            modalInst.show();
+        }
+    }
+
+    function isCurrentUserGroupAdmin() {
+        if (!currentGroupData || !currentGroupData.members) return false;
+        const me = (currentGroupData.members || []).find(function(m) { return m.user_id === currentUserId; });
+        return me && (me.role || '') === 'admin';
+    }
+    function isCurrentUserGroupCreator() {
+        return currentGroupData && currentGroupData.created_by_user_id != null && currentGroupData.created_by_user_id === currentUserId;
+    }
+    function doGroupDelete() {
+        if (!currentGroupId) return;
+        showPreloader();
+        fetch(routes.groupDelete, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ group_id: currentGroupId }) })
+            .then(r => r.json())
+            .then(function(data) {
+                if (data.error) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: data.error });
+                    else alert(data.error);
+                    return;
+                }
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const m = document.getElementById('chat-group-info-modal');
+                    if (m) { const inst = bootstrap.Modal.getInstance(m); if (inst) inst.hide(); }
+                }
+                const gid = currentGroupId;
+                currentGroupId = null;
+                currentGroupData = null;
+                conversationsCache = conversationsCache.filter(function(c) { return c.type !== 'group' || !c.group || c.group.id !== gid; });
+                poll();
+                renderConversationList(conversationsCache);
+                if (isWidget) updateWidgetBadge(conversationsCache);
+                closeThread();
+            })
+            .catch(function() {})
+            .finally(function() { hidePreloader(); });
+    }
+    function doGroupSetMemberRole(memberUserId, role) {
+        if (!currentGroupId) return;
+        showPreloader();
+        fetch(routes.groupSetMemberRole, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ group_id: currentGroupId, user_id: memberUserId, role: role }) })
+            .then(r => r.json())
+            .then(function(data) {
+                if (data.error) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: data.error });
+                    else alert(data.error);
+                    return;
+                }
+                var newRole = (data.role || role) === 'admin' ? 'admin' : 'member';
+                if (currentGroupData && currentGroupData.members) {
+                    var mem = currentGroupData.members.find(function(m) { return m.user_id === memberUserId; });
+                    if (mem) mem.role = newRole;
+                }
+                var conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === currentGroupId; });
+                if (conv && conv.group && conv.group.members) {
+                    var mem = conv.group.members.find(function(m) { return m.user_id === memberUserId; });
+                    if (mem) mem.role = newRole;
+                }
+                refreshGroupInfoModalContent();
+                refetchGroupMessagesIfOpen();
+                poll().then(function() {
+                    var c = conversationsCache.find(function(x) { return x.type === 'group' && x.group && x.group.id === currentGroupId; });
+                    if (c && c.group) currentGroupData = c.group;
+                    refreshGroupInfoModalContent();
+                    refetchGroupMessagesIfOpen();
+                });
+            })
+            .catch(function() {})
+            .finally(function() { hidePreloader(); });
+    }
+    function openSetNicknamesModal() {
+        if (!currentOtherUserId || currentGroupId) return;
+        const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
+        if (!conv || !conv.user) return;
+        const contactName = (conv.user.name || 'Contact').trim();
+        const contactNick = (conv.user.contact_nickname && conv.user.contact_nickname.trim) ? conv.user.contact_nickname.trim() : (conv.user.contact_nickname ? String(conv.user.contact_nickname).trim() : '');
+        const myNick = (conv.user.their_nickname_for_me && conv.user.their_nickname_for_me.trim) ? conv.user.their_nickname_for_me.trim() : (conv.user.their_nickname_for_me ? String(conv.user.their_nickname_for_me).trim() : '');
+        const origLabel = CHAT_STR.originalName || 'Original';
+        const clearConfirmTitle = CHAT_STR.clearNicknameConfirmTitle || 'Clear nickname?';
+        const clearContactConfirmText = (CHAT_STR.clearNicknameConfirmText || 'Clear the nickname for %s?').replace('%s', contactName);
+        const clearMyConfirmText = CHAT_STR.clearMyNicknameConfirmText || 'Clear your nickname?';
+        const html = '<div class="text-start mb-3"><label class="form-label fw-semibold">' + escapeHtml(contactName) + '</label><div class="d-flex align-items-center gap-1 mb-1"><input type="text" class="form-control flex-grow-1" id="swal-nick-contact" value="' + escapeHtml(contactNick) + '" autocomplete="off"><button type="button" class="btn btn-icon btn-sm btn-light-danger flex-shrink-0 mt-0" id="swal-clear-contact" title="' + escapeHtml(CHAT_STR.clearNickname || 'Clear nickname') + '"><i class="fa-solid fa-xmark"></i></button></div><small class="text-muted d-block">' + escapeHtml(origLabel) + ': ' + escapeHtml(contactName) + '</small></div><div class="text-start"><label class="form-label fw-semibold">' + escapeHtml(CHAT_STR.me || 'Me') + '</label><div class="d-flex align-items-center gap-1 mb-1"><input type="text" class="form-control flex-grow-1" id="swal-nick-me" value="' + escapeHtml(myNick) + '" autocomplete="off"><button type="button" class="btn btn-icon btn-sm btn-light-danger flex-shrink-0 mt-0" id="swal-clear-me" title="' + escapeHtml(CHAT_STR.clearMyNickname || 'Clear my nickname') + '"><i class="fa-solid fa-xmark"></i></button></div><small class="text-muted d-block">' + escapeHtml(origLabel) + ': ' + escapeHtml(currentUserName) + '</small></div>';
+        function doSubmit(values) {
+            if (!values) return;
+            showPreloader();
+            const contactVal = (values.contact || '').trim();
+            const meVal = (values.me || '').trim();
+            const p1 = fetch(routes.setNickname, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ contact_user_id: currentOtherUserId, nickname: contactVal }) }).then(r => r.json());
+            const p2 = fetch(routes.setNickname, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ contact_user_id: currentUserId, user_id: currentOtherUserId, nickname: meVal }) }).then(r => r.json());
+            Promise.all([p1, p2]).then(function(results) {
+                const err1 = results[0].error || results[0].message || (results[0].errors && results[0].errors.nickname ? results[0].errors.nickname[0] : null);
+                const err2 = results[1].error || results[1].message || (results[1].errors && results[1].errors.nickname ? results[1].errors.nickname[0] : null);
+                const errMsg = err1 || err2;
+                if (errMsg) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: errMsg });
+                    else alert(errMsg);
+                    return;
+                }
+                const c = conversationsCache.find(function(x) { return x.user && x.user.id === currentOtherUserId; });
+                if (c && c.user) {
+                    c.user.contact_nickname = contactVal || null;
+                    c.user.their_nickname_for_me = meVal || null;
+                }
+                update1to1ThreadHeader();
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', text: CHAT_STR.nicknameSaved || 'Nickname saved', timer: 2000, timerProgressBar: true, showConfirmButton: false });
+                poll().then(function() {
+                    update1to1ThreadHeader();
+                    renderConversationList(conversationsCache);
+                    if (isWidget && typeof updateWidgetBadge === 'function') updateWidgetBadge(conversationsCache);
+                });
+            }).catch(function() {}).finally(function() { hidePreloader(); });
+        }
+        function doClearContactFromModal() {
+            if (typeof Swal === 'undefined') return;
+            Swal.fire({
+                title: clearConfirmTitle,
+                text: clearContactConfirmText,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: CHAT_STR.yesRemove || 'Yes, remove',
+                cancelButtonText: CHAT_STR.close || 'Cancel'
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                showPreloader();
+                fetch(routes.setNickname, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ contact_user_id: currentOtherUserId, nickname: '' }) })
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        const errMsg = data.error || data.message || (data.errors && data.errors.nickname ? data.errors.nickname[0] : null);
+                        if (errMsg) {
+                            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: errMsg });
+                            else alert(errMsg);
+                            return;
+                        }
+                        var c = conversationsCache.find(function(x) { return x.user && x.user.id === currentOtherUserId; });
+                        if (c && c.user) c.user.contact_nickname = null;
+                        update1to1ThreadHeader();
+                        var inp = document.getElementById('swal-nick-contact');
+                        if (inp) inp.value = '';
+                        Swal.close();
+                        poll().then(function() { update1to1ThreadHeader(); renderConversationList(conversationsCache); if (isWidget && typeof updateWidgetBadge === 'function') updateWidgetBadge(conversationsCache); });
+                    })
+                    .catch(function() {})
+                    .finally(function() { hidePreloader(); });
+            });
+        }
+        function doClearMyFromModal() {
+            if (typeof Swal === 'undefined') return;
+            Swal.fire({
+                title: clearConfirmTitle,
+                text: clearMyConfirmText,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: CHAT_STR.yesRemove || 'Yes, remove',
+                cancelButtonText: CHAT_STR.close || 'Cancel'
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                showPreloader();
+                fetch(routes.setNickname, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ contact_user_id: currentUserId, user_id: currentOtherUserId, nickname: '' }) })
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        const errMsg = data.error || data.message || (data.errors && data.errors.nickname ? data.errors.nickname[0] : null);
+                        if (errMsg) {
+                            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: errMsg });
+                            else alert(errMsg);
+                            return;
+                        }
+                        var c = conversationsCache.find(function(x) { return x.user && x.user.id === currentOtherUserId; });
+                        if (c && c.user) c.user.their_nickname_for_me = null;
+                        var inp = document.getElementById('swal-nick-me');
+                        if (inp) inp.value = '';
+                        update1to1ThreadHeader();
+                        Swal.close();
+                        poll().then(function() { update1to1ThreadHeader(); renderConversationList(conversationsCache); if (isWidget && typeof updateWidgetBadge === 'function') updateWidgetBadge(conversationsCache); });
+                    })
+                    .catch(function() {})
+                    .finally(function() { hidePreloader(); });
+            });
+        }
+        document.querySelectorAll('.dropdown-menu.show').forEach(function(menu) {
+            const toggle = menu.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+            if (toggle && typeof bootstrap !== 'undefined' && bootstrap.Dropdown) { const inst = bootstrap.Dropdown.getInstance(toggle); if (inst) inst.hide(); }
+        });
+        document.querySelectorAll('.modal.show').forEach(function(modalEl) {
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) { var inst = bootstrap.Modal.getInstance(modalEl); if (inst) inst.hide(); }
+        });
+        if (typeof Swal !== 'undefined') {
+            setTimeout(function() {
+                Swal.fire({
+                    title: CHAT_STR.setNicknames || 'Set nicknames',
+                    html: html,
+                    showCancelButton: true,
+                    customClass: { container: 'chat-swal-nickname-modal' },
+                    didOpen: function() {
+                        var container = document.querySelector('.chat-swal-nickname-modal');
+                        if (container) container.style.pointerEvents = 'auto';
+                        var popup = document.querySelector('.chat-swal-nickname-modal .swal2-popup');
+                        if (popup) popup.style.pointerEvents = 'auto';
+                        var inp1 = document.getElementById('swal-nick-contact');
+                        var inp2 = document.getElementById('swal-nick-me');
+                        if (inp1) { inp1.style.pointerEvents = 'auto'; inp1.focus(); }
+                        if (inp2) inp2.style.pointerEvents = 'auto';
+                        var btnContact = document.getElementById('swal-clear-contact');
+                        var btnMe = document.getElementById('swal-clear-me');
+                        if (btnContact) { btnContact.style.pointerEvents = 'auto'; btnContact.addEventListener('click', function(e) { e.preventDefault(); doClearContactFromModal(); }); }
+                        if (btnMe) { btnMe.style.pointerEvents = 'auto'; btnMe.addEventListener('click', function(e) { e.preventDefault(); doClearMyFromModal(); }); }
+                    },
+                    preConfirm: function() {
+                        var contact = document.getElementById('swal-nick-contact');
+                        var me = document.getElementById('swal-nick-me');
+                        return { contact: contact ? contact.value.trim() : '', me: me ? me.value.trim() : '' };
+                    }
+                }).then(function(res) {
+                    doSubmit(res && res.isConfirmed ? res.value : null);
+                });
+            }, 200);
+        } else {
+            var contact = prompt(origLabel + ' nickname for ' + contactName + ':', contactNick);
+            var me = prompt(origLabel + ' nickname for you:', myNick);
+            if (contact !== null && me !== null) doSubmit({ contact: contact || '', me: me || '' });
+        }
+    }
+    function openSetNicknameModal(forGroupMemberUserId) {
+        const isOwn = forGroupMemberUserId === 'own';
+        const is1to1 = forGroupMemberUserId == null || isOwn;
+        let currentName = '';
+        let payload = {};
+        if (isOwn) {
+            if (!currentOtherUserId) return;
+            const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
+            const raw = conv && conv.user && conv.user.their_nickname_for_me ? conv.user.their_nickname_for_me : '';
+            currentName = typeof raw === 'string' ? raw.trim() : String(raw).trim();
+            payload = { contact_user_id: currentUserId, user_id: currentOtherUserId };
+        } else if (forGroupMemberUserId == null) {
+            if (!currentOtherUserId) return;
+            const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
+            currentName = conv && conv.user ? ((conv.user.contact_nickname && conv.user.contact_nickname.trim()) ? conv.user.contact_nickname.trim() : (conv.user.name || '')) : '';
+            payload = { contact_user_id: currentOtherUserId };
+        } else {
+            if (!currentGroupId || !currentGroupData || !currentGroupData.members) return;
+            const m = currentGroupData.members.find(function(x) { return x.user_id === forGroupMemberUserId; });
+            currentName = m ? ((m.nickname && m.nickname.trim()) ? m.nickname.trim() : (m.name || '')) : '';
+            payload = { group_id: currentGroupId, user_id: forGroupMemberUserId };
+        }
+        const promptMsg = (CHAT_STR.nickname || 'Nickname') + (currentName ? ' (current: ' + currentName + ')' : '');
+        function doSubmit(val) {
+            if (val === null) return;
+            payload.nickname = (val || '').trim();
+            showPreloader();
+            fetch(routes.setNickname, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload) })
+                .then(r => r.json())
+                .then(function(data) {
+                    const errMsg = data.error || data.message || (data.errors && data.errors.nickname ? data.errors.nickname[0] : null);
+                    if (errMsg) {
+                        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: errMsg });
+                        else alert(errMsg);
+                        return;
+                    }
+                    poll().then(function() {
+                        if (isOwn) {
+                            const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
+                            if (conv && conv.user) conv.user.their_nickname_for_me = (payload.nickname && payload.nickname.trim()) ? payload.nickname.trim() : null;
+                            const clearMyNicknameItem = document.getElementById(isWidget ? 'chat-widget-clear-my-nickname-item' : 'chat-clear-my-nickname-item');
+                            if (clearMyNicknameItem) clearMyNicknameItem.classList.toggle('d-none', !(payload.nickname && payload.nickname.trim()));
+                        } else if (is1to1) {
+                            const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
+                            if (conv && conv.user) conv.user.contact_nickname = payload.nickname || null;
+                            const displayName = (payload.nickname && payload.nickname.trim()) ? payload.nickname.trim() : (conv && conv.user ? conv.user.name : '') || 'User';
+                            const threadNameEl = document.getElementById(isWidget ? 'chat-widget-thread-name' : 'chat-thread-name');
+                            if (threadNameEl) threadNameEl.textContent = displayName;
+                            var avatarInitial = document.getElementById(isWidget ? 'chat-widget-thread-avatar-initial' : 'chat-thread-avatar-initial');
+                            if (avatarInitial) avatarInitial.textContent = (displayName || 'U').charAt(0).toUpperCase();
+                            const clearNicknameItem = document.getElementById(isWidget ? 'chat-widget-clear-nickname-item' : 'chat-clear-nickname-item');
+                            if (clearNicknameItem) clearNicknameItem.classList.toggle('d-none', !(payload.nickname && payload.nickname.trim()));
+                        } else {
+                            const conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === currentGroupId; });
+                            if (conv && conv.group) {
+                                if (conv.group.members) {
+                                    const mem = conv.group.members.find(function(x) { return x.user_id === forGroupMemberUserId; });
+                                    if (mem) mem.nickname = payload.nickname || null;
+                                }
+                                currentGroupData = conv.group;
+                            }
+                            if (currentGroupData && currentGroupData.members) {
+                                const mem = currentGroupData.members.find(function(x) { return x.user_id === forGroupMemberUserId; });
+                                if (mem) mem.nickname = payload.nickname || null;
+                            }
+                            refreshGroupInfoModalContent();
+                            refetchGroupMessagesIfOpen();
+                        }
+                        renderConversationList(conversationsCache);
+                        if (isWidget && typeof updateWidgetBadge === 'function') updateWidgetBadge(conversationsCache);
+                        if (!is1to1) location.reload();
+                    });
+                })
+                .catch(function() {})
+                .finally(function() { hidePreloader(); });
+        }
+        if (typeof Swal !== 'undefined') {
+            document.querySelectorAll('.dropdown-menu.show').forEach(function(menu) {
+                const toggle = menu.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+                if (toggle && typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
+                    const inst = bootstrap.Dropdown.getInstance(toggle);
+                    if (inst) inst.hide();
+                }
+            });
+            /* Hide any open Bootstrap modal so its focus trap doesn't block Swal input */
+            document.querySelectorAll('.modal.show').forEach(function(modalEl) {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    var inst = bootstrap.Modal.getInstance(modalEl);
+                    if (inst) inst.hide();
+                }
+            });
+            setTimeout(function() {
+                Swal.fire({
+                    title: (isOwn ? (CHAT_STR.setMyNickname || 'Set my nickname') : (CHAT_STR.setNickname || 'Set nickname')),
+                    input: 'text',
+                    inputValue: currentName,
+                    inputPlaceholder: promptMsg,
+                    inputAttributes: { autocomplete: 'off' },
+                    showCancelButton: true,
+                    customClass: { container: 'chat-swal-nickname-modal' },
+                    didOpen: function() {
+                        var container = document.querySelector('.chat-swal-nickname-modal');
+                        if (container) container.style.pointerEvents = 'auto';
+                        var popup = document.querySelector('.chat-swal-nickname-modal .swal2-popup');
+                        if (popup) {
+                            popup.style.pointerEvents = 'auto';
+                            popup.querySelector('.swal2-title') && (popup.querySelector('.swal2-title').style.pointerEvents = 'auto');
+                            var inp = popup.querySelector('.swal2-input');
+                            if (inp) {
+                                inp.style.pointerEvents = 'auto';
+                                inp.removeAttribute('readonly');
+                                inp.removeAttribute('disabled');
+                            }
+                        }
+                        setTimeout(function() {
+                            var input = Swal.getInput();
+                            if (input) {
+                                input.focus();
+                                if (input.select) input.select();
+                            }
+                        }, 50);
+                    }
+                }).then(function(res) {
+                    doSubmit(res && res.isConfirmed ? (res.value || '').trim() : null);
+                });
+            }, 200);
+        } else {
+            doSubmit(prompt(promptMsg, currentName));
+        }
+    }
+    function doClearContactNickname() {
+        if (!currentOtherUserId || currentGroupId) return;
+        showPreloader();
+        fetch(routes.setNickname, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ contact_user_id: currentOtherUserId, nickname: '' }) })
+            .then(r => r.json())
+            .then(function(data) {
+                const errMsg = data.error || data.message || (data.errors && data.errors.nickname ? data.errors.nickname[0] : null);
+                if (errMsg) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: errMsg });
+                    else alert(errMsg);
+                    return;
+                }
+                const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
+                if (conv && conv.user) conv.user.contact_nickname = null;
+                const threadNameEl = document.getElementById(isWidget ? 'chat-widget-thread-name' : 'chat-thread-name');
+                if (threadNameEl) threadNameEl.textContent = (conv && conv.user ? conv.user.name : '') || 'User';
+                const avatarInitial = document.getElementById(isWidget ? 'chat-widget-thread-avatar-initial' : 'chat-thread-avatar-initial');
+                if (avatarInitial) avatarInitial.textContent = ((conv && conv.user ? conv.user.name : '') || 'U').charAt(0).toUpperCase();
+                const clearNicknameItem = document.getElementById(isWidget ? 'chat-widget-clear-nickname-item' : 'chat-clear-nickname-item');
+                if (clearNicknameItem) clearNicknameItem.classList.add('d-none');
+                poll().then(function() { renderConversationList(conversationsCache); if (isWidget && typeof updateWidgetBadge === 'function') updateWidgetBadge(conversationsCache); });
+            })
+            .catch(function() {})
+            .finally(function() { hidePreloader(); });
+    }
+    function doClearMyNickname() {
+        if (!currentOtherUserId || currentGroupId) return;
+        showPreloader();
+        fetch(routes.setNickname, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ contact_user_id: currentUserId, user_id: currentOtherUserId, nickname: '' }) })
+            .then(r => r.json())
+            .then(function(data) {
+                const errMsg = data.error || data.message || (data.errors && data.errors.nickname ? data.errors.nickname[0] : null);
+                if (errMsg) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: errMsg });
+                    else alert(errMsg);
+                    return;
+                }
+                const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
+                if (conv && conv.user) conv.user.their_nickname_for_me = null;
+                const clearMyNicknameItem = document.getElementById(isWidget ? 'chat-widget-clear-my-nickname-item' : 'chat-clear-my-nickname-item');
+                if (clearMyNicknameItem) clearMyNicknameItem.classList.add('d-none');
+                poll().then(function() { renderConversationList(conversationsCache); if (isWidget && typeof updateWidgetBadge === 'function') updateWidgetBadge(conversationsCache); });
+            })
+            .catch(function() {})
+            .finally(function() { hidePreloader(); });
+    }
+    function doClearGroupNickname(memberUserId) {
+        if (!currentGroupId || !currentGroupData) return;
+        showPreloader();
+        fetch(routes.setNickname, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ group_id: currentGroupId, user_id: memberUserId, nickname: '' }) })
+            .then(function(r) {
+                return r.text().catch(function() { return r.ok ? '{}' : ''; }).then(function(text) { return { ok: r.ok, status: r.status, text: text }; });
+            })
+            .then(function(res) {
+                var data = {};
+                try { data = res.text ? JSON.parse(res.text) : {}; } catch (e) {}
+                hidePreloader();
+                if (!res.ok) {
+                    var errMsg = data.error || data.message || (data.errors && data.errors.nickname ? data.errors.nickname[0] : null) || 'Request failed.';
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: errMsg });
+                    else alert(errMsg);
+                    return;
+                }
+                var successMsg = (CHAT_STR.nicknameCleared || 'Nickname cleared.');
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', text: successMsg, timer: 2000, timerProgressBar: true, showConfirmButton: false });
+                var conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === currentGroupId; });
+                if (conv && conv.group && conv.group.members) {
+                    var mem = conv.group.members.find(function(x) { return x.user_id === memberUserId; });
+                    if (mem) mem.nickname = null;
+                }
+                if (currentGroupData && currentGroupData.members) {
+                    var mem = currentGroupData.members.find(function(x) { return x.user_id === memberUserId; });
+                    if (mem) mem.nickname = null;
+                }
+                refreshGroupInfoModalContent();
+                refetchGroupMessagesIfOpen();
+                renderConversationList(conversationsCache);
+                if (isWidget && typeof updateWidgetBadge === 'function') updateWidgetBadge(conversationsCache);
+                poll().then(function() { location.reload(); }).catch(function() { location.reload(); });
+            })
+            .catch(function() { hidePreloader(); });
+    }
+    function doGroupRemoveMember(memberUserId) {
+        if (!currentGroupId) return;
+        var confirmMsg = (CHAT_STR.removeFromGroupConfirm || 'Remove this member from the group?');
+        function doRemove() {
+            showPreloader();
+            fetch(routes.groupRemoveMember, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ group_id: currentGroupId, user_id: memberUserId }) })
+                .then(r => r.json())
+                .then(function(data) {
+                    if (data.error) {
+                        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: data.error });
+                        else alert(data.error);
+                        return;
+                    }
+                    if (memberUserId === currentUserId) {
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                            const m = document.getElementById('chat-group-info-modal');
+                            if (m) { const inst = bootstrap.Modal.getInstance(m); if (inst) inst.hide(); }
+                        }
+                        currentGroupId = null;
+                        currentGroupData = null;
+                        closeThread();
+                    } else {
+                        if (currentGroupData && currentGroupData.members) {
+                            currentGroupData.members = currentGroupData.members.filter(function(m) { return m.user_id !== memberUserId; });
+                        }
+                        var conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === currentGroupId; });
+                        if (conv && conv.group && conv.group.members) {
+                            conv.group.members = conv.group.members.filter(function(m) { return m.user_id !== memberUserId; });
+                        }
+                        refreshGroupInfoModalContent();
+                        refetchGroupMessagesIfOpen();
+                        renderConversationList(conversationsCache);
+                    }
+                    poll().then(function() {
+                        if (currentGroupId) {
+                            const conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === currentGroupId; });
+                            if (conv && conv.group) currentGroupData = conv.group;
+                            refreshGroupInfoModalContent();
+                            refetchGroupMessagesIfOpen();
+                        }
+                    });
+                })
+                .catch(function() {})
+                .finally(function() { hidePreloader(); });
+        }
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'warning', text: confirmMsg, showCancelButton: true, confirmButtonText: (CHAT_STR.confirm || 'Confirm'), cancelButtonText: (CHAT_STR.cancel || 'Cancel') }).then(function(res) { if (res && res.isConfirmed) doRemove(); });
+        } else {
+            if (confirm(confirmMsg)) doRemove();
+        }
+    }
+
+    function refreshGroupInfoModalContent() {
+        const imgEl = document.getElementById('chat-group-info-modal-img');
+        const membersListEl = document.getElementById('chat-group-info-members-list');
+        const membersCountEl = document.getElementById('chat-group-info-members-count');
+        const addMembersBtn = document.getElementById('chat-group-info-add-members-btn');
+        const changePhotoBtn = document.getElementById('chat-group-info-change-photo-btn');
+        if (!currentGroupData) return;
+        if (imgEl) {
+            const initialEl = document.getElementById('chat-group-info-modal-initial');
+            if (currentGroupData.image_url) {
+                imgEl.src = currentGroupData.image_url;
+                imgEl.style.display = 'block';
+                imgEl.classList.remove('d-none');
+                if (initialEl) initialEl.classList.add('d-none');
+            } else {
+                imgEl.src = '';
+                imgEl.style.display = 'none';
+                imgEl.classList.add('d-none');
+                if (initialEl) {
+                    initialEl.classList.remove('d-none');
+                    initialEl.textContent = (currentGroupData.name || 'G').charAt(0).toUpperCase();
+                }
+            }
+        }
+        const isCreator = isCurrentUserGroupCreator();
+        const isAdmin = isCurrentUserGroupAdmin();
+        const hintEl = document.getElementById('chat-group-info-image-size-hint');
+        if (hintEl) hintEl.style.display = (isCreator || isAdmin) ? '' : 'none';
+        if (membersCountEl && currentGroupData.members) membersCountEl.textContent = currentGroupData.members.length;
+        if (membersListEl && currentGroupData.members) {
+            const padLen = currentGroupData.members.length >= 100 ? 3 : 2;
+            membersListEl.innerHTML = '<li class="list-group-item text-muted small mb-0">' + (CHAT_STR.members || 'Members') + ' (<span id="chat-group-info-members-count">' + currentGroupData.members.length + '</span>)</li>';
+            currentGroupData.members.forEach(function(m, idx) {
+                const num = String(idx + 1).padStart(padLen, '0');
+                const displayName = (m.nickname && m.nickname.trim()) ? m.nickname.trim() : (m.name || '');
+                const isMemberCreator = currentGroupData.created_by_user_id === m.user_id;
+                const canChangeRole = isCreator && !isMemberCreator && m.user_id !== currentUserId;
+                const canRemove = (isCreator || isAdmin) && !isMemberCreator;
+                const canSetNickname = isCreator || isAdmin;
+                let actionsHtml = '';
+                if (canChangeRole || canRemove || canSetNickname) {
+                    actionsHtml = '<div class="dropdown"><button type="button" class="btn btn-sm btn-light-primary" data-bs-toggle="dropdown"><i class="fa-solid fa-ellipsis-vertical"></i></button><ul class="dropdown-menu dropdown-menu-end">';
+                    if (canSetNickname) {
+                        actionsHtml += '<li><a class="dropdown-item chat-group-member-action" href="#" data-action="set-nickname" data-user-id="' + m.user_id + '">' + (CHAT_STR.setNickname || 'Set nickname') + '</a></li>';
+                        if (m.nickname && m.nickname.trim()) actionsHtml += '<li><a class="dropdown-item chat-group-member-action" href="#" data-action="clear-nickname" data-user-id="' + m.user_id + '">' + (CHAT_STR.clearNickname || 'Clear nickname') + '</a></li>';
+                    }
+                    if (canChangeRole) {
+                        if ((m.role || '') === 'admin') actionsHtml += '<li><a class="dropdown-item chat-group-member-action" href="#" data-action="remove-admin" data-user-id="' + m.user_id + '">' + (CHAT_STR.removeAdmin || 'Remove admin') + '</a></li>';
+                        else actionsHtml += '<li><a class="dropdown-item chat-group-member-action" href="#" data-action="make-admin" data-user-id="' + m.user_id + '">' + (CHAT_STR.makeAdmin || 'Make admin') + '</a></li>';
+                    }
+                    if (canRemove) actionsHtml += '<li><a class="dropdown-item chat-group-member-action" href="#" data-action="remove-member" data-user-id="' + m.user_id + '">' + (CHAT_STR.removeFromGroup || 'Remove from group') + '</a></li>';
+                    actionsHtml += '</ul></div>';
+                }
+                membersListEl.innerHTML += '<li class="list-group-item d-flex align-items-center justify-content-between"><span>' + escapeHtml(num + '. ' + displayName) + '</span>' + actionsHtml + '</li>';
+            });
+        }
+        if (addMembersBtn) addMembersBtn.style.display = isAdmin ? '' : 'none';
+        if (changePhotoBtn) changePhotoBtn.style.display = isAdmin ? '' : 'none';
+        const deleteGroupBtn = document.getElementById('chat-group-info-delete-group-btn');
+        if (deleteGroupBtn) deleteGroupBtn.style.display = isCreator ? '' : 'none';
+    }
+
+    function showGroupInfoModal() {
+        if (!currentGroupId) return;
+        var conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === currentGroupId; });
+        if (conv && conv.group) currentGroupData = conv.group;
+        if (!currentGroupData || !currentGroupData.members) return;
+        const title = (currentGroupData.name || 'Group') + ' – ' + (CHAT_STR.groupInfo || 'Group info');
+        let modal = document.getElementById('chat-group-info-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'chat-group-info-modal';
+            modal.className = 'modal fade';
+            modal.innerHTML = '<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="chat-group-info-modal-title"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="chat-group-info-modal-body">' +
+                '<div class="text-center mb-3"><div class="position-relative d-inline-block"><img id="chat-group-info-modal-img" src="" alt="" class="rounded-circle" style="width:80px;height:80px;object-fit:cover;display:none;"><span id="chat-group-info-modal-initial" class="d-flex align-items-center justify-content-center rounded-circle bg-secondary text-white fw-bold" style="width:80px;height:80px;font-size:2rem;">G</span><input type="file" id="chat-group-info-image-input" class="d-none" accept="image/jpeg,image/png,image/gif,image/webp"></div><p id="chat-group-info-image-size-hint" class="text-muted small mt-1 mb-0">300×300 px, Max 2 MB</p></div>' +
+                '<ul class="list-group list-group-flush" id="chat-group-info-members-list"><li class="list-group-item text-muted small mb-0">' + (CHAT_STR.members || 'Members') + ' (<span id="chat-group-info-members-count">0</span>)</li></ul></div>' +
+                '<div class="modal-footer chat-group-info-modal-footer py-3 px-3"><div class="row g-2 w-100"><div class="col-6"><button type="button" class="btn btn-primary w-100" id="chat-group-info-add-members-btn" style="display:none;"><i class="fa-solid fa-user-plus me-1"></i>' + (CHAT_STR.addMembers || 'Add members') + '</button></div><div class="col-6"><button type="button" class="btn btn-info w-100" id="chat-group-info-change-photo-btn" style="display:none;"><i class="fa-solid fa-camera me-1"></i>' + (CHAT_STR.changeGroupPhoto || 'Change photo') + '</button></div><div class="col-6"><button type="button" class="btn btn-danger w-100" id="chat-group-info-delete-group-btn" style="display:none;"><i class="fa-solid fa-trash me-1"></i>' + (CHAT_STR.deleteGroup || 'Delete group') + '</button></div><div class="col-6"><button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">' + (CHAT_STR.close || 'Close') + '</button></div></div></div></div></div>';
+            document.body.appendChild(modal);
+            document.getElementById('chat-group-info-change-photo-btn').addEventListener('click', function() {
+                document.getElementById('chat-group-info-image-input').click();
+            });
+            document.getElementById('chat-group-info-image-input').addEventListener('change', function() {
+                if (!this.files || !this.files[0] || !currentGroupId) return;
+                const fd = new FormData();
+                fd.append('group_id', currentGroupId);
+                fd.append('image', this.files[0]);
+                fd.append('_token', csrf);
+                this.value = '';
+                showPreloader();
+                fetch(routes.groupUpdate, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.error) {
+                            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: data.error });
+                            else alert(data.error);
+                            return;
+                        }
+                        if (data.group) {
+                            const conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === currentGroupId; });
+                            if (conv) conv.group = data.group;
+                            currentGroupData = data.group;
+                            refreshGroupInfoModalContent();
+                            const avatar = document.getElementById(isWidget ? 'chat-widget-thread-avatar' : 'chat-thread-avatar');
+                            const initial = document.getElementById(isWidget ? 'chat-widget-thread-avatar-initial' : 'chat-thread-avatar-initial');
+                            if (avatar && data.group.image_url) { avatar.src = data.group.image_url; avatar.style.display = 'block'; if (initial) initial.style.display = 'none'; }
+                            else if (initial) { initial.textContent = (data.group.name || 'G').charAt(0).toUpperCase(); initial.style.display = 'flex'; if (avatar) avatar.style.display = 'none'; }
+                        }
+                        poll();
+                    })
+                    .catch(() => {})
+                    .finally(() => { hidePreloader(); });
+            });
+            document.getElementById('chat-group-info-add-members-btn').addEventListener('click', function() {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const inst = bootstrap.Modal.getInstance(modal);
+                    if (inst) inst.hide();
+                }
+                openAddMembersToGroupModal();
+            });
+            document.getElementById('chat-group-info-delete-group-btn').addEventListener('click', function() {
+                if (!currentGroupId || !isCurrentUserGroupCreator()) return;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ title: CHAT_STR.deleteGroup || 'Delete group', text: CHAT_STR.deleteGroupConfirm || 'Permanently delete this group?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#f1416c', confirmButtonText: CHAT_STR.yesRemove || 'Yes, remove' }).then(function(res) {
+                        if (res && res.isConfirmed) doGroupDelete();
+                    });
+                } else if (confirm(CHAT_STR.deleteGroupConfirm || 'Permanently delete this group?')) doGroupDelete();
+            });
+            document.getElementById('chat-group-info-members-list').addEventListener('click', function(e) {
+                const a = e.target.closest('a.chat-group-member-action');
+                if (!a || !currentGroupId) return;
+                e.preventDefault();
+                const action = a.dataset.action;
+                const userId = parseInt(a.dataset.userId, 10);
+                if (action === 'set-nickname') openSetNicknameModal(userId);
+                else if (action === 'clear-nickname') doClearGroupNickname(userId);
+                else if (action === 'make-admin') doGroupSetMemberRole(userId, 'admin');
+                else if (action === 'remove-admin') doGroupSetMemberRole(userId, 'member');
+                else if (action === 'remove-member') doGroupRemoveMember(userId);
+            });
+        }
+        document.getElementById('chat-group-info-modal-title').textContent = title;
+        document.getElementById('chat-group-info-members-count').textContent = (currentGroupData.members || []).length;
+        refreshGroupInfoModalContent();
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const inst = new bootstrap.Modal(modal);
+            inst.show();
+        }
+    }
+
+    function openAddMembersToGroupModal() {
+        if (!currentGroupId || !currentGroupData) return;
+        const existingIds = (currentGroupData.members || []).map(function(m) { return m.user_id; });
+        const usersToAdd = (conversationsCache || []).filter(function(c) {
+            return c.type === 'user' && c.user && existingIds.indexOf(c.user.id) === -1 && !(c.user.is_automation_chatbot === 1 || c.user.is_automation_chatbot === true);
+        });
+        let addModal = document.getElementById('chat-group-add-members-modal');
+        if (!addModal) {
+            addModal = document.createElement('div');
+            addModal.id = 'chat-group-add-members-modal';
+            addModal.className = 'modal fade';
+            addModal.innerHTML = '<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">' + (CHAT_STR.addMembers || 'Add members') + '</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p class="text-muted small">Select users to add to the group.</p><div id="chat-group-add-members-list" class="border rounded p-2" style="max-height: 250px; overflow-y: auto;"></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary" id="chat-group-add-members-submit">Add selected</button></div></div></div>';
+            document.body.appendChild(addModal);
+            document.getElementById('chat-group-add-members-submit').addEventListener('click', function() {
+                const ids = [];
+                addModal.querySelectorAll('#chat-group-add-members-list input[type="checkbox"]:checked').forEach(function(cb) {
+                    const id = parseInt(cb.dataset.userId, 10);
+                    if (id) ids.push(id);
+                });
+                if (ids.length === 0) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', text: 'Select at least one user.' });
+                    else alert('Select at least one user.');
+                    return;
+                }
+                showPreloader();
+                fetch(routes.groupAddMembers, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ group_id: currentGroupId, user_ids: ids }) })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.error) {
+                            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: data.error });
+                            else alert(data.error);
+                            return;
+                        }
+                        fetchJson(routes.activity).then(function(act) {
+                            if (act.chat && act.chat.conversations) {
+                                conversationsCache = act.chat.conversations;
+                                const conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === currentGroupId; });
+                                if (conv && conv.group) currentGroupData = conv.group;
+                            }
+                            refetchGroupMessagesIfOpen();
+                            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                                const inst = bootstrap.Modal.getInstance(addModal);
+                                if (inst) inst.hide();
+                            }
+                            showGroupInfoModal();
+                        });
+                        poll();
+                    })
+                    .catch(() => {})
+                    .finally(() => { hidePreloader(); });
+            });
+        }
+        const listEl = document.getElementById('chat-group-add-members-list');
+        listEl.innerHTML = '';
+        if (usersToAdd.length === 0) {
+            listEl.innerHTML = '<p class="text-muted small mb-0">No other users to add. All your contacts are already in this group.</p>';
+        } else {
+            usersToAdd.forEach(function(c) {
+                const label = document.createElement('label');
+                label.className = 'd-flex align-items-center gap-2 py-1 cursor-pointer';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.className = 'form-check-input';
+                cb.dataset.userId = c.user.id;
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(c.user.name || 'User'));
+                listEl.appendChild(label);
+            });
+        }
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const inst = new bootstrap.Modal(addModal);
+            inst.show();
+        }
+    }
+
+    function openCreateGroupModal() {
+        let modal = document.getElementById('chat-create-group-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'chat-create-group-modal';
+            modal.className = 'modal fade';
+            modal.innerHTML = '<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">' + (CHAT_STR.createGroup || 'Create group') + '</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="mb-3"><label class="form-label">' + (CHAT_STR.groupName || 'Group name') + '</label><input type="text" class="form-control" id="chat-create-group-name" placeholder="Group name" maxlength="255"></div><div class="mb-2"><label class="form-label">' + (CHAT_STR.addMembers || 'Add members') + '</label></div><div id="chat-create-group-members" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;"></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary" id="chat-create-group-submit">Create</button></div></div></div>';
+            document.body.appendChild(modal);
+            document.getElementById('chat-create-group-submit').addEventListener('click', function() {
+                const name = (document.getElementById('chat-create-group-name').value || '').trim();
+                if (!name) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'Required', text: 'Enter group name.' });
+                    else alert('Enter group name.');
+                    return;
+                }
+                const memberIds = [];
+                modal.querySelectorAll('#chat-create-group-members input[type="checkbox"]:checked').forEach(function(cb) {
+                    const id = parseInt(cb.dataset.userId, 10);
+                    if (id && id !== currentUserId) memberIds.push(id);
+                });
+                if (memberIds.length === 0) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'Required', text: 'Select at least one member.' });
+                    else alert('Select at least one member.');
+                    return;
+                }
+                showPreloader();
+                fetch(routes.groupCreate, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ name: name, member_ids: memberIds }) })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.error) {
+                            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: data.error });
+                            else alert(data.error);
+                            return;
+                        }
+                        if (data.group) {
+                            conversationsCache.unshift({ type: 'group', user: null, group: data.group, last_message: null, unread_count: 0 });
+                            renderConversationList(conversationsCache);
+                            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                                const inst = bootstrap.Modal.getInstance(modal);
+                                if (inst) inst.hide();
+                            }
+                            document.getElementById('chat-create-group-name').value = '';
+                            modal.querySelectorAll('#chat-create-group-members input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+                            openThread(null, data.group.id);
+                        }
+                        poll();
+                    })
+                    .catch(() => {})
+                    .finally(() => { hidePreloader(); });
+            });
+        }
+        document.getElementById('chat-create-group-name').value = '';
+        const membersEl = document.getElementById('chat-create-group-members');
+        membersEl.innerHTML = '';
+        (conversationsCache || []).filter(function(c) { return c.type === 'user' && c.user && !(c.user.is_automation_chatbot === 1 || c.user.is_automation_chatbot === true); }).forEach(function(c) {
+            const label = document.createElement('label');
+            label.className = 'd-flex align-items-center gap-2 py-1 cursor-pointer';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'form-check-input';
+            cb.dataset.userId = c.user.id;
+            label.appendChild(cb);
+            label.appendChild(document.createTextNode(c.user.name || 'User'));
+            membersEl.appendChild(label);
+        });
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const modalInst = new bootstrap.Modal(modal);
+            modalInst.show();
         }
     }
 
@@ -638,29 +1795,48 @@
 
     function sendMessage() {
         const input = el(isWidget ? 'message-input' : 'message-input');
-        if (!input || !currentOtherUserId) return;
+        const active = currentGroupId || currentOtherUserId;
+        if (!input || !active) return;
         const body = (input.value || '').trim();
         if (!body) return;
+        const replyToId = replyToMessage ? replyToMessage.id : null;
         input.value = '';
-        const payload = { recipient_id: currentOtherUserId, body, reply_to_message_id: replyToMessage ? replyToMessage.id : null };
         clearReply();
         showPreloader();
-        fetch(routes.send, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload) })
-            .then(r => r.json())
-            .then(data => {
-                if (data.message) {
-                    const cont = el(isWidget ? 'messages' : 'messages-container');
-                    messagesCache = messagesCache.concat(data.message);
-                    if (cont) renderMessages(messagesCache, cont);
-                }
-                poll();
-            })
-            .catch(() => {})
-            .finally(() => { hidePreloader(); });
+        if (currentGroupId) {
+            const payload = { group_id: currentGroupId, body, reply_to_message_id: replyToId };
+            fetch(routes.sendGroup, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload) })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.message) {
+                        const cont = el(isWidget ? 'messages' : 'messages-container');
+                        messagesCache = messagesCache.concat(data.message);
+                        if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions());
+                    }
+                    poll();
+                })
+                .catch(() => {})
+                .finally(() => { hidePreloader(); });
+        } else {
+            const payload = { recipient_id: currentOtherUserId, body, reply_to_message_id: replyToId };
+            fetch(routes.send, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload) })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.message) {
+                        const cont = el(isWidget ? 'messages' : 'messages-container');
+                        messagesCache = messagesCache.concat(data.message);
+                        if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions());
+                    }
+                    poll();
+                })
+                .catch(() => {})
+                .finally(() => { hidePreloader(); });
+        }
     }
 
     function sendFile(inputEl) {
-        if (!inputEl?.files?.length || !currentOtherUserId) return;
+        const active = currentGroupId || currentOtherUserId;
+        if (!inputEl?.files?.length || !active) return;
         const file = inputEl.files[0];
         if (CHAT_FILE_SIZE_LIMITED && file.size > CHAT_FILE_MAX_SIZE_BYTES) {
             if (typeof Swal !== 'undefined') {
@@ -671,36 +1847,53 @@
             inputEl.value = '';
             return;
         }
-        const fd = new FormData();
-        fd.append('recipient_id', currentOtherUserId);
-        fd.append('file', file);
-        fd.append('_token', csrf);
         inputEl.value = '';
         showPreloader();
-        fetch(routes.sendFile, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd })
-            .then(r => r.json())
-            .then(data => {
-                if (data.error) {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Failed to send file.' });
-                    } else {
-                        alert(data.error || 'Failed to send file.');
+        if (currentGroupId) {
+            const fd = new FormData();
+            fd.append('group_id', currentGroupId);
+            fd.append('file', file);
+            fd.append('_token', csrf);
+            fetch(routes.sendGroupFile, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Failed to send file.' });
+                        else alert(data.error || 'Failed to send file.');
+                        return;
                     }
-                    return;
-                }
-                if (data.message) {
-                    const cont = el(isWidget ? 'messages' : 'messages-container');
-                    messagesCache = messagesCache.concat(data.message);
-                    if (cont) renderMessages(messagesCache, cont);
-                }
-                poll();
-            })
-            .catch(() => {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to send file.' });
-                }
-            })
-            .finally(() => { hidePreloader(); });
+                    if (data.message) {
+                        const cont = el(isWidget ? 'messages' : 'messages-container');
+                        messagesCache = messagesCache.concat(data.message);
+                        if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions());
+                    }
+                    poll();
+                })
+                .catch(() => {})
+                .finally(() => { hidePreloader(); });
+        } else {
+            const fd = new FormData();
+            fd.append('recipient_id', currentOtherUserId);
+            fd.append('file', file);
+            fd.append('_token', csrf);
+            fetch(routes.sendFile, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'Failed to send file.' });
+                        else alert(data.error || 'Failed to send file.');
+                        return;
+                    }
+                    if (data.message) {
+                        const cont = el(isWidget ? 'messages' : 'messages-container');
+                        messagesCache = messagesCache.concat(data.message);
+                        if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions());
+                    }
+                    poll();
+                })
+                .catch(() => {})
+                .finally(() => { hidePreloader(); });
+        }
     }
 
     function formatTime(iso) {
@@ -739,6 +1932,14 @@
         div.textContent = s;
         return div.innerHTML;
     }
+    function makeLinksClickable(text) {
+        if (!text) return '';
+        var escaped = escapeHtml(text);
+        return escaped.replace(/(https?:\/\/[^\s<>]+)/g, function(match) {
+            var url = match.replace(/[.,;:!?)]+$/, '');
+            return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="chat-msg-link text-decoration-underline">' + url + '</a>';
+        });
+    }
 
     // Init
     if (isWidget) {
@@ -747,20 +1948,92 @@
             document.getElementById('chat-widget-conversation-list').classList.remove('d-none');
             document.getElementById('chat-widget-search-wrap')?.classList.remove('d-none');
             currentOtherUserId = null;
+            currentGroupId = null;
+            currentGroupData = null;
+            document.getElementById('chat-widget-group-info-item')?.classList.add('d-none');
+            document.getElementById('chat-widget-set-nicknames-item')?.classList.add('d-none');
             clearReply();
             if (typeof startPollTimer === 'function') startPollTimer();
         }
+        var widgetPanelHideTimer = null;
+        var widgetPanelTransitionEndHandler = null;
+
+        function showWidgetPanel() {
+            var panel = document.getElementById('chat-widget-panel');
+            if (!panel) return;
+
+            if (widgetPanelHideTimer) {
+                clearTimeout(widgetPanelHideTimer);
+                widgetPanelHideTimer = null;
+            }
+            if (widgetPanelTransitionEndHandler) {
+                panel.removeEventListener('transitionend', widgetPanelTransitionEndHandler);
+                widgetPanelTransitionEndHandler = null;
+            }
+
+            // Ensure a predictable start state for the opening transition
+            panel.classList.remove('d-none');
+            panel.classList.remove('chat-widget-panel-open');
+            panel.classList.add('chat-widget-panel-closed');
+
+            // Force layout so the browser picks up the initial state
+            void panel.offsetHeight;
+
+            requestAnimationFrame(function() {
+                panel.classList.add('chat-widget-panel-open');
+                panel.classList.remove('chat-widget-panel-closed');
+            });
+
+            poll();
+        }
+
+        function hideWidgetPanel() {
+            var panel = document.getElementById('chat-widget-panel');
+            if (!panel) return;
+            if (panel.classList.contains('d-none')) return;
+
+            if (widgetPanelHideTimer) {
+                clearTimeout(widgetPanelHideTimer);
+                widgetPanelHideTimer = null;
+            }
+            if (widgetPanelTransitionEndHandler) {
+                panel.removeEventListener('transitionend', widgetPanelTransitionEndHandler);
+                widgetPanelTransitionEndHandler = null;
+            }
+
+            panel.classList.remove('chat-widget-panel-open');
+            panel.classList.add('chat-widget-panel-closed');
+
+            widgetPanelTransitionEndHandler = function(e) {
+                if (e && e.target !== panel) return;
+                panel.classList.add('d-none');
+                panel.removeEventListener('transitionend', widgetPanelTransitionEndHandler);
+                widgetPanelTransitionEndHandler = null;
+            };
+            panel.addEventListener('transitionend', widgetPanelTransitionEndHandler);
+
+            // Fallback in case transitionend doesn't fire
+            widgetPanelHideTimer = setTimeout(function() {
+                if (!panel.classList.contains('d-none') && panel.classList.contains('chat-widget-panel-closed')) {
+                    panel.classList.add('d-none');
+                }
+                if (widgetPanelTransitionEndHandler) {
+                    panel.removeEventListener('transitionend', widgetPanelTransitionEndHandler);
+                    widgetPanelTransitionEndHandler = null;
+                }
+                widgetPanelHideTimer = null;
+            }, 320);
+        }
         function closeWidgetPanel() {
             closeWidgetThread();
-            document.getElementById('chat-widget-panel')?.classList.add('d-none');
+            hideWidgetPanel();
         }
         var chatWidgetToggle = document.getElementById('chat-widget-toggle');
         if (chatWidgetToggle) {
             chatWidgetToggle.addEventListener('click', () => {
                 var panel = document.getElementById('chat-widget-panel');
                 if (panel && panel.classList.contains('d-none')) {
-                    panel.classList.remove('d-none');
-                    poll();
+                    showWidgetPanel();
                 } else if (panel) {
                     closeWidgetPanel();
                 }
@@ -772,6 +2045,8 @@
             closeWidgetThread();
         });
         document.getElementById('chat-widget-close-thread')?.addEventListener('click', closeWidgetThread);
+        document.getElementById('chat-widget-group-info')?.addEventListener('click', function(e) { e.preventDefault(); showGroupInfoModal(); });
+        document.getElementById('chat-widget-set-nicknames')?.addEventListener('click', function(e) { e.preventDefault(); openSetNicknamesModal(); });
         document.getElementById('chat-widget-delete-conversation')?.addEventListener('click', function(e) {
             e.preventDefault();
             deleteConversation();
@@ -783,11 +2058,17 @@
         document.getElementById('chat-widget-reply-cancel')?.addEventListener('click', clearReply);
         document.getElementById('chat-widget-messages')?.addEventListener('scroll', onMessagesScroll);
         document.getElementById('chat-widget-search-user')?.addEventListener('input', function() { renderConversationList(conversationsCache); });
+        initEmojiPicker('chat-widget-emoji-picker', 'chat-widget-emoji-btn', 'chat-widget-message-input');
         document.getElementById('chat-widget-view-all')?.addEventListener('click', function(e) {
-            if (currentOtherUserId) {
+            if (currentOtherUserId || currentGroupId) {
                 e.preventDefault();
-                const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
-                const openParam = (conv?.user?.uid != null && conv.user.uid !== '') ? conv.user.uid : currentOtherUserId;
+                let openParam = '';
+                if (currentGroupId) {
+                    openParam = 'g' + currentGroupId;
+                } else {
+                    const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
+                    openParam = (conv?.user?.uid != null && conv.user.uid !== '') ? conv.user.uid : currentOtherUserId;
+                }
                 const base = this.getAttribute('href');
                 window.location.href = base + (base.indexOf('?') !== -1 ? '&' : '?') + 'open=' + encodeURIComponent(openParam);
             }
@@ -797,6 +2078,10 @@
             document.getElementById('chat-thread-placeholder').classList.remove('d-none');
             document.getElementById('chat-thread-panel').classList.add('d-none');
             currentOtherUserId = null;
+            currentGroupId = null;
+            currentGroupData = null;
+            document.getElementById('chat-group-info-item')?.classList.add('d-none');
+            document.getElementById('chat-set-nicknames-item')?.classList.add('d-none');
             clearReply();
             if (typeof startPollTimer === 'function') startPollTimer();
             if (window.history && window.history.replaceState) {
@@ -808,6 +2093,8 @@
         }
         document.getElementById('chat-back-to-list')?.addEventListener('click', closeChatThread);
         document.getElementById('chat-close-thread')?.addEventListener('click', closeChatThread);
+        document.getElementById('chat-group-info')?.addEventListener('click', function(e) { e.preventDefault(); showGroupInfoModal(); });
+        document.getElementById('chat-set-nicknames')?.addEventListener('click', function(e) { e.preventDefault(); openSetNicknamesModal(); });
         document.getElementById('chat-delete-conversation')?.addEventListener('click', function(e) { e.preventDefault(); deleteConversation(); });
         document.getElementById('chat-reply-cancel')?.addEventListener('click', clearReply);
         document.getElementById('chat-messages-container')?.addEventListener('scroll', onMessagesScroll);
@@ -816,6 +2103,8 @@
         document.getElementById('chat-file-input')?.addEventListener('change', function() { sendFile(this); });
         document.getElementById('chat-message-input')?.addEventListener('keydown', onMessageInputKeydown);
         document.getElementById('chat-search-user')?.addEventListener('input', () => renderConversationList(conversationsCache));
+        initEmojiPicker('chat-emoji-picker', 'chat-emoji-btn', 'chat-message-input');
+        document.getElementById('chat-create-group-btn')?.addEventListener('click', openCreateGroupModal);
         var resizeTimer;
         window.addEventListener('resize', function() {
             clearTimeout(resizeTimer);
@@ -830,6 +2119,225 @@
                 if (typeof $ !== 'undefined') applyChatHeights();
             });
         }
+    }
+
+    (function setupMessageActionsDelegation() {
+        var ids = ['chat-messages-container', 'chat-widget-messages'];
+        ids.forEach(function(id) {
+            var cont = document.getElementById(id);
+            if (!cont) return;
+            cont.addEventListener('click', function(e) {
+                var actionEl = e.target.closest('.chat-action');
+                if (!actionEl) return;
+                e.preventDefault();
+                var action = actionEl.dataset.action;
+                var msgId = parseInt(actionEl.dataset.id, 10);
+                if (action === 'reply') setReplyTo({ id: msgId, body: actionEl.dataset.replyPreview || '', sender_name: actionEl.dataset.replySender || '' });
+                else if (action === 'history') showHistory(msgId);
+                else if (action === 'deleteForMe') deleteForMe(msgId);
+                else if (action === 'deleteForAll') deleteForAll(msgId);
+                else if (action === 'forward') openForwardModal(msgId);
+            });
+        });
+    })();
+
+    function initEmojiPicker(pickerId, btnId, inputId) {
+        const picker = document.getElementById(pickerId);
+        const btn = document.getElementById(btnId);
+        const input = document.getElementById(inputId);
+        if (!picker || !btn || !input) return;
+
+        // The widget panel uses overflow-hidden, which can clip absolutely-positioned popovers.
+        // So we "portal" the picker to <body> while open (position: fixed), then restore it.
+        let portalPlaceholder = null;
+        let portalOriginalParent = null;
+        let portalOriginalNextSibling = null;
+        let portalOriginalClassName = null;
+
+        function insertAtCursor(str) {
+            const start = input.selectionStart ?? (input.value || '').length;
+            const end = input.selectionEnd ?? start;
+            const text = input.value || '';
+            input.value = text.substring(0, start) + str + text.substring(end);
+            input.selectionStart = input.selectionEnd = start + str.length;
+            input.focus();
+        }
+
+        // Build once (full emoji dataset picker)
+        if (!picker.querySelector('emoji-picker')) {
+            picker.classList.add('chat-emoji-picker-popover');
+            picker.innerHTML = '';
+            const pickerEl = document.createElement('emoji-picker');
+
+            // Default dataSource already points to emoji-picker-element-data CDN.
+            // Explicitly set in case a CSP/proxy rewrites defaults.
+            pickerEl.setAttribute('data-source', 'https://cdn.jsdelivr.net/npm/emoji-picker-element-data@^1/en/emojibase/data.json');
+
+            // Size is controlled via CSS, but keep a safe inline fallback.
+            pickerEl.style.width = '320px';
+            pickerEl.style.height = '360px';
+
+            pickerEl.addEventListener('emoji-click', function(event) {
+                const unicode = event?.detail?.unicode || '';
+                if (!unicode) return;
+                insertAtCursor(unicode);
+                picker.classList.add('d-none');
+            });
+
+            picker.appendChild(pickerEl);
+
+            // Custom styles inside Shadow DOM (emoji-picker-element)
+            function applyEmojiPickerShadowStyles(el) {
+                if (!el || !el.shadowRoot) return;
+                var style = el.shadowRoot.querySelector('style[data-chat-emoji-picker-styles]');
+                if (style) return;
+                style = document.createElement('style');
+                style.setAttribute('data-chat-emoji-picker-styles', '1');
+                style.textContent = '.skintone-button-wrapper { display: none !important; } .search-row { padding-right: var(--input-padding, 0.25rem); }';
+                el.shadowRoot.appendChild(style);
+            }
+            if (typeof customElements !== 'undefined' && customElements.whenDefined) {
+                customElements.whenDefined('emoji-picker').then(function() { applyEmojiPickerShadowStyles(pickerEl); });
+            } else {
+                setTimeout(function() { applyEmojiPickerShadowStyles(pickerEl); }, 100);
+            }
+        }
+
+        function portalAttach() {
+            if (picker.dataset.portalAttached === '1') return;
+            portalOriginalParent = picker.parentNode;
+            portalOriginalNextSibling = picker.nextSibling;
+            portalOriginalClassName = picker.className;
+            portalPlaceholder = document.createComment('emoji-picker-placeholder');
+            if (portalOriginalParent) portalOriginalParent.insertBefore(portalPlaceholder, picker);
+            document.body.appendChild(picker);
+            picker.dataset.portalAttached = '1';
+
+            // Remove bootstrap positioning utilities (they use !important and break fixed positioning in <body>)
+            picker.classList.remove('position-absolute', 'bottom-100', 'top-100', 'start-0', 'end-0', 'mb-1', 'ms-1', 'me-1');
+        }
+
+        function portalDetach() {
+            if (picker.dataset.portalAttached !== '1') return;
+            try {
+                if (portalPlaceholder && portalPlaceholder.parentNode) {
+                    portalPlaceholder.parentNode.insertBefore(picker, portalPlaceholder);
+                    portalPlaceholder.parentNode.removeChild(portalPlaceholder);
+                } else if (portalOriginalParent) {
+                    portalOriginalParent.insertBefore(picker, portalOriginalNextSibling);
+                }
+            } catch (e) {
+                // If anything goes wrong, just leave it in body (still functional).
+            }
+            picker.dataset.portalAttached = '0';
+            portalPlaceholder = null;
+            portalOriginalParent = null;
+            portalOriginalNextSibling = null;
+            if (portalOriginalClassName != null) {
+                const shouldBeHidden = picker.classList.contains('d-none');
+                picker.className = portalOriginalClassName;
+                if (shouldBeHidden) picker.classList.add('d-none');
+            }
+            portalOriginalClassName = null;
+        }
+
+        function positionFixedPopover() {
+            if (picker.classList.contains('d-none')) return;
+
+            // Ensure we're not clipped by parent overflow rules
+            portalAttach();
+
+            // Reset and measure
+            picker.style.transform = '';
+            picker.style.position = 'fixed';
+            picker.style.top = '0px';
+            picker.style.left = '0px';
+            picker.style.right = 'auto';
+            picker.style.bottom = 'auto';
+            picker.style.margin = '0';
+            picker.style.zIndex = '2000';
+
+            const pad = 8;
+            const btnRect = btn.getBoundingClientRect();
+            let pickerRect = picker.getBoundingClientRect();
+            if ((pickerRect.width || 0) < 50 || (pickerRect.height || 0) < 50) {
+                // If the custom element hasn't painted yet, use a sane fallback size.
+                const fallbackW = 320;
+                const fallbackH = 360;
+                picker.style.width = `${fallbackW}px`;
+                picker.style.height = `${fallbackH}px`;
+                pickerRect = picker.getBoundingClientRect();
+            }
+
+            // Prefer opening above, aligned to button's right edge
+            let left = btnRect.right - pickerRect.width;
+            let top = btnRect.top - pickerRect.height - pad;
+
+            // If not enough space above, open below
+            if (top < pad) top = btnRect.bottom + pad;
+
+            // Clamp within viewport
+            left = Math.max(pad, Math.min(left, window.innerWidth - pickerRect.width - pad));
+            top = Math.max(pad, Math.min(top, window.innerHeight - pickerRect.height - pad));
+
+            picker.style.left = `${left}px`;
+            picker.style.top = `${top}px`;
+        }
+
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            picker.classList.toggle('d-none');
+            if (!picker.classList.contains('d-none')) {
+                requestAnimationFrame(positionFixedPopover);
+            } else {
+                picker.style.transform = '';
+                picker.style.position = '';
+                picker.style.top = '';
+                picker.style.left = '';
+                picker.style.right = '';
+                picker.style.bottom = '';
+                picker.style.margin = '';
+                picker.style.zIndex = '';
+                picker.style.width = '';
+                picker.style.height = '';
+                portalDetach();
+            }
+        });
+        document.addEventListener('click', function(e) {
+            if (!picker.contains(e.target) && !btn.contains(e.target)) {
+                picker.classList.add('d-none');
+                picker.style.transform = '';
+                picker.style.position = '';
+                picker.style.top = '';
+                picker.style.left = '';
+                picker.style.right = '';
+                picker.style.bottom = '';
+                picker.style.margin = '';
+                picker.style.zIndex = '';
+                picker.style.width = '';
+                picker.style.height = '';
+                portalDetach();
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                picker.classList.add('d-none');
+                picker.style.transform = '';
+                picker.style.position = '';
+                picker.style.top = '';
+                picker.style.left = '';
+                picker.style.right = '';
+                picker.style.bottom = '';
+                picker.style.margin = '';
+                picker.style.zIndex = '';
+                picker.style.width = '';
+                picker.style.height = '';
+                portalDetach();
+            }
+        });
+        window.addEventListener('resize', function() {
+            requestAnimationFrame(positionFixedPopover);
+        });
     }
 
     function startPollTimer() {
@@ -857,13 +2365,17 @@
                 const params = new URLSearchParams(window.location.search);
                 const openParam = params.get('open');
                 if (openParam) {
-                    const conv = conversationsCache.find(function(c) {
-                        if (!c.user) return false;
-                        if (c.user.uid != null && c.user.uid !== '' && String(c.user.uid) === String(openParam)) return true;
-                        return String(c.user.id) === String(openParam);
-                    });
-                    if (conv && conv.user) {
-                        openThread(conv.user.id);
+                    if (String(openParam).charAt(0) === 'g') {
+                        const gid = parseInt(openParam.substring(1), 10);
+                        const conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === gid; });
+                        if (conv && conv.group) openThread(null, gid);
+                    } else {
+                        const conv = conversationsCache.find(function(c) {
+                            if (!c.user) return false;
+                            if (c.user.uid != null && c.user.uid !== '' && String(c.user.uid) === String(openParam)) return true;
+                            return String(c.user.id) === String(openParam);
+                        });
+                        if (conv && conv.user) openThread(conv.user.id, null);
                     }
                 }
             }

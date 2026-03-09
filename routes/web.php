@@ -191,6 +191,20 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::get('/history/{messageId}', 'history')->name('history');
         Route::get('/last-seen', 'lastSeen')->name('lastSeen');
         Route::get('/download/{messageId}', 'downloadFile')->name('download');
+        Route::post('/react', 'react')->name('react');
+        Route::post('/remove-reaction', 'removeReaction')->name('removeReaction');
+        Route::post('/forward', 'forward')->name('forward');
+        Route::get('/groups', 'groups')->name('groups');
+        Route::post('/groups/create', 'groupCreate')->name('groupCreate');
+        Route::post('/groups/add-members', 'groupAddMembers')->name('groupAddMembers');
+        Route::post('/groups/update', 'groupUpdate')->name('groupUpdate');
+        Route::post('/groups/set-member-role', 'groupSetMemberRole')->name('groupSetMemberRole');
+        Route::post('/groups/remove-member', 'groupRemoveMember')->name('groupRemoveMember');
+        Route::post('/groups/delete', 'groupDelete')->name('groupDelete');
+        Route::post('/nickname', 'setNickname')->name('setNickname');
+        Route::get('/groups/{groupId}/messages', 'groupMessages')->name('groupMessages');
+        Route::post('/groups/send', 'sendGroup')->name('sendGroup');
+        Route::post('/groups/send-file', 'sendGroupFile')->name('sendGroupFile');
     });
 
     // Admin Routes
