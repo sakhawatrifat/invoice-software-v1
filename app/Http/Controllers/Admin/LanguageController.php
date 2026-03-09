@@ -123,7 +123,7 @@ class LanguageController extends Controller
                 // Translate button
                 if (hasPermission('language.translate')) {
                     $buttons .= '
-                        <a href="' . $translationUrl . '" class="btn btn-sm btn-info" title="Translate">
+                        <a href="' . $translationUrl . '" class="btn btn-sm btn-info my-1" title="Translate">
                             <i class="fa-solid fa-language"></i>
                         </a>
                     ';
@@ -135,7 +135,7 @@ class LanguageController extends Controller
                         $buttons .='';
                     }else{
                         $buttons .= '
-                            <a href="' . $editUrl . '" class="btn btn-sm btn-primary" title="Edit">
+                            <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1" title="Edit">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </a>
                         ';
@@ -145,7 +145,7 @@ class LanguageController extends Controller
                 // Delete button (not allowed for 'en')
                 if (!in_array($row->code, ['en']) && hasPermission('language.delete')) {
                     $buttons .= '
-                        <button class="btn btn-sm btn-danger delete-table-data-btn" title="Delete"
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn" title="Delete"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '">
                             <i class="fa-solid fa-trash"></i>

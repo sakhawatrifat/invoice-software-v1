@@ -129,14 +129,20 @@
         return fetch(url, { ...options, ...opts }).then(r => r.json());
     }
 
+    /** Return display name for the other user (recipient) in 1-to-1; never return current user's name. */
+    function getRecipientDisplayName(user) {
+        if (!user || user.id === currentUserId) return '';
+        const contactNick = (user.contact_nickname && String(user.contact_nickname).trim()) ? String(user.contact_nickname).trim() : '';
+        const theirNick = (user.their_nickname_for_me && String(user.their_nickname_for_me).trim()) ? String(user.their_nickname_for_me).trim() : '';
+        const name = (user.name && String(user.name).trim()) ? String(user.name).trim() : '';
+        return contactNick || theirNick || name || '';
+    }
+
     function update1to1ThreadHeader() {
         if (!currentOtherUserId || currentGroupId) return;
         const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
         if (!conv || !conv.user) return;
-        const contactNick = (conv.user.contact_nickname && String(conv.user.contact_nickname).trim()) ? String(conv.user.contact_nickname).trim() : '';
-        const theirNick = (conv.user.their_nickname_for_me && String(conv.user.their_nickname_for_me).trim()) ? String(conv.user.their_nickname_for_me).trim() : '';
-        const name = (conv.user.name && String(conv.user.name).trim()) ? String(conv.user.name).trim() : '';
-        const displayName = contactNick || theirNick || name || 'User';
+        const displayName = getRecipientDisplayName(conv.user) || 'User';
         const el1 = document.getElementById('chat-thread-name');
         const el2 = document.getElementById('chat-widget-thread-name');
         if (el1) el1.textContent = displayName;
@@ -280,7 +286,8 @@
         let html = '';
         (list || []).forEach(c => {
             const isGroup = c.type === 'group';
-            const userDisplayName = !isGroup && c.user ? ((c.user.contact_nickname && c.user.contact_nickname.trim()) ? c.user.contact_nickname.trim() : ((c.user.their_nickname_for_me && c.user.their_nickname_for_me.trim()) ? c.user.their_nickname_for_me.trim() : (c.user.name || ''))) : '';
+            if (!isGroup && c.user && c.user.id === currentUserId) return;
+            const userDisplayName = !isGroup && c.user ? (getRecipientDisplayName(c.user) || '') : '';
             const name = (isGroup ? (c.group?.name || '') : userDisplayName).toLowerCase();
             if (search && !name.includes(search)) return;
             const isChatbot = !!(c.user?.is_automation_chatbot);
@@ -295,7 +302,7 @@
                 initial = (userDisplayName || '?').charAt(0).toUpperCase();
             }
             const lastText = last ? (last.deleted_for_everyone ? (CHAT_STR.thisMessageWasDeleted || 'This message was deleted') : (last.type === 'file' ? (last.file_name || 'File') : (last.body || '').substring(0, 40))) : 'No messages yet';
-            const time = last ? formatTime(last.created_at) : '';
+            const time = last ? formatConversationListTime(last.created_at) : '';
             let nameWithStatus = escapeHtml(isGroup ? (c.group?.name || 'Group') : (userDisplayName || ''));
             if (!isGroup) {
                 const isActive = !!(c.user?.last_seen_at && isRecent(c.user.last_seen_at));
@@ -360,8 +367,8 @@
             if (setNicknamesItem) setNicknamesItem.classList.add('d-none');
         } else if (conv?.user) {
             currentGroupData = null;
-            name = (conv.user.contact_nickname && conv.user.contact_nickname.trim()) ? conv.user.contact_nickname.trim() : ((conv.user.their_nickname_for_me && conv.user.their_nickname_for_me.trim()) ? conv.user.their_nickname_for_me.trim() : (conv.user.name || 'User'));
-            avatar = conv.user.image_url || '';
+            name = getRecipientDisplayName(conv.user) || 'User';
+            avatar = conv.user.id !== currentUserId ? (conv.user.image_url || '') : '';
             status = conv.user.last_seen_at ? (isRecent(conv.user.last_seen_at) ? 'Active now' : 'Last seen ' + formatTime(conv.user.last_seen_at)) : '';
             const groupInfoItem = document.getElementById(isWidget ? 'chat-widget-group-info-item' : 'chat-group-info-item');
             if (groupInfoItem) groupInfoItem.classList.add('d-none');
@@ -1063,7 +1070,7 @@
         if (!currentOtherUserId || currentGroupId) return;
         const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
         if (!conv || !conv.user) return;
-        const contactName = (conv.user.name || 'Contact').trim();
+        const contactName = (getRecipientDisplayName(conv.user) || 'Contact').trim();
         const contactNick = (conv.user.contact_nickname && conv.user.contact_nickname.trim) ? conv.user.contact_nickname.trim() : (conv.user.contact_nickname ? String(conv.user.contact_nickname).trim() : '');
         const myNick = (conv.user.their_nickname_for_me && conv.user.their_nickname_for_me.trim) ? conv.user.their_nickname_for_me.trim() : (conv.user.their_nickname_for_me ? String(conv.user.their_nickname_for_me).trim() : '');
         const origLabel = CHAT_STR.originalName || 'Original';
@@ -1224,7 +1231,7 @@
         } else if (forGroupMemberUserId == null) {
             if (!currentOtherUserId) return;
             const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
-            currentName = conv && conv.user ? ((conv.user.contact_nickname && conv.user.contact_nickname.trim()) ? conv.user.contact_nickname.trim() : (conv.user.name || '')) : '';
+            currentName = conv && conv.user ? getRecipientDisplayName(conv.user) : '';
             payload = { contact_user_id: currentOtherUserId };
         } else {
             if (!currentGroupId || !currentGroupData || !currentGroupData.members) return;
@@ -1255,7 +1262,7 @@
                         } else if (is1to1) {
                             const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
                             if (conv && conv.user) conv.user.contact_nickname = payload.nickname || null;
-                            const displayName = (payload.nickname && payload.nickname.trim()) ? payload.nickname.trim() : (conv && conv.user ? conv.user.name : '') || 'User';
+                            const displayName = (payload.nickname && payload.nickname.trim()) ? payload.nickname.trim() : (conv && conv.user ? getRecipientDisplayName(conv.user) : '') || 'User';
                             const threadNameEl = document.getElementById(isWidget ? 'chat-widget-thread-name' : 'chat-thread-name');
                             if (threadNameEl) threadNameEl.textContent = displayName;
                             var avatarInitial = document.getElementById(isWidget ? 'chat-widget-thread-avatar-initial' : 'chat-thread-avatar-initial');
@@ -1355,9 +1362,9 @@
                 const conv = conversationsCache.find(function(c) { return c.user && c.user.id === currentOtherUserId; });
                 if (conv && conv.user) conv.user.contact_nickname = null;
                 const threadNameEl = document.getElementById(isWidget ? 'chat-widget-thread-name' : 'chat-thread-name');
-                if (threadNameEl) threadNameEl.textContent = (conv && conv.user ? conv.user.name : '') || 'User';
+                if (threadNameEl) threadNameEl.textContent = (conv && conv.user ? getRecipientDisplayName(conv.user) : '') || 'User';
                 const avatarInitial = document.getElementById(isWidget ? 'chat-widget-thread-avatar-initial' : 'chat-thread-avatar-initial');
-                if (avatarInitial) avatarInitial.textContent = ((conv && conv.user ? conv.user.name : '') || 'U').charAt(0).toUpperCase();
+                if (avatarInitial) avatarInitial.textContent = ((conv && conv.user ? getRecipientDisplayName(conv.user) : '') || 'U').charAt(0).toUpperCase();
                 const clearNicknameItem = document.getElementById(isWidget ? 'chat-widget-clear-nickname-item' : 'chat-clear-nickname-item');
                 if (clearNicknameItem) clearNicknameItem.classList.add('d-none');
                 poll().then(function() { renderConversationList(conversationsCache); if (isWidget && typeof updateWidgetBadge === 'function') updateWidgetBadge(conversationsCache); });
@@ -1905,6 +1912,29 @@
         if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
         if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    /** Chat list datetime: "Today 03:54 PM", "Yesterday 03:54 PM", or "3/9/2026 03:54 PM" */
+    function formatConversationListTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        const hours = d.getHours();
+        const mins = d.getMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const h12 = hours % 12 || 12;
+        const timeStr = String(h12).padStart(2, '0') + ':' + String(mins).padStart(2, '0') + ' ' + ampm;
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterdayStart = new Date(todayStart);
+        yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+        const msgDayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        if (msgDayStart.getTime() === todayStart.getTime()) return 'Today ' + timeStr;
+        if (msgDayStart.getTime() === yesterdayStart.getTime()) return 'Yesterday ' + timeStr;
+        const month = d.getMonth() + 1;
+        const day = d.getDate();
+        const year = d.getFullYear();
+        return month + '/' + day + '/' + year + ' ' + timeStr;
     }
 
     function formatHistoryDateTime(iso) {

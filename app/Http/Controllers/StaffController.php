@@ -203,7 +203,7 @@ class StaffController extends Controller
                 // View button (requires permission)
                 if (hasPermission('staff.index')) {
                     $buttons .= '
-                        <a href="' . $showUrl . '" class="btn btn-sm btn-info" title="View">
+                        <a href="' . $showUrl . '" class="btn btn-sm btn-info my-1" title="View">
                             <i class="fa-solid fa-eye"></i>
                         </a>
                     ';
@@ -212,7 +212,7 @@ class StaffController extends Controller
                 // Edit button (requires permission)
                 if (hasPermission('staff.edit') && Auth::user()->id != $row->id) {
                     $buttons .= '
-                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary" title="Edit">
+                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1" title="Edit">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
                     ';
@@ -225,7 +225,7 @@ class StaffController extends Controller
                     hasPermission('staff.delete')
                 ) {
                     $buttons .= '
-                        <button class="btn btn-sm btn-danger delete-table-data-btn"
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '"
                             title="Delete">

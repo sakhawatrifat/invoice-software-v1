@@ -42,7 +42,7 @@
         <div id="kt_app_content_container" class="app-container container-fluid">
             <div class="card rounded border shadow-sm mb-5">
                 <div class="card-header">
-                    <h3 class="card-title mb-0">{{ $getCurrentTranslation['flight_status'] ?? 'Flight Status' }} – {{ collect($systemSegments ?? [])->pluck('flight_number')->filter()->unique()->values()->implode(', ') ?: ($payment->payment_invoice_id ?? 'N/A') }}</h3>
+                    <h3 class="card-title mb-0">{{ $getCurrentTranslation['flight_status'] ?? 'Flight Status' }} – {{ $payment->ticket->trip_type ?? $payment->trip_type ?? 'N/A' }} - {{ collect($systemSegments ?? [])->pluck('flight_number')->filter()->unique()->values()->implode(', ') ?: ($payment->payment_invoice_id ?? 'N/A') }}</h3>
                 </div>
                 <div class="card-body">
                     @if($trackError)
@@ -108,8 +108,10 @@
                         @else
                             @foreach($systemSegments as $seg)
                                 @php
-                                    $liveDep = $liveSegments[$segIdx]['departure'] ?? null;
-                                    $liveArr = $liveSegments[$segIdx]['arrival'] ?? null;
+                                    $liveSegment = $liveSegments[$segIdx] ?? [];
+                                    $segmentStatus = $liveSegment['_segment_status'] ?? null;
+                                    $liveDep = $liveSegment['departure'] ?? null;
+                                    $liveArr = $liveSegment['arrival'] ?? null;
                                     $sysDep = $seg['departure_date_time'] ? \Carbon\Carbon::parse($seg['departure_date_time'])->format('Y-m-d H:i') : 'N/A';
                                     $sysArr = $seg['arrival_date_time'] ? \Carbon\Carbon::parse($seg['arrival_date_time'])->format('Y-m-d H:i') : 'N/A';
                                     $liveDepStr = null;
@@ -170,9 +172,16 @@
                                                 <span class="badge badge-secondary ms-1">{{ $getCurrentTranslation['transit'] ?? 'Transit' }}</span>
                                             @endif
                                         </strong>
-                                        @if($depMatch === false || $arrMatch === false)
-                                            <span class="badge bg-warning text-dark">{{ $getCurrentTranslation['schedule_changed'] ?? 'Schedule changed' }}</span>
-                                        @endif
+                                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                                            @if($segmentStatus === 'cancelled')
+                                                <span class="badge bg-danger">{{ $getCurrentTranslation['flight_cancelled'] ?? 'Cancelled' }}</span>
+                                            @elseif($segmentStatus === 'unavailable')
+                                                <span class="badge bg-warning">{{ $getCurrentTranslation['live_status_not_available'] ?? 'Live status not available' }}</span>
+                                            @endif
+                                            @if($depMatch === false || $arrMatch === false)
+                                                <span class="badge bg-warning text-dark">{{ $getCurrentTranslation['schedule_changed'] ?? 'Schedule changed' }}</span>
+                                            @endif
+                                        </div>
                                     </div>
                                     <div class="card-body p-0">
                                         <div class="row g-0">
@@ -227,9 +236,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                @if($liveDep || $liveArr)
-                                    @php $segIdx++; @endphp
-                                @endif
+                                @php $segIdx++; @endphp
                             @endforeach
                         @endif
                     </div>

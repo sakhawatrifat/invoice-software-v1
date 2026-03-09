@@ -87,7 +87,7 @@ class ExpenseCategoryController extends Controller
 
                 if (hasPermission('expense_category.edit')) {
                     $buttons .= '
-                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary">
+                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
                     ';
@@ -95,7 +95,7 @@ class ExpenseCategoryController extends Controller
 
                 if (hasPermission('expense_category.delete')) {
                     $buttons .= '
-                        <button class="btn btn-sm btn-danger delete-table-data-btn"
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '">
                             <i class="fa-solid fa-trash"></i>

@@ -59,7 +59,7 @@
 					{{-- Filter --}}
 					<div class="row mb-5">
 						<div class="col-md-12">
-							<form method="GET" action="{{ route('admin.salary.list') }}">
+							<form method="GET" action="{{ route('admin.salary.list') }}" id="salary-list-filter-form">
 								<div class="row">
 									<div class="col-md-4">
 										<div class="input-item">
@@ -207,14 +207,14 @@
 											@endif
 										</td>
 										<td>
-											<a href="{{ route('admin.salary.exportPayslip', $salary->id) }}" class="btn btn-sm btn-danger" target="_blank" title="{{ $getCurrentTranslation['export_payslip'] ?? 'Export Payslip' }}">
+											<a href="{{ route('admin.salary.exportPayslip', $salary->id) }}" class="btn btn-sm btn-primary my-1" target="_blank" title="{{ $getCurrentTranslation['export_payslip'] ?? 'Export Payslip' }}">
 												<i class="fas fa-file-pdf"></i> {{ $getCurrentTranslation['payslip'] ?? 'Payslip' }}
 											</a>
-											<button type="button" class="btn btn-sm btn-info edit-salary" 
+											<button type="button" class="btn btn-sm btn-info my-1 edit-salary" 
 												data-salary-id="{{ $salary->id }}">
 												<i class="fas fa-edit"></i> {{ $getCurrentTranslation['edit'] ?? 'Edit' }}
 											</button>
-											<button type="button" class="btn btn-sm btn-danger delete-salary" 
+											<button type="button" class="btn btn-sm btn-danger my-1 delete-salary" 
 												data-salary-id="{{ $salary->id }}"
 												data-employee-name="{{ $salary->employee->name ?? 'N/A' }}">
 												<i class="fas fa-trash"></i> {{ $getCurrentTranslation['delete'] ?? 'Delete' }}
@@ -319,7 +319,16 @@
 <script>
 $(document).ready(function() {
 	let currentSalaryId = null;
-	
+
+	// When no month selected, pass month=0 in URL so server does not default to current month
+	$('#salary-list-filter-form').on('submit', function() {
+		var $monthSelect = $(this).find('select[name="month[]"]');
+		$(this).find('input[name="month"]').remove();
+		if (!$monthSelect.length || $monthSelect.val().length === 0) {
+			$(this).append('<input type="hidden" name="month" value="0">');
+		}
+	});
+
 	// Handle note modal
 	$('#noteModal').on('show.bs.modal', function (event) {
 		const button = $(event.relatedTarget);

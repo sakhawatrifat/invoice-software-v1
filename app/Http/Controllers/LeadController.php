@@ -90,7 +90,7 @@ class LeadController extends Controller
                 $detailsUrl = route('lead.show', $row->id);
 
                 if (hasPermission('lead.index')) {
-                    $buttons .= '<a href="' . $detailsUrl . '" class="btn btn-sm btn-info me-2" title="Details">
+                    $buttons .= '<a href="' . $detailsUrl . '" class="btn btn-sm btn-info my-1 me-2" title="Details">
                         <i class="fa-solid fa-eye"></i>
                     </a>';
                 }
@@ -101,21 +101,21 @@ class LeadController extends Controller
                         'lead_id' => $row->id,
                     ]);
 
-                    $buttons .= '<a href="' . $historyUrl . '" class="btn btn-sm btn-secondary me-2" title="History">
+                    $buttons .= '<a href="' . $historyUrl . '" class="btn btn-sm btn-secondary my-1 me-2" title="History">
                         <i class="fa-solid fa-clock-rotate-left"></i>
                     </a>';
                 }
 
                 if (hasPermission('lead.edit')) {
                     $editUrl = route('lead.edit', $row->id);
-                    $buttons .= '<a href="' . $editUrl . '" class="btn btn-sm btn-primary me-2" title="Edit">
+                    $buttons .= '<a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1 me-2" title="Edit">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </a>';
                 }
 
                 if (hasPermission('lead.delete')) {
                     $deleteUrl = route('lead.delete', $row->id);
-                    $buttons .= '<button class="btn btn-sm btn-danger delete-table-data-btn"
+                    $buttons .= '<button class="btn btn-sm btn-danger my-1 delete-table-data-btn"
                         data-id="' . $row->id . '"
                         data-url="' . $deleteUrl . '"
                         title="Delete">

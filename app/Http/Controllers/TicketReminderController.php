@@ -191,7 +191,7 @@ class TicketReminderController extends Controller
                 // Edit button (requires permission)
                 if (hasPermission('ticket.edit')) {
                     $buttons .= '
-                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary" title="Edit">
+                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1" title="Edit">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
                     ';

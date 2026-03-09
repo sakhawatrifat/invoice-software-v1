@@ -97,13 +97,13 @@ class StickyNoteController extends Controller
                 );
                 $html = '';
                 if (hasPermission('sticky_note.show')) {
-                    $html .= '<a href="' . route('sticky_note.show', $row->id) . '" class="btn btn-sm btn-icon btn-info"><i class="fa-solid fa-eye"></i></a> ';
+                    $html .= '<a href="' . route('sticky_note.show', $row->id) . '" class="btn btn-sm btn-icon btn-info my-1"><i class="fa-solid fa-eye"></i></a> ';
                 }
                 if (hasPermission('sticky_note.edit')) {
-                    $html .= '<a href="' . route('sticky_note.edit', $row->id) . '" class="btn btn-sm btn-icon btn-primary"><i class="fa-solid fa-pen"></i></a> ';
+                    $html .= '<a href="' . route('sticky_note.edit', $row->id) . '" class="btn btn-sm btn-icon btn-primary my-1"><i class="fa-solid fa-pen"></i></a> ';
                 }
                 if ($canDelete) {
-                    $html .= '<button type="button" class="btn btn-sm btn-icon btn-danger delete-table-data-btn" data-url="' . route('sticky_note.destroy', $row->id) . '" title="' . ($getCurrentTranslation['delete'] ?? 'delete') . '"><i class="fa-solid fa-trash"></i></button>';
+                    $html .= '<button type="button" class="btn btn-sm btn-icon btn-danger my-1 delete-table-data-btn" data-url="' . route('sticky_note.destroy', $row->id) . '" title="' . ($getCurrentTranslation['delete'] ?? 'delete') . '"><i class="fa-solid fa-trash"></i></button>';
                 }
                 return $html ?: '—';
             })

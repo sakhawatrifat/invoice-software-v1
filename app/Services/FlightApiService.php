@@ -186,8 +186,90 @@ class FlightApiService
      */
     private function isLikelyNonAirportCode(string $code): bool
     {
-        $bad = ['APT', 'TBA', 'NA', 'N/A', 'XXX', 'TBD', 'TBH', 'TBC', 'TBD', 'TBA', 'NIL', 'NA'];
+        $bad = [
+            'APT', 'TBA', 'NA', 'N/A', 'XXX', 'TBD', 'TBH', 'TBC', 'NIL',
+            'INT',  // e.g. from "International" in leaving_from
+            'TER', 'ARR', 'DEP', 'DOM',  // terminal/arrival/departure/domestic
+        ];
         return in_array($code, $bad, true);
+    }
+
+    /**
+     * Extract IATA airport code (3-letter) from place/airport text stored in DB.
+     * 1) Prefers code in parentheses, e.g. (KIX), (DAC).
+     * 2) Then matches against config/airports_iata.php by airport name (e.g. "hazrat shahjalal international airport" → DAC).
+     * 3) Fallback: standalone 3-letter word not in blocklist.
+     *
+     * @param string $place e.g. "Kansai Intl Apt (KIX) T-1", "Beijing Capital Int Apt (PEK) T-3", "hazrat shahjalal international airport"
+     * @return string|null 3-letter IATA code (e.g. KIX, PEK, DAC) or null if none found/valid
+     */
+    public function extractAirportIataFromPlace(string $place): ?string
+    {
+        $place = trim(preg_replace('/\s+/', ' ', (string) $place));
+        if ($place === '') {
+            return null;
+        }
+        // 1) Prefer code in parentheses: (KIX), (PEK), (DAC) – standard IATA format in DB
+        if (preg_match('/\(([A-Za-z]{3})\)/', $place, $m)) {
+            $code = strtoupper($m[1]);
+            if (!$this->isLikelyNonAirportCode($code)) {
+                return $code;
+            }
+        }
+        // 2) Match by airport name from config (longest match first) – e.g. "hazrat shahjalal international airport" → DAC
+        $placeLower = mb_strtolower($place);
+        $nameToIata = $this->getAirportNameToIataMap();
+        foreach ($nameToIata as $name => $iata) {
+            if ($name === '' || strlen($iata) !== 3) {
+                continue;
+            }
+            if (str_contains($placeLower, $name) || str_contains($name, $placeLower)) {
+                return strtoupper($iata);
+            }
+        }
+        // 3) Standalone 3-letter word (all letters) not in blocklist – e.g. "DAC" or "KIX airport"
+        if (preg_match_all('/\b([A-Za-z]{3})\b/', $place, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $code = strtoupper($m[1]);
+                if (!$this->isLikelyNonAirportCode($code)) {
+                    return $code;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Build map of airport name (lowercase) => IATA code, sorted by name length descending so longest match wins.
+     *
+     * @return array<string, string>
+     */
+    private function getAirportNameToIataMap(): array
+    {
+        $path = base_path('config/airports_iata.php');
+        if (!is_file($path)) {
+            return [];
+        }
+        $list = require $path;
+        if (!is_array($list)) {
+            return [];
+        }
+        $flat = [];
+        foreach ($list as $entry) {
+            $iata = isset($entry['iata']) ? trim((string) $entry['iata']) : '';
+            $names = $entry['names'] ?? [];
+            if ($iata === '' || !is_array($names)) {
+                continue;
+            }
+            foreach ($names as $name) {
+                $name = mb_strtolower(trim(preg_replace('/\s+/', ' ', (string) $name)));
+                if ($name !== '') {
+                    $flat[$name] = $iata;
+                }
+            }
+        }
+        uksort($flat, static fn ($a, $b) => strlen($b) <=> strlen($a));
+        return $flat;
     }
 
     /**
@@ -960,10 +1042,12 @@ class FlightApiService
             'name' => $name,
             'date' => $dateStr,
         ];
-        $depap = $departureAirportCode !== null && $departureAirportCode !== ''
-            ? strtoupper(substr(trim($departureAirportCode), 0, 3))
-            : '';
-        if ($depap !== '' && !$this->isLikelyNonAirportCode($depap)) {
+        $depap = '';
+        if ($departureAirportCode !== null && trim((string) $departureAirportCode) !== '') {
+            $extracted = $this->extractAirportIataFromPlace((string) $departureAirportCode);
+            $depap = $extracted !== null ? $extracted : '';
+        }
+        if ($depap !== '') {
             $query['depap'] = $depap;
         }
 

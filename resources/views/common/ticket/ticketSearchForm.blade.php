@@ -538,18 +538,51 @@
 											</div>
 										</div>
 									</div>
-									<!-- Sort info -->
-									<div class="card border-0 shadow-sm mb-3">
-										<div class="card-body py-2">
-											<p class="text-muted small mb-0">{{ $getCurrentTranslation['sorted_by'] ?? 'Sorted by' }}: <span class="fw-semibold text-dark">{{ $getCurrentTranslation['price_lowest_first'] ?? 'Price (lowest first)' }}</span></p>
+									<!-- Filters + Results row -->
+									<div class="row g-3">
+										<!-- Left: Filters (populated when results load) -->
+										<div class="col-md-3 col-lg-2" id="flight-results-filters-col" style="display: none;">
+											<div class="card border-0 shadow-sm sticky-top z-index-1" style="top: 1rem;">
+												<div class="card-header d-flex justify-content-between align-items-center py-2">
+													<h6 class="mb-0">{{ $getCurrentTranslation['filters'] ?? 'Filters' }}</h6>
+													<button type="button" class="btn btn-sm btn-secondary py-1 px-2" id="flight-filter-reset-btn" title="{{ $getCurrentTranslation['filter_reset'] ?? 'Reset filters' }}">
+														{{ $getCurrentTranslation['filter_reset'] ?? 'Reset' }}
+													</button>
+												</div>
+												<div class="card-body p-3">
+													<!-- Airlines filter (checkboxes, built from results) -->
+													<div class="mb-3">
+														<label class="form-label small fw-semibold text-muted mb-2">{{ $getCurrentTranslation['airlines'] ?? 'Airlines' }}</label>
+														<div id="flight-filter-airlines" class="flight-filter-airlines overflow-auto" style="max-height: 220px;">
+															<!-- Filled by JS from current results -->
+														</div>
+													</div>
+													<!-- Transit/Stops filter (radio: All, 1, 2, 3) -->
+													<div>
+														<label class="form-label small fw-semibold text-muted mb-2">{{ $getCurrentTranslation['transit'] ?? 'Transit' }}</label>
+														<div id="flight-filter-transit" class="flight-filter-transit">
+															<!-- Filled by JS from current results -->
+														</div>
+													</div>
+												</div>
+											</div>
 										</div>
-									</div>
-									<!-- Flight cards list -->
-									<div id="flight-results-content" class="flight-results-list p-0">
-										<!-- Results populated via AJAX -->
-									</div>
-									<div class="text-center text-muted small mt-4" id="flight-results-footer">
-										{{ $getCurrentTranslation['prices_updated'] ?? 'Prices updated at search time. Prices are approximate and may vary.' }}
+										<!-- Right: Sort + Results -->
+										<div class="col">
+											<!-- Sort info -->
+											<div class="card border-0 shadow-sm mb-3">
+												<div class="card-body py-2">
+													<p class="text-muted small mb-0">{{ $getCurrentTranslation['sorted_by'] ?? 'Sorted by' }}: <span class="fw-semibold text-dark">{{ $getCurrentTranslation['price_lowest_first'] ?? 'Price (lowest first)' }}</span></p>
+												</div>
+											</div>
+											<!-- Flight cards list -->
+											<div id="flight-results-content" class="flight-results-list p-0">
+												<!-- Results populated via AJAX -->
+											</div>
+											<div class="text-center text-muted small mt-4" id="flight-results-footer">
+												{{ $getCurrentTranslation['prices_updated'] ?? 'Prices updated at search time. Prices are approximate and may vary.' }}
+											</div>
+										</div>
 									</div>
 								</div>
 							</div>
@@ -2788,6 +2821,7 @@
 						{{ $getCurrentTranslation['no_flights_found'] ?? 'no_flights_found' }}
 					</div>
 				`);
+				$('#flight-results-filters-col').hide();
 				return;
 			}
 			
@@ -2911,8 +2945,11 @@
 				var stopsText = stops === 0 ? ('{{ $getCurrentTranslation["direct"] ?? "Direct" }}') : (stops === 1 ? '1 {{ $getCurrentTranslation["layover"] ?? "layover" }}' : stops + ' {{ $getCurrentTranslation["layovers"] ?? "layovers" }}');
 				var airlineDisplay = carrierNames.length > 1 ? (escapeHtml(firstCarrierName) + ' +' + (carrierNames.length - 1)) : escapeHtml(carrierStr);
 				var timeRangeStr = (departureTime || '') + ' – ' + (arrivalTime || '');
+				// For client-side filtering: store stops count and pipe-separated airline names
+				var dataAirlines = carrierNames.length ? carrierNames.join('|') : (carrierStr ? String(carrierStr).replace(/,/g, '|') : '');
+				var dataAirlinesAttr = (dataAirlines || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
-				let cardHtml = '<div class="flight-result-card mb-0" data-flight-index="' + index + '">';
+				let cardHtml = '<div class="flight-result-card mb-0" data-flight-index="' + index + '" data-stops="' + stops + '" data-airlines="' + dataAirlinesAttr + '">';
 				cardHtml += '<div class="flight-result-card-header" role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#' + segmentId + '" aria-expanded="false" aria-controls="' + segmentId + '">';
 				cardHtml += '<div class="flight-result-card-header-toggle">';
 				cardHtml += '<div class="header-collapsed flight-result-card-header-left">';
@@ -2990,6 +3027,74 @@
 			// Clear previous selection when showing new results
 			window.selectedFlightIndex = undefined;
 			$('#flight-results-container').removeAttr('data-selected-flight-index');
+			// Build and show left-side filters from current result data (client-side only)
+			buildFlightResultsFilters();
+		}
+		
+		function buildFlightResultsFilters() {
+			var $cards = $('#flight-results-content .flight-result-card');
+			if (!$cards.length) {
+				$('#flight-results-filters-col').hide();
+				return;
+			}
+			var airlinesSet = {};
+			var stopsSet = {};
+			$cards.each(function() {
+				var stops = parseInt($(this).attr('data-stops'), 10);
+				if (!isNaN(stops)) stopsSet[stops] = true;
+				var raw = $(this).attr('data-airlines') || '';
+				raw.split('|').forEach(function(name) {
+					var n = name.trim();
+					if (n) airlinesSet[n] = true;
+				});
+			});
+			var airlinesList = Object.keys(airlinesSet).sort();
+			var stopsList = Object.keys(stopsSet).map(Number).sort(function(a, b) { return a - b; });
+			var directLabel = '{{ $getCurrentTranslation["direct"] ?? "Direct" }}';
+			var layoverLabel = '{{ $getCurrentTranslation["layover"] ?? "layover" }}';
+			var layoversLabel = '{{ $getCurrentTranslation["layovers"] ?? "layovers" }}';
+			var allLabel = '{{ $getCurrentTranslation["all"] ?? "All" }}';
+			var airlinesHtml = '';
+			airlinesList.forEach(function(name, idx) {
+				var safeId = 'fl-air-' + idx;
+				airlinesHtml += '<div class="form-check my-2"><input class="form-check-input flight-filter-airline" type="checkbox" value="' + escapeHtml(name) + '" id="' + safeId + '"><label class="form-check-label small" for="' + safeId + '">' + escapeHtml(name) + '</label></div>';
+			});
+			$('#flight-filter-airlines').html(airlinesHtml || '<p class="text-muted small mb-0">—</p>');
+			var transitHtml = '<div class="form-check mb-2"><input class="form-check-input flight-filter-transit-radio" type="radio" name="flight_filter_transit" value="" id="fl-transit-all" checked><label class="form-check-label small" for="fl-transit-all">' + allLabel + '</label></div>';
+			stopsList.forEach(function(s) {
+				var label = s === 0 ? directLabel : (s === 1 ? '1 ' + layoverLabel : s + ' ' + layoversLabel);
+				transitHtml += '<div class="form-check mb-2"><input class="form-check-input flight-filter-transit-radio" type="radio" name="flight_filter_transit" value="' + s + '" id="fl-transit-' + s + '"><label class="form-check-label small" for="fl-transit-' + s + '">' + escapeHtml(label) + '</label></div>';
+			});
+			$('#flight-filter-transit').html(transitHtml);
+			$('#flight-results-filters-col').show();
+			$('.flight-filter-airline').off('change').on('change', applyFlightResultsFilters);
+			$('.flight-filter-transit-radio').off('change').on('change', applyFlightResultsFilters);
+			$('#flight-filter-reset-btn').off('click').on('click', function() {
+				$('#flight-filter-airlines .flight-filter-airline').prop('checked', false);
+				$('#fl-transit-all').prop('checked', true);
+				applyFlightResultsFilters();
+			});
+		}
+		
+		function applyFlightResultsFilters() {
+			var selectedAirlines = [];
+			$('#flight-filter-airlines .flight-filter-airline:checked').each(function() {
+				selectedAirlines.push($(this).val());
+			});
+			var transitVal = $('input[name="flight_filter_transit"]:checked').val();
+			var transitFilter = transitVal === '' ? null : parseInt(transitVal, 10);
+			var visible = 0;
+			$('#flight-results-content .flight-result-card').each(function() {
+				var $card = $(this);
+				var cardAirlines = ($card.attr('data-airlines') || '').split('|').map(function(s) { return s.trim(); }).filter(Boolean);
+				var cardStops = parseInt($card.attr('data-stops'), 10);
+				var passAirline = selectedAirlines.length === 0 || cardAirlines.some(function(a) { return selectedAirlines.indexOf(a) !== -1; });
+				var passTransit = transitFilter === null || cardStops === transitFilter;
+				var show = passAirline && passTransit;
+				$card.toggle(show);
+				if (show) visible++;
+			});
+			$('#results-count').text(visible);
 		}
 		
 		function escapeHtml(str) {

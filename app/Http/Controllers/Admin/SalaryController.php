@@ -144,11 +144,16 @@ class SalaryController extends Controller
         }
         $user = Auth::user();
         
-        // Handle months: can be array or single value
-        $months = $request->has('month') ? (array)$request->month : [Carbon::now()->month];
-        $months = array_filter($months, function($m) { return $m !== '' && $m !== null; });
-        if (empty($months)) {
+        // Handle months: no param = current month; month=0 or empty selection = no month filter
+        if (!$request->has('month')) {
             $months = [Carbon::now()->month];
+        } else {
+            $raw = $request->month;
+            $months = is_array($raw) ? $raw : [$raw];
+            $months = array_filter($months, function($m) { return $m !== '' && $m !== null && $m !== 0 && $m !== '0'; });
+            if ($raw === 0 || $raw === '0' || empty($months)) {
+                $months = [];
+            }
         }
         // Handle year: if not set, default to current year; if 'all', show all years
         $year = $request->has('year') ? $request->year : Carbon::now()->year;

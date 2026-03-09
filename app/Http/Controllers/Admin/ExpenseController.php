@@ -111,7 +111,7 @@ class ExpenseController extends Controller
 
                 if (hasPermission('expense.index')) {
                     $buttons .= '
-                        <a href="' . $showUrl . '" class="btn btn-sm btn-info">
+                        <a href="' . $showUrl . '" class="btn btn-sm btn-info my-1">
                             <i class="fa-solid fa-eye"></i>
                         </a>
                     ';
@@ -119,7 +119,7 @@ class ExpenseController extends Controller
 
                 if (hasPermission('expense.edit')) {
                     $buttons .= '
-                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary">
+                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
                     ';
@@ -127,7 +127,7 @@ class ExpenseController extends Controller
 
                 if (hasPermission('expense.delete')) {
                     $buttons .= '
-                        <button class="btn btn-sm btn-danger delete-table-data-btn"
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '">
                             <i class="fa-solid fa-trash"></i>

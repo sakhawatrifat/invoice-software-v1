@@ -51,10 +51,10 @@ class NotificationController extends Controller
                 $deleteUrl = route('notification.destroy', $row->id);
 
                 return '
-                    <a href="' . $detailsUrl . '" class="btn btn-sm btn-info text-white me-1">
+                    <a href="' . $detailsUrl . '" class="btn btn-sm btn-info text-white my-1 me-1">
                         <i class="fa-solid fa-pager"></i>
                     </a>
-                    <button class="btn btn-sm btn-danger delete-table-data-btn"
+                    <button class="btn btn-sm btn-danger my-1 delete-table-data-btn"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '">
                         <i class="fa-solid fa-trash"></i>

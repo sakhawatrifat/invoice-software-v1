@@ -78,10 +78,10 @@ class LeadSourceController extends Controller
                     $deleteUrl = route('leadSource.delete', $row->id);
 
                     $buttons .= '
-                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary me-2">
+                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1 me-2">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
-                        <button class="btn btn-sm btn-danger delete-table-data-btn"
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '">
                             <i class="fa-solid fa-trash"></i>

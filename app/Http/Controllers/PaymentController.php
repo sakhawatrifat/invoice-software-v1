@@ -2083,22 +2083,21 @@ class PaymentController extends Controller
             $num = trim((string) $num);
             $airlineCode = $airlineCode !== null ? trim((string) $airlineCode) : '';
             $date = $seg['departure_date_time'] ?? $payment->departure_date_time;
-            $depAp = null;
-            if (!empty($seg['leaving_from']) && preg_match('/\b([A-Z]{3})\b/i', $seg['leaving_from'], $m)) {
-                $depAp = strtoupper($m[1]);
-            }
+            $depAp = !empty($seg['leaving_from']) ? trim((string) $seg['leaving_from']) : null;
             $liveData[] = [];
+            $lastIdx = array_key_last($liveData);
             if ($num === '' || strlen($airlineCode) < 2) {
                 if ($trackError === null) {
                     $trackError = getCurrentTranslation()['flight_tracking_requires_airline_and_number'] ?? 'Live tracking requires a 2-letter airline IATA code and flight number for each segment.';
                 }
+                $liveData[$lastIdx] = ['_segment_status' => 'unavailable'];
                 continue;
             }
             try {
                 $raw = $flightApi->trackFlight($airlineCode, $num, (string) ($date ?? now()), $depAp);
                 $normalized = $this->normalizeFlightTrackingResponse($raw);
                 if (!empty($normalized)) {
-                    $liveData[array_key_last($liveData)] = $normalized[0];
+                    $liveData[$lastIdx] = $normalized[0];
                     $dep = $normalized[0]['departure'] ?? [];
                     $arr = $normalized[0]['arrival'] ?? [];
                     $newDep = $this->safeParseDateTimeForDb($dep['departureDateTime'] ?? $dep['scheduledTime'] ?? null);
@@ -2111,13 +2110,19 @@ class PaymentController extends Controller
                             'arrival_date_time' => $newArr,
                         ];
                     }
+                } else {
+                    $liveData[$lastIdx] = ['_segment_status' => 'unavailable'];
                 }
             } catch (\Throwable $e) {
                 if ($trackError === null) {
                     $trackError = $e->getMessage();
                 }
+                $msg = $e->getMessage();
+                $liveData[$lastIdx] = [
+                    '_segment_status' => (stripos($msg, 'cancelled') !== false ? 'cancelled' : 'unavailable'),
+                ];
                 \Log::warning('FlightAPI track failed for segment', [
-                    'message' => $e->getMessage(),
+                    'message' => $msg,
                     'airline_code' => $airlineCode,
                     'flight_number' => $num,
                     'date' => $date instanceof \DateTimeInterface ? $date->format('Y-m-d') : $date,
@@ -2599,10 +2604,7 @@ class PaymentController extends Controller
                 $date = $first['departure_date_time'] ?? $payment->departure_date_time;
                 if ($airlineCode && $num) {
                     try {
-                        $depAp = null;
-                        if (!empty($first['leaving_from']) && preg_match('/\b([A-Z]{3})\b/i', $first['leaving_from'], $m)) {
-                            $depAp = strtoupper($m[1]);
-                        }
+                        $depAp = !empty($first['leaving_from']) ? trim((string) $first['leaving_from']) : null;
                         $raw = $flightApi->trackFlight($airlineCode, $num, $date ?? now(), $depAp);
                         $liveData = $this->normalizeFlightTrackingResponse($raw);
                     } catch (\Exception $e) {

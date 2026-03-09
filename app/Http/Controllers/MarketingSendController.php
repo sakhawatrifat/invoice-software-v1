@@ -109,7 +109,7 @@ class MarketingSendController extends Controller
             })
             ->addColumn('action', function ($row) use ($showRouteName) {
                 $showUrl = route($showRouteName, $row->id);
-                return '<a href="' . $showUrl . '" class="btn btn-sm btn-info"><i class="fa-solid fa-eye"></i></a>';
+                return '<a href="' . $showUrl . '" class="btn btn-sm btn-info my-1"><i class="fa-solid fa-eye"></i></a>';
             })
             ->editColumn('created_at', function ($row) {
                 return Carbon::parse($row->created_at)->format('Y-m-d H:i');

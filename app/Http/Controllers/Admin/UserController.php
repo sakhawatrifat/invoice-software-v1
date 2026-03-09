@@ -128,7 +128,7 @@ class UserController extends Controller
                 $deleteButton = '';
                 if ($row->id != 1) {
                     $deleteButton = '
-                        <button class="btn btn-sm btn-danger delete-table-data-btn"
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '"
                             title="Delete">
@@ -138,8 +138,8 @@ class UserController extends Controller
                 }
 
                 return '
-                    <a href="' . $showUrl . '" class="btn btn-sm btn-info" title="View"><i class="fa-solid fa-eye"></i></a>
-                    <a href="' . $editUrl . '" class="btn btn-sm btn-primary" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
+                    <a href="' . $showUrl . '" class="btn btn-sm btn-info my-1" title="View"><i class="fa-solid fa-eye"></i></a>
+                    <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
                     ' . $deleteButton . '
                 ';
             })

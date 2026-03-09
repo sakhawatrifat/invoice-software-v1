@@ -93,7 +93,7 @@ class DepartmentController extends Controller
                 // Edit button (requires permission)
                 if (hasPermission('department.edit')) {
                     $buttons .= '
-                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary">
+                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
                     ';
@@ -102,7 +102,7 @@ class DepartmentController extends Controller
                 // Delete button (requires permission — add condition if needed)
                 if (hasPermission('department.delete')) {
                     $buttons .= '
-                        <button class="btn btn-sm btn-danger delete-table-data-btn"
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '">
                             <i class="fa-solid fa-trash"></i>

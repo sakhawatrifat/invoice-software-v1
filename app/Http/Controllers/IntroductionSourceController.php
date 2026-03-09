@@ -76,7 +76,7 @@ class IntroductionSourceController extends Controller
 
                 if (hasPermission('introductionSource')) {
                     $buttons .= '
-                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary">
+                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
                     ';
@@ -84,7 +84,7 @@ class IntroductionSourceController extends Controller
 
                 if (hasPermission('introductionSource')) {
                     $buttons .= '
-                        <button class="btn btn-sm btn-danger delete-table-data-btn"
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '">
                             <i class="fa-solid fa-trash"></i>

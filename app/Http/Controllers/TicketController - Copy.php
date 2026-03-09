@@ -111,13 +111,13 @@ class TicketController extends Controller
 
                 return '
                     <div class="d-flex align-items-center gap-2">
-                        <a href="' . $detailsUrl . '" class="btn btn-sm btn-info" title="View Details">
+                        <a href="' . $detailsUrl . '" class="btn btn-sm btn-info my-1" title="View Details">
                             <i class="fa-solid fa-pager"></i>
                         </a>
-                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary" title="Edit">
+                        <a href="' . $editUrl . '" class="btn btn-sm btn-primary my-1" title="Edit">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
-                        <button class="btn btn-sm btn-danger delete-table-data-btn" title="Delete"
+                        <button class="btn btn-sm btn-danger my-1 delete-table-data-btn" title="Delete"
                             data-id="' . $row->id . '"
                             data-url="' . $deleteUrl . '">
                             <i class="fa-solid fa-trash"></i>
