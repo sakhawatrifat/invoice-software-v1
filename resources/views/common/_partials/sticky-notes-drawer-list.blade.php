@@ -8,6 +8,14 @@
 		$reminderPassed = $sn->reminder_datetime && $sn->reminder_datetime->isPast();
 		$deadlinePassed = $sn->deadline && $sn->deadline->isPast();
 		$readStatus = (bool) ($sn->read_status ?? false);
+		$priority = $sn->priority ?? 'Medium';
+		$priorityBadge = match ($priority) {
+			'Highest' => 'danger',
+			'Medium' => 'warning',
+			'Lower' => 'info',
+			'Optional' => 'primary',
+			default => 'warning',
+		};
 	@endphp
 	<a
 		href="{{ route('sticky_note.show', $sn->id) }}"
@@ -20,10 +28,21 @@
 			       hover-shadow-sm hover-border-primary"
 			style="cursor: pointer;"
 		>
-			<span class="fs-5 fw-semibold {{ $readStatus ? 'text-gray-700' : 'text-white' }}">
-				{{ $sn->note_title }}
-			</span>
-			<span class="badge ms-2 {{ $readStatus ? 'badge-light-primary' : 'badge-light' }}">{{ $sn->status }}</span>
+			<div class="d-flex flex-column flex-grow-1">
+				<div class="d-flex align-items-center flex-wrap">
+					<span class="fs-5 fw-semibold {{ $readStatus ? 'text-gray-700' : 'text-white' }}">
+						{{ $sn->note_title }}
+					</span>
+					<span class="badge ms-2 {{ $readStatus ? 'badge-light-primary' : 'badge-light' }}">{{ $sn->status }}</span>
+					<span class="badge ms-2 badge-light-{{ $priorityBadge }}">{{ $priority }}</span>
+				</div>
+				@if(isset($sn->assignedUsers) && $sn->assignedUsers->isNotEmpty())
+					<div class="fs-7 {{ $readStatus ? 'text-muted' : 'text-white' }}">
+						{{ $getCurrentTranslation['assigned_users'] ?? 'assigned_users' }}:
+						{{ $sn->assignedUsers->pluck('name')->take(4)->join(', ') }}{{ $sn->assignedUsers->count() > 4 ? '...' : '' }}
+					</div>
+				@endif
+			</div>
 			@if($sn->reminder_datetime || $sn->deadline)
 				<span class="ms-auto fs-7 {{ $readStatus ? 'text-muted' : 'text-white' }}">
 					@if($sn->reminder_datetime)

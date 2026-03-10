@@ -21,6 +21,11 @@
             <h3 class="card-title fw-bold text-gray-900">{{ $getCurrentTranslation['upcoming_sticky_notes'] ?? 'upcoming_sticky_notes' }}</h3>
 
             <div class="card-toolbar">
+                @if(function_exists('hasPermission') && hasPermission('sticky_note.create'))
+                    <a href="{{ route('sticky_note.create') }}" class="btn btn-sm btn-primary me-2">
+                        {{ $getCurrentTranslation['create_sticky_note'] ?? 'Create Sticky Note' }}
+                    </a>
+                @endif
                 <button
                     type="button"
                     class="btn btn-sm btn-icon btn-active-light-primary me-n5"
@@ -94,3 +99,25 @@
         <!--end::Footer-->
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof jQuery === 'undefined') return;
+    var $drawer = jQuery('#kt_sticky_note');
+    var $filter = $drawer.find('.card-header select');
+    var upcomingUrl = $drawer.data('upcoming-url');
+    if (!upcomingUrl || !$filter.length) return;
+
+    function refreshDrawer(priority) {
+        jQuery.get(upcomingUrl, { priority: priority || '' }, function(data) {
+            if (data.html !== undefined) jQuery('#kt_sticky_note_list').html(data.html);
+            if (data.count !== undefined) jQuery('.sticky-note-count').text(data.count);
+            if (data.count_text) jQuery('#kt_sticky_note_count_text').text(data.count_text);
+        });
+    }
+
+    $filter.off('change.ktStickyPriority').on('change.ktStickyPriority', function() {
+        refreshDrawer(jQuery(this).val());
+    });
+});
+</script>

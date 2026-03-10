@@ -20,6 +20,7 @@ return new class extends Migration
             $table->dateTime('reminder_datetime')->nullable();
             $table->dateTime('reminder_mail_sent_at')->nullable();
             $table->string('status', 50)->nullable()->default('Pending')->comment('Pending, In Progress, Completed, Cancelled');
+            $table->string('priority', 20)->nullable()->default('Medium')->comment('Highest, Medium, Lower, Optional');
             $table->bigInteger('created_by')->nullable();
             $table->bigInteger('updated_by')->nullable();
             $table->bigInteger('deleted_by')->nullable();

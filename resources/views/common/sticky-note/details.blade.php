@@ -46,6 +46,17 @@
 						<h3 class="card-title">{{ $note->note_title }}</h3>
 						<div class="card-toolbar">
 							<span class="badge badge-light-{{ $note->status == 'Completed' ? 'success' : ($note->status == 'In Progress' ? 'primary' : ($note->status == 'Cancelled' ? 'secondary' : 'warning')) }}">{{ $note->status ?? 'Pending' }}</span>
+							@php
+								$priority = $note->priority ?? 'Medium';
+								$priorityBadge = match ($priority) {
+									'Highest' => 'danger',
+									'Medium' => 'warning',
+									'Lower' => 'info',
+									'Optional' => 'primary',
+									default => 'warning',
+								};
+							@endphp
+							<span class="badge badge-light-{{ $priorityBadge }} ms-2">{{ $priority }}</span>
 						</div>
 					</div>
 					<div class="card-body">
@@ -71,6 +82,10 @@
 							<div class="col-md-6 mt-4">
 								<label class="form-label fw-bold">{{ $getCurrentTranslation['owner'] ?? 'owner' }}</label>
 								<div>{{ $note->user->name ?? '—' }}</div>
+							</div>
+							<div class="col-md-6 mt-4">
+								<label class="form-label fw-bold">{{ $getCurrentTranslation['priority'] ?? 'priority' }}</label>
+								<div>{{ $priority }}</div>
 							</div>
 							@if($note->assignedUsers->isNotEmpty())
 								<div class="col-12 mt-4">

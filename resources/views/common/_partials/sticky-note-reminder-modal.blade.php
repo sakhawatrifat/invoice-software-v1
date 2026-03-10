@@ -15,12 +15,28 @@
                 <p class="text-muted mb-4">{{ $getCurrentTranslation['notes_with_reminder_due'] ?? 'notes_with_reminder_due' }}</p>
                 <div class="list-group" id="sticky-note-reminder-list">
                     @foreach($reminderDueStickyNotes as $sn)
+                    @php
+                        $priority = $sn->priority ?? 'Medium';
+                        $priorityBadge = match ($priority) {
+                            'Highest' => 'danger',
+                            'Medium' => 'warning',
+                            'Lower' => 'info',
+                            'Optional' => 'primary',
+                            default => 'warning',
+                        };
+                    @endphp
                     <div class="list-group-item d-flex justify-content-between align-items-center sticky-note-reminder-item" data-note-id="{{ $sn->id }}">
                         <div class="flex-grow-1">
                             <a href="{{ route('sticky_note.show', $sn->id) }}" class="text-dark text-hover-primary text-decoration-none">
                                 <strong>{{ $sn->note_title }}</strong>
                             </a>
+                            <span class="badge badge-light-{{ $priorityBadge }} ms-2">{{ $priority }}</span>
                             <br><small class="text-muted">{{ $getCurrentTranslation['reminder'] ?? 'reminder' }}: {{ $sn->reminder_datetime->format('Y-m-d H:i') }}</small>
+                            @if(isset($sn->assignedUsers) && $sn->assignedUsers->isNotEmpty())
+                                <div class="mt-1">
+                                    <small class="text-muted">{{ $getCurrentTranslation['assigned_users'] ?? 'assigned_users' }}: {{ $sn->assignedUsers->pluck('name')->take(4)->join(', ') }}{{ $sn->assignedUsers->count() > 4 ? '...' : '' }}</small>
+                                </div>
+                            @endif
                         </div>
                         <div class="d-flex align-items-center gap-2 ms-2">
                             <a href="{{ route('sticky_note.show', $sn->id) }}" class="btn btn-sm btn-icon btn-light-primary" title="{{ $getCurrentTranslation['show'] ?? 'show' }}">

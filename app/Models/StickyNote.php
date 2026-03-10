@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Auth;
 
 class StickyNote extends Model
 {
@@ -18,6 +19,7 @@ class StickyNote extends Model
         'reminder_datetime',
         'reminder_mail_sent_at',
         'status',
+        'priority',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -65,10 +67,10 @@ class StickyNote extends Model
      */
     public function getReadStatusAttribute(): bool
     {
-        if (!\Auth::check()) {
+        if (!Auth::check()) {
             return true;
         }
-        $uid = \Auth::id();
+        $uid = Auth::id();
         if (!$this->relationLoaded('assignedUsers')) {
             return true;
         }

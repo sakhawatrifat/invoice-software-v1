@@ -29,6 +29,7 @@ class StickyNoteSeeder extends Seeder
                 'deadline' => Carbon::now()->addDays(5),
                 'reminder_datetime' => Carbon::now()->addDays(3),
                 'status' => 'Pending',
+                'priority' => 'Highest',
             ],
             [
                 'note_title' => 'Submit monthly report',
@@ -36,6 +37,7 @@ class StickyNoteSeeder extends Seeder
                 'deadline' => Carbon::now()->addDays(2),
                 'reminder_datetime' => Carbon::now()->addDay(),
                 'status' => 'In Progress',
+                'priority' => 'Medium',
             ],
             [
                 'note_title' => 'Test reminder (past) – Action required',
@@ -43,6 +45,7 @@ class StickyNoteSeeder extends Seeder
                 'deadline' => Carbon::now()->addDays(7),
                 'reminder_datetime' => Carbon::now()->subHour(),
                 'status' => 'Pending',
+                'priority' => 'Highest',
             ],
             [
                 'note_title' => 'Team meeting – Agenda',
@@ -50,6 +53,7 @@ class StickyNoteSeeder extends Seeder
                 'deadline' => Carbon::now()->addDays(6),
                 'reminder_datetime' => Carbon::now()->addDays(4),
                 'status' => 'Pending',
+                'priority' => 'Lower',
             ],
             [
                 'note_title' => 'Review contract draft',
@@ -57,6 +61,7 @@ class StickyNoteSeeder extends Seeder
                 'deadline' => Carbon::now()->addDays(10),
                 'reminder_datetime' => Carbon::now()->addDays(7),
                 'status' => 'Pending',
+                'priority' => 'Optional',
             ],
         ];
 
@@ -68,6 +73,7 @@ class StickyNoteSeeder extends Seeder
             $note->deadline = $data['deadline'];
             $note->reminder_datetime = $data['reminder_datetime'];
             $note->status = $data['status'];
+            $note->priority = $data['priority'] ?? 'Medium';
             $note->created_by = $owner->id;
             $note->updated_by = $owner->id;
             $note->save();

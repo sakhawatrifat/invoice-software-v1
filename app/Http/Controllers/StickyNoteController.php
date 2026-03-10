@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Auth;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
+use Illuminate\Support\Facades\Auth;
 
 use App\Models\StickyNote;
 use App\Models\StickyNoteActivity;
@@ -24,6 +24,12 @@ class StickyNoteController extends Controller
 
         $createRoute = hasPermission('sticky_note.create') ? route('sticky_note.create') : '';
         $dataTableRoute = route('sticky_note.datatable');
+        // Users for filter: admin and admin staff only (exclude user_type = user)
+        $filterUsers = User::excludeAutomationChatbot()
+            ->whereNull('deleted_at')
+            ->where('user_type', '!=', 'user')
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return view('common.sticky-note.index', get_defined_vars());
     }
@@ -47,6 +53,35 @@ class StickyNoteController extends Controller
             $start = Carbon::createFromFormat('Y/m/d', $m[1])->startOfDay();
             $end = Carbon::createFromFormat('Y/m/d', $m[2])->endOfDay();
             $query->whereBetween('reminder_datetime', [$start, $end]);
+        }
+
+        // Priority filter
+        $priority = request('priority');
+        $allowedPriority = ['Highest', 'Medium', 'Lower', 'Optional'];
+        if (!empty($priority) && in_array($priority, $allowedPriority, true)) {
+            $query->where('priority', $priority);
+        }
+
+        // Assigned user filter – only allow valid user ids from admin/admin staff
+        $assignedUserId = request('assigned_user_id');
+        if (!empty($assignedUserId) && is_numeric($assignedUserId)) {
+            $allowedUserIds = User::excludeAutomationChatbot()
+                ->whereNull('deleted_at')
+                ->where('user_type', '!=', 'user')
+                ->pluck('id')
+                ->toArray();
+            if (in_array((int) $assignedUserId, $allowedUserIds, true)) {
+                $query->whereHas('assignedUsers', function ($q) use ($assignedUserId) {
+                    $q->where('user_id', (int) $assignedUserId);
+                });
+            }
+        }
+
+        // Status filter
+        $status = request('status');
+        $allowedStatuses = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
+        if (!empty($status) && in_array($status, $allowedStatuses, true)) {
+            $query->where('status', $status);
         }
 
         return DataTables::of($query)
@@ -83,6 +118,17 @@ class StickyNoteController extends Controller
                 };
                 return '<span class="badge badge-light-' . $badge . '">' . e($status) . '</span>';
             })
+            ->addColumn('priority', function ($row) {
+                $priority = $row->priority ?? 'Medium';
+                $badge = match ($priority) {
+                    'Highest' => 'danger',
+                    'Medium' => 'warning',
+                    'Lower' => 'info',
+                    'Optional' => 'primary',
+                    default => 'warning',
+                };
+                return '<span class="badge badge-light-' . $badge . '">' . e($priority) . '</span>';
+            })
             ->addColumn('assigned_users', function ($row) {
                 if ($row->assignedUsers->isEmpty()) {
                     return '—';
@@ -107,7 +153,7 @@ class StickyNoteController extends Controller
                 }
                 return $html ?: '—';
             })
-            ->rawColumns(['status', 'action'])
+            ->rawColumns(['status', 'priority', 'action'])
             ->make(true);
     }
 
@@ -142,6 +188,7 @@ class StickyNoteController extends Controller
             'deadline' => 'required|date',
             'reminder_datetime' => 'required|date|before_or_equal:deadline',
             'status' => 'nullable|in:Pending,In Progress,Completed,Cancelled',
+            'priority' => 'nullable|in:Highest,Medium,Lower,Optional',
             'assigned_user_ids' => 'nullable|array',
             'assigned_user_ids.*' => 'exists:users,id',
         ];
@@ -165,6 +212,7 @@ class StickyNoteController extends Controller
         $note->deadline = $request->deadline ? Carbon::parse($request->deadline) : null;
         $note->reminder_datetime = $request->reminder_datetime ? Carbon::parse($request->reminder_datetime) : null;
         $note->status = $request->status ?? 'Pending';
+        $note->priority = $request->priority ?? 'Medium';
         $note->created_by = $user->id;
         $note->updated_by = $user->id;
         $note->save();
@@ -251,6 +299,7 @@ class StickyNoteController extends Controller
             'deadline' => 'required|date',
             'reminder_datetime' => 'required|date|before_or_equal:deadline',
             'status' => 'nullable|in:Pending,In Progress,Completed,Cancelled',
+            'priority' => 'nullable|in:Highest,Medium,Lower,Optional',
             'assigned_user_ids' => 'nullable|array',
             'assigned_user_ids.*' => 'exists:users,id',
         ];
@@ -273,6 +322,7 @@ class StickyNoteController extends Controller
         $note->deadline = $request->deadline ? Carbon::parse($request->deadline) : null;
         $note->reminder_datetime = $request->reminder_datetime ? Carbon::parse($request->reminder_datetime) : null;
         $note->status = $request->status ?? $note->status;
+        $note->priority = $request->priority ?? $note->priority ?? 'Medium';
         $note->updated_by = $user->id;
         $note->save();
 
@@ -390,9 +440,9 @@ class StickyNoteController extends Controller
         }
         $now = Carbon::now();
         $end = Carbon::now()->addDays(7);
-        $upcomingStickyNotes = StickyNote::visibleToUser(Auth::user())
+        $upcomingStickyNotesQuery = StickyNote::visibleToUser(Auth::user())
             ->with(['assignedUsers' => function ($q) {
-                $q->where('users.id', Auth::id())->withPivot('read_status');
+                $q->withPivot('read_status');
             }])
             ->where(function ($q) use ($now, $end) {
                 $q->whereBetween('reminder_datetime', [$now, $end])
@@ -400,8 +450,16 @@ class StickyNoteController extends Controller
             })
             ->whereNotIn('status', ['Cancelled', 'Completed'])
             ->orderByRaw('COALESCE(reminder_datetime, deadline) ASC')
-            ->limit(20)
-            ->get();
+            ->limit(20);
+
+        // Priority filter (drawer)
+        $priority = request('priority');
+        $allowedPriority = ['Highest', 'Medium', 'Lower', 'Optional'];
+        if (!empty($priority) && in_array($priority, $allowedPriority, true)) {
+            $upcomingStickyNotesQuery->where('priority', $priority);
+        }
+
+        $upcomingStickyNotes = $upcomingStickyNotesQuery->get();
         $unreadCount = $upcomingStickyNotes->filter(fn ($n) => !$n->read_status)->count();
         $totalCount = $upcomingStickyNotes->count();
         $getCurrentTranslation = getCurrentTranslation();
@@ -417,14 +475,17 @@ class StickyNoteController extends Controller
     protected function getAssignableUsers()
     {
         $user = Auth::user();
+        // Only admin and admin staff (exclude user_type = user)
         if ($user->user_type === 'admin' && $user->is_staff != 1) {
             return User::excludeAutomationChatbot()->whereNull('deleted_at')
+                ->where('user_type', '!=', 'user')
                 ->where('id', '!=', $user->id)
                 ->orderBy('name')
                 ->get(['id', 'name', 'email']);
         }
         $bid = $user->business_id;
         return User::excludeAutomationChatbot()->whereNull('deleted_at')
+            ->where('user_type', '!=', 'user')
             ->where('id', '!=', $user->id)
             ->where(function ($q) use ($bid) {
                 $q->where('id', $bid)->orWhere('parent_id', $bid);
@@ -460,6 +521,7 @@ class StickyNoteController extends Controller
             'deadline' => $note->deadline?->toIso8601String(),
             'reminder_datetime' => $note->reminder_datetime?->toIso8601String(),
             'status' => $note->status,
+            'priority' => $note->priority ?? 'Medium',
             'assigned_user_ids' => $note->assignedUsers->pluck('id')->values()->all(),
         ];
     }
@@ -540,6 +602,7 @@ class StickyNoteController extends Controller
             'deadline' => 'Deadline',
             'reminder_datetime' => 'Reminder Datetime',
             'status' => 'Status',
+            'priority' => 'Priority',
             'assigned_user_ids' => 'Assigned Users',
         ];
         $lines = [];

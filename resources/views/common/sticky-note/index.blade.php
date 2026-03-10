@@ -41,7 +41,30 @@
 							<div class="accordion-body">
 								<form class="filter-data-form">
 									<div class="row">
-										<div class="col-md-3">
+										<div class="col-md-3 mb-2">
+											<div class="input-item-wrap">
+												<label class="form-label">{{ $getCurrentTranslation['priority'] ?? 'priority' }}:</label>
+												<select class="form-select" name="priority" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_priority'] ?? 'select_priority' }}">
+													<option value="">{{ $getCurrentTranslation['all'] ?? 'All' }}</option>
+													<option value="Highest" {{ request()->priority == 'Highest' ? 'selected' : '' }}>Highest</option>
+													<option value="Medium" {{ request()->priority == 'Medium' ? 'selected' : '' }}>Medium</option>
+													<option value="Lower" {{ request()->priority == 'Lower' ? 'selected' : '' }}>Lower</option>
+													<option value="Optional" {{ request()->priority == 'Optional' ? 'selected' : '' }}>Optional</option>
+												</select>
+											</div>
+										</div>
+										<div class="col-md-3 mb-2">
+											<div class="input-item-wrap">
+												<label class="form-label">{{ $getCurrentTranslation['assigned_users'] ?? 'assigned_users' }}:</label>
+												<select class="form-select" name="assigned_user_id" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_user'] ?? 'select_user' }}">
+													<option value="">{{ $getCurrentTranslation['all_users'] ?? 'All Users' }}</option>
+													@foreach($filterUsers ?? [] as $u)
+														<option value="{{ $u->id }}" {{ request()->assigned_user_id == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+													@endforeach
+												</select>
+											</div>
+										</div>
+										<div class="col-md-3 mb-2">
 											<div class="input-item-wrap">
 												<label class="form-label">{{ $getCurrentTranslation['deadline_daterange'] ?? 'Deadline Daterange' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
@@ -54,7 +77,7 @@
 												</div>
 											</div>
 										</div>
-										<div class="col-md-3">
+										<div class="col-md-3 mb-2">
 											<div class="input-item-wrap">
 												<label class="form-label">{{ $getCurrentTranslation['reminder_daterange'] ?? 'Reminder Daterange' }}:</label>
 												<div class="daterange-picker-wrap form-control d-flex justify-content-between align-items-center">
@@ -65,6 +88,18 @@
 													</div>
 													<span class="clear-date-range"><i class="fa fa-times"></i></span>
 												</div>
+											</div>
+										</div>
+										<div class="col-md-3 mb-2">
+											<div class="input-item-wrap">
+												<label class="form-label">{{ $getCurrentTranslation['status'] ?? 'status' }}:</label>
+												<select class="form-select" name="status" data-control="select2" data-placeholder="{{ $getCurrentTranslation['all_statuses'] ?? 'All Statuses' }}">
+													<option value="">{{ $getCurrentTranslation['all_statuses'] ?? 'All Statuses' }}</option>
+													<option value="Pending" {{ request()->status == 'Pending' ? 'selected' : '' }}>{{ $getCurrentTranslation['pending'] ?? 'Pending' }}</option>
+													<option value="In Progress" {{ request()->status == 'In Progress' ? 'selected' : '' }}>{{ $getCurrentTranslation['in_progress'] ?? 'In Progress' }}</option>
+													<option value="Completed" {{ request()->status == 'Completed' ? 'selected' : '' }}>{{ $getCurrentTranslation['completed'] ?? 'Completed' }}</option>
+													<option value="Cancelled" {{ request()->status == 'Cancelled' ? 'selected' : '' }}>{{ $getCurrentTranslation['cancelled'] ?? 'Cancelled' }}</option>
+												</select>
 											</div>
 										</div>
 										<div class="col-md-12">
@@ -100,6 +135,7 @@
 							<th>{{ $getCurrentTranslation['deadline'] ?? 'deadline' }}</th>
 							<th>{{ $getCurrentTranslation['reminder_datetime'] ?? 'reminder_datetime' }}</th>
 							<th>{{ $getCurrentTranslation['status'] ?? 'status' }}</th>
+							<th>{{ $getCurrentTranslation['priority'] ?? 'priority' }}</th>
 							<th>{{ $getCurrentTranslation['assigned_users'] ?? 'assigned_users' }}</th>
 							<th>{{ $getCurrentTranslation['action'] ?? 'action' }}</th>
 						</tr>
@@ -139,6 +175,7 @@ $(document).ready(function() {
 			{ data: 'deadline', name: 'deadline' },
 			{ data: 'reminder_datetime', name: 'reminder_datetime' },
 			{ data: 'status', name: 'status', orderable: false, searchable: false },
+			{ data: 'priority', name: 'priority', orderable: false, searchable: false },
 			{ data: 'assigned_users', name: 'assigned_users', orderable: false, searchable: false },
 			{ data: 'action', name: 'action', orderable: false, searchable: false }
 		]

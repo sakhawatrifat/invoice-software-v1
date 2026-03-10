@@ -102,6 +102,18 @@
 										</select>
 									</div>
 								</div>
+								<div class="col-md-12">
+									<div class="form-item mb-5">
+										<label class="form-label">{{ $getCurrentTranslation['priority'] ?? 'priority' }}</label>
+										<select class="form-select" name="priority" data-control="select2" data-placeholder="{{ $getCurrentTranslation['select_priority'] ?? 'select_priority' }}">
+											@php $p = old('priority', isset($editData) ? ($editData->priority ?? 'Medium') : 'Medium'); @endphp
+											<option value="Highest" {{ $p == 'Highest' ? 'selected' : '' }}>Highest</option>
+											<option value="Medium" {{ $p == 'Medium' ? 'selected' : '' }}>Medium</option>
+											<option value="Lower" {{ $p == 'Lower' ? 'selected' : '' }}>Lower</option>
+											<option value="Optional" {{ $p == 'Optional' ? 'selected' : '' }}>Optional</option>
+										</select>
+									</div>
+								</div>
 								<div class="col-12">
 									<div class="form-item mb-5">
 										<label class="form-label">{{ $getCurrentTranslation['assign_to_users'] ?? 'assign_to_users' }}</label>

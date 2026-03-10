@@ -54,7 +54,7 @@ class GlobalComposer
         if (Auth::check() && function_exists('hasPermission') && hasPermission('sticky_note.index')) {
             $upcomingStickyNotes = StickyNote::visibleToUser(Auth::user())
                 ->with(['assignedUsers' => function ($q) {
-                    $q->where('users.id', Auth::id())->withPivot('read_status');
+                    $q->withPivot('read_status');
                 }])
                 ->where(function ($q) {
                     $now = Carbon::now();
@@ -68,6 +68,7 @@ class GlobalComposer
                 ->get();
             // Only notes still pending (not yet acknowledged) so popup does not show after user has acknowledged
             $reminderDueStickyNotes = StickyNote::visibleToUser(Auth::user())
+                ->with('assignedUsers')
                 ->whereNotNull('reminder_datetime')
                 ->where('reminder_datetime', '<=', Carbon::now())
                 ->where('status', 'Pending')
