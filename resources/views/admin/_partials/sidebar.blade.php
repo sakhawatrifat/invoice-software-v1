@@ -197,7 +197,7 @@
 				@endif
 
 				@php
-					$reminderRoutes = ['ticket.reminder.index', 'ticket.reminder.datatable', 'ticket.reminder.form', 'flight.list', 'flight.list.datatable', 'payment.flight.status'];
+					$reminderRoutes = ['ticket.reminder.index', 'ticket.reminder.datatable', 'ticket.reminder.form', 'flight.list', 'flight.list.datatable', 'payment.flight.status', 'flight.changedCancelled'];
 				@endphp
 				@if(hasPermission('ticket.reminder'))
 				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($reminderRoutes, 'hover show') }}">
@@ -237,6 +237,14 @@
 									<span class="bullet bullet-dot"></span>
 								</span>
 								<span class="menu-title">{{ $getCurrentTranslation['upcomming_flights'] ?? 'upcomming_flights' }}</span>
+							</a>
+						</div>
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'flight.changedCancelled' ? 'active' : '' }}" href="{{ route('flight.changedCancelled') }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['changed_cancelled_flights'] ?? 'Rescheduled & Cancelled Flights' }}</span>
 							</a>
 						</div>
 					</div>

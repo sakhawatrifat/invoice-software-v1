@@ -23,11 +23,13 @@ class ChatMessage extends Model
         'reply_to_message_id',
         'forwarded_from_message_id',
         'deleted_for_everyone_at',
+        'edited_at',
     ];
 
     protected $casts = [
         'file_size' => 'integer',
         'deleted_for_everyone_at' => 'datetime',
+        'edited_at' => 'datetime',
     ];
 
     public function sender(): BelongsTo

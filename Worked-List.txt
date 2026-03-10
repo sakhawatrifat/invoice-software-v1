@@ -63,11 +63,12 @@ Invoice Software New Features (January 2026 To March 2026):
 02. Ticket Data Import
 	-Ticket Live Data Fetch Via Flight API
 	-Create Ticket Auto Form Fill-up by Selecting Flight Data Item  
-	-Ticket Filter Option
+	-Ticket Filter Option by Airline & Transit/Layover
 
 03. Flight Status 
 	-Flight Status Cross Check with System Data vs. Live API Data
 	-Mail Sending Option to Client With Updated Flight Datetime and Updated Ticket PDF
+	-Cancelled or Rescheduled Flights Check & Listing
 
 
 04. Message (Internal Users Chat System)
@@ -90,7 +91,7 @@ Invoice Software New Features (January 2026 To March 2026):
 	- Message reaction system for each message
 	- Message forwarding to other users or groups
 	- Chat users nickname system
-
+	- Message Edit Option (15 minute edit timeout)
 
 4.1 Group Chat System
 	- Any user can create a group and add members

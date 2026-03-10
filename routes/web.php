@@ -193,6 +193,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::get('/download/{messageId}', 'downloadFile')->name('download');
         Route::post('/react', 'react')->name('react');
         Route::post('/remove-reaction', 'removeReaction')->name('removeReaction');
+        Route::post('/edit', 'editMessage')->name('edit');
         Route::post('/forward', 'forward')->name('forward');
         Route::get('/groups', 'groups')->name('groups');
         Route::post('/groups/create', 'groupCreate')->name('groupCreate');
@@ -494,6 +495,11 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
 
         Route::get('/flight-list', 'flightList')->name('flight.list');
         Route::get('/flight-list-datatable', 'flightListDatatable')->name('flight.list.datatable');
+        Route::get('/changed-cancelled-flights', 'changedCancelledFlights')->name('flight.changedCancelled');
+        Route::get('/changed-cancelled-flights/status', 'rescheduledCancelledCheckStatus')->name('flight.changedCancelled.status');
+        Route::post('/changed-cancelled-flights/check', 'checkAllUpcomingFlights')->name('flight.changedCancelled.check');
+        Route::post('/changed-cancelled-flights/stop', 'stopRescheduledCancelledCheck')->name('flight.changedCancelled.stop');
+        Route::post('/changed-cancelled-flights/clear', 'clearChangedCancelledResult')->name('flight.changedCancelled.clear');
         Route::get('/payment/flight-status/{id}', 'flightStatus')->name('payment.flight.status');
         Route::get('/payment/flight-status/{id}/clear-cache', 'clearFlightStatusCache')->name('payment.flight.status.clearCache');
         Route::get('/payment/flight-status/{id}/mail', 'flightStatusMail')->name('payment.flight.status.mail');

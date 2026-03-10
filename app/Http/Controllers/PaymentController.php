@@ -34,6 +34,7 @@ use App\Services\FlightApiService;
 use App\Mail\FlightChangeMail;
 use App\Mail\FlightStatusMail;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Cache;
 
 class PaymentController extends Controller
 {
@@ -2012,6 +2013,189 @@ class PaymentController extends Controller
 
     }
 
+    /** Session key for "Changed & Cancelled flights" check result. */
+    private function changedCancelledFlightsSessionKey(): string
+    {
+        return 'changed_cancelled_flights_result';
+    }
+
+    /**
+     * Changed & Cancelled flights page: show buttons and table of results from session (if any).
+     */
+    public function changedCancelledFlights()
+    {
+        if (!hasPermission('ticket.reminder')) {
+            abort(403, getCurrentTranslation()['permission_denied'] ?? 'Permission denied');
+        }
+        $sessionKey = $this->changedCancelledFlightsSessionKey();
+        $userId = (int) auth()->id();
+        $cacheData = Cache::get('rescheduled_cancelled_result_' . $userId);
+        $sessionData = is_array($cacheData) ? $cacheData : session($sessionKey);
+        $results = [];
+        if (is_array($sessionData) && !empty($sessionData['payment_ids'])) {
+            $paymentIds = $sessionData['payment_ids'];
+            $statusByPayment = $sessionData['status_by_payment'] ?? [];
+            $payments = Payment::with([
+                'ticket', 'ticket.passengers', 'ticket.allFlights', 'airline', 'introductionSource',
+            ])->whereIn('id', $paymentIds)->orderBy('departure_date_time')->get();
+            foreach ($payments as $row) {
+                $pid = $row->id;
+                $status = $statusByPayment[$pid] ?? ['has_cancelled' => false, 'has_schedule_changed' => false];
+                $results[] = [
+                    'payment' => $row,
+                    'has_cancelled' => (bool) ($status['has_cancelled'] ?? false),
+                    'has_schedule_changed' => (bool) ($status['has_schedule_changed'] ?? false),
+                ];
+            }
+        }
+        $getCurrentTranslation = getCurrentTranslation();
+        return view('common.payment-record.changedCancelledFlights', get_defined_vars());
+    }
+
+    /**
+     * Run the rescheduled/cancelled check (used by job or sync). Returns [ $found, $statusByPayment ] or null.
+     * When $userId is set, checks cache flag rescheduled_cancelled_stop_{userId} each iteration and returns early if user requested stop.
+     * @param int|null $userId When set (e.g. from job), stop flag is checked so user can cancel the check.
+     * @return array{0: array<int>, 1: array<int, array>}|null
+     */
+    public function runRescheduledCancelledCheck(?int $userId = null): ?array
+    {
+        $todayStart = Carbon::today()->startOfDay();
+        $payments = Payment::with([
+            'ticket', 'ticket.allFlights', 'ticket.flights', 'ticket.allFlights.airline', 'ticket.flights.transits',
+        ])
+            ->whereHas('ticket', function ($q) {
+                $q->where('document_type', 'ticket');
+            })
+            ->whereHas('ticket.allFlights', function ($q) use ($todayStart) {
+                $q->whereNull('parent_id')->where('departure_date_time', '>=', $todayStart);
+            })
+            ->orderBy('departure_date_time')
+            ->get();
+        $found = [];
+        $statusByPayment = [];
+        foreach ($payments as $payment) {
+            if ($userId !== null && Cache::get('rescheduled_cancelled_stop_' . $userId)) {
+                Cache::forget('rescheduled_cancelled_stop_' . $userId);
+                return [$found, $statusByPayment];
+            }
+            if (!$payment->ticket || ($payment->ticket->document_type ?? '') !== 'ticket') {
+                continue;
+            }
+            try {
+                list($systemSegments, $liveData, $liveUpdates, $trackError) = $this->fetchAndCacheFlightStatusData($payment, true);
+                $hasCancelled = false;
+                foreach ($liveData as $seg) {
+                    $st = $seg['_segment_status'] ?? null;
+                    if ($st === 'cancelled' || $st === 'unavailable') {
+                        $hasCancelled = true;
+                        break;
+                    }
+                }
+                $hasScheduleChanged = $this->computeDatetimeMismatch($systemSegments, $liveData);
+                if ($hasCancelled || $hasScheduleChanged) {
+                    $found[] = $payment->id;
+                    $statusByPayment[$payment->id] = [
+                        'has_cancelled' => $hasCancelled,
+                        'has_schedule_changed' => $hasScheduleChanged,
+                    ];
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Rescheduled/cancelled check failed for payment ' . $payment->id . ': ' . $e->getMessage());
+            }
+        }
+        return [$found, $statusByPayment];
+    }
+
+    /**
+     * Check all upcoming flights via API; store result in session (sync) or dispatch job (AJAX).
+     * When called via AJAX, starts background job and returns immediately so the user can use other tabs.
+     */
+    public function checkAllUpcomingFlights(Request $request)
+    {
+        if (!hasPermission('ticket.reminder')) {
+            if ($request->wantsJson()) {
+                return response()->json(['is_success' => 0, 'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied'], 403);
+            }
+            abort(403, getCurrentTranslation()['permission_denied'] ?? 'Permission denied');
+        }
+
+        if ($request->wantsJson()) {
+            $userId = (int) auth()->id();
+            Cache::forget('rescheduled_cancelled_stop_' . $userId);
+            Cache::put('rescheduled_cancelled_running_' . $userId, true, now()->addMinutes(15));
+            \App\Jobs\CheckRescheduledCancelledFlightsJob::dispatch($userId);
+            return response()->json([
+                'is_success' => 1,
+                'started' => true,
+                'message' => getCurrentTranslation()['check_started_background'] ?? 'Check started in background. You can use other tabs; this page will refresh when done.',
+            ]);
+        }
+
+        set_time_limit(600);
+        $payload = $this->runRescheduledCancelledCheck(null);
+        $found = $payload[0] ?? [];
+        $statusByPayment = $payload[1] ?? [];
+        session([$this->changedCancelledFlightsSessionKey() => [
+            'payment_ids' => $found,
+            'status_by_payment' => $statusByPayment,
+            'checked_at' => now()->toDateTimeString(),
+        ]]);
+        return redirect()->route('flight.changedCancelled')
+            ->with('success', (getCurrentTranslation()['check_completed'] ?? 'Check completed.') . ' ' . count($found) . ' flight(s) with changes found.');
+    }
+
+    /**
+     * Clear session data for Changed & Cancelled flights result.
+     */
+    public function clearChangedCancelledResult(Request $request)
+    {
+        if (!hasPermission('ticket.reminder')) {
+            if ($request->wantsJson()) {
+                return response()->json(['is_success' => 0, 'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied'], 403);
+            }
+            abort(403, getCurrentTranslation()['permission_denied'] ?? 'Permission denied');
+        }
+        session()->forget($this->changedCancelledFlightsSessionKey());
+        $uid = (int) auth()->id();
+        Cache::forget('rescheduled_cancelled_result_' . $uid);
+        Cache::forget('rescheduled_cancelled_running_' . $uid);
+        if ($request->wantsJson()) {
+            return response()->json(['is_success' => 1, 'message' => getCurrentTranslation()['result_cleared'] ?? 'Result data cleared.']);
+        }
+        return redirect()->route('flight.changedCancelled')
+            ->with('success', getCurrentTranslation()['result_cleared'] ?? 'Result data cleared.');
+    }
+
+    /**
+     * Stop the background rescheduled/cancelled check for the current user. Sets stop flag and clears running flag.
+     */
+    public function stopRescheduledCancelledCheck(Request $request)
+    {
+        if (!hasPermission('ticket.reminder')) {
+            return response()->json(['is_success' => 0, 'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied'], 403);
+        }
+        $uid = (int) auth()->id();
+        Cache::put('rescheduled_cancelled_stop_' . $uid, true, now()->addMinutes(2));
+        Cache::forget('rescheduled_cancelled_running_' . $uid);
+        return response()->json([
+            'is_success' => 1,
+            'message' => getCurrentTranslation()['check_stopped'] ?? 'Check stopped.',
+        ]);
+    }
+
+    /**
+     * Return whether the background rescheduled/cancelled check is still running (for polling).
+     */
+    public function rescheduledCancelledCheckStatus(Request $request)
+    {
+        if (!hasPermission('ticket.reminder')) {
+            return response()->json(['running' => false], 403);
+        }
+        $running = Cache::get('rescheduled_cancelled_running_' . (int) auth()->id(), false);
+        return response()->json(['running' => (bool) $running]);
+    }
+
     /** Session key for cached flight status data (per payment id). Call API only on page load/reload; use this for mail content and send. */
     private function flightStatusSessionKey(int $paymentId): string
     {
@@ -2020,12 +2204,20 @@ class PaymentController extends Controller
 
     /**
      * Build system segments with flight_id/transit_id for applying live updates by id.
+     * @param bool $upcomingOnly When true, only include segments with departure_date_time >= today (for rescheduled/cancelled check).
      * @return array<int, array>
      */
-    private function buildSystemSegmentsWithIds(Payment $payment): array
+    private function buildSystemSegmentsWithIds(Payment $payment, bool $upcomingOnly = false): array
     {
         $ticket = $payment->ticket;
         $mainFlights = $ticket->allFlights->whereNull('parent_id')->values();
+        if ($upcomingOnly) {
+            $todayStart = Carbon::today()->startOfDay();
+            $mainFlights = $mainFlights->filter(function ($f) use ($todayStart) {
+                $dep = $f->departure_date_time ?? null;
+                return $dep && Carbon::parse($dep)->startOfDay()->gte($todayStart);
+            })->values();
+        }
         $systemSegments = [];
         foreach ($mainFlights as $f) {
             $systemSegments[] = [
@@ -2063,10 +2255,11 @@ class PaymentController extends Controller
     /**
      * Fetch live data from API for all segments, store in session, return [systemSegments, liveData, liveUpdates, trackError].
      * Call this only on page load or reload; mail content load and mail send use session.
+     * @param bool $upcomingOnly When true, only fetch status for segments with departure_date_time >= today (used by rescheduled/cancelled check).
      */
-    private function fetchAndCacheFlightStatusData(Payment $payment): array
+    private function fetchAndCacheFlightStatusData(Payment $payment, bool $upcomingOnly = false): array
     {
-        $systemSegments = $this->buildSystemSegmentsWithIds($payment);
+        $systemSegments = $this->buildSystemSegmentsWithIds($payment, $upcomingOnly);
         $liveData = [];
         $liveUpdates = [];
         $trackError = null;

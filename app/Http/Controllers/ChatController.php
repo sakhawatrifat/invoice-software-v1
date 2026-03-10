@@ -703,6 +703,8 @@ class ChatController extends Controller
             }
         }
 
+        $isEdited = $m->edited_at !== null;
+
         return [
             'id' => $m->id,
             'sender_id' => $m->sender_id,
@@ -719,6 +721,8 @@ class ChatController extends Controller
             'reactions' => $reactions,
             'created_at' => $this->toUtcIso8601($m->created_at),
             'updated_at' => $this->toUtcIso8601($m->updated_at),
+            'edited_at' => $this->toUtcIso8601($m->edited_at),
+            'is_edited' => $isEdited,
             'is_sent' => $isSent,
             'status' => $status,
             'read_at' => $this->toUtcIso8601($read?->read_at),
@@ -779,6 +783,45 @@ class ChatController extends Controller
         ChatMessageReaction::where('message_id', $msg->id)->where('user_id', $userId)->delete();
         $msg->load(['reactions.user:id,name']);
         return response()->json(['ok' => true, 'reactions' => $this->formatReactions($msg->reactions)]);
+    }
+
+    /**
+     * Edit a sent message (text only). Allowed within 15 minutes of sending for both individual and group chat.
+     */
+    public function editMessage(Request $request)
+    {
+        $request->validate([
+            'message_id' => 'required|exists:chat_messages,id',
+            'body' => 'required|string|max:10000',
+        ]);
+        $userId = Auth::id();
+        $msg = ChatMessage::find($request->message_id);
+        if (!$msg || $msg->deleted_at || $msg->deleted_for_everyone_at) {
+            return response()->json(['error' => 'Message not found'], 404);
+        }
+        if ($msg->sender_id !== $userId) {
+            return response()->json(['error' => 'You can only edit your own messages'], 403);
+        }
+        if ($msg->type !== 'text') {
+            return response()->json(['error' => 'Only text messages can be edited'], 422);
+        }
+        $editDeadline = Carbon::now()->subMinutes(15);
+        if ($msg->created_at->lt($editDeadline)) {
+            return response()->json(['error' => 'Messages can only be edited within 15 minutes of sending'], 422);
+        }
+        $msg->body = $request->body;
+        $msg->edited_at = Carbon::now();
+        $msg->save();
+        $msg->load(['sender:id,name,image', 'recipient:id,name,image', 'reads', 'replyTo.sender:id,name', 'reactions.user:id,name', 'forwardedFrom.sender:id,name']);
+        $groupNicknamesMap = null;
+        if ($msg->group_id) {
+            $groupNicknamesMap = ChatGroupMember::where('group_id', $msg->group_id)->get()->keyBy('user_id')->map(fn($p) => $p->nickname)->all();
+        }
+        $contactNickname = null;
+        if ($msg->recipient_id) {
+            $contactNickname = ChatContactNickname::where('user_id', $userId)->where('contact_user_id', $msg->recipient_id)->value('nickname');
+        }
+        return response()->json(['message' => $this->formatMessage($msg, $userId, null, $groupNicknamesMap, $contactNickname)]);
     }
 
     private function formatReactions($reactions): array
@@ -1311,15 +1354,17 @@ class ChatController extends Controller
         $actorName = $e->user ? $e->user->name : '';
         $contactName = $e->contactUser ? $e->contactUser->name : '';
         $isViewerActor = (int) $e->user_id === $viewerId;
+        $isViewerContact = (int) $e->contact_user_id === $viewerId;
         $actorDisplay = $isViewerActor ? 'You' : $actorName;
+        $nicknameTarget = $isViewerContact ? 'Your nickname' : ($contactName . '\'s nickname');
         $text = '';
         switch ($e->action) {
             case 'nickname_set':
                 $nickname = $e->extra ?: $contactName;
-                $text = $actorDisplay . ' set ' . $contactName . '\'s nickname to ' . $nickname;
+                $text = $actorDisplay . ' set ' . $nicknameTarget . ' to ' . $nickname;
                 break;
             case 'nickname_cleared':
-                $text = $actorDisplay . ' cleared ' . $contactName . '\'s nickname';
+                $text = $actorDisplay . ' cleared ' . $nicknameTarget;
                 break;
             case 'my_nickname_set':
                 $nickname = $e->extra ?: '';

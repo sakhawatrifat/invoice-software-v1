@@ -31,6 +31,7 @@
         download: (id) => @json(route('chat.download', ['messageId' => ':id'])).replace(':id', id),
         react: @json(route('chat.react')),
         removeReaction: @json(route('chat.removeReaction')),
+        edit: @json(route('chat.edit')),
         forward: @json(route('chat.forward')),
         groups: @json(route('chat.groups')),
         groupCreate: @json(route('chat.groupCreate')),
@@ -71,6 +72,10 @@
         chatbot: @json($getCurrentTranslation['chatbot'] ?? 'Chatbot'),
         forward: @json($getCurrentTranslation['forward'] ?? 'Forward'),
         react: @json($getCurrentTranslation['react'] ?? 'React'),
+        replyingTo: @json($getCurrentTranslation['replying_to'] ?? 'Replying to'),
+        edit: @json($getCurrentTranslation['edit'] ?? 'Edit'),
+        edited: @json($getCurrentTranslation['edited'] ?? 'Edited'),
+        editingMessage: @json($getCurrentTranslation['editing_message'] ?? 'Editing message'),
         createGroup: @json($getCurrentTranslation['create_group'] ?? 'Create group'),
         groupName: @json($getCurrentTranslation['group_name'] ?? 'Group name'),
         addMembers: @json($getCurrentTranslation['add_members'] ?? 'Add members'),
@@ -108,6 +113,7 @@
     let currentGroupId = null;
     let currentGroupData = null;
     let replyToMessage = null;
+    let editingMessageId = null;
     let pollTimer = null;
     let conversationsCache = [];
     let messagesCache = [];
@@ -129,13 +135,12 @@
         return fetch(url, { ...options, ...opts }).then(r => r.json());
     }
 
-    /** Return display name for the other user (recipient) in 1-to-1; never return current user's name. */
+    /** Display name for the contact/recipient in 1-to-1: only "my nickname for them" or their real name. Never use their_nickname_for_me (that is the name they set for me, not for them). */
     function getRecipientDisplayName(user) {
         if (!user || user.id === currentUserId) return '';
         const contactNick = (user.contact_nickname && String(user.contact_nickname).trim()) ? String(user.contact_nickname).trim() : '';
-        const theirNick = (user.their_nickname_for_me && String(user.their_nickname_for_me).trim()) ? String(user.their_nickname_for_me).trim() : '';
         const name = (user.name && String(user.name).trim()) ? String(user.name).trim() : '';
-        return contactNick || theirNick || name || '';
+        return contactNick || name || '';
     }
 
     function update1to1ThreadHeader() {
@@ -344,6 +349,7 @@
         currentOtherUserId = otherUserId || null;
         currentGroupId = groupId || null;
         clearReply();
+        clearEdit();
         const conv = conversationsCache.find(c => (groupId && c.type === 'group' && c.group?.id === groupId) || (otherUserId && c.user?.id === otherUserId));
         if (conv && (conv.unread_count || 0) > 0) {
             conv.unread_count = 0;
@@ -591,9 +597,15 @@
             const replyQuote = !deletedForEveryone && replyToId ? `<div class="chat-reply-quote-wrap cursor-pointer" data-reply-to-msg-id="${escapeHtml(replyToId)}" title="Jump to message"><span class="chat-reply-quote-bar"></span><div class="chat-reply-quote-inner"><span class="chat-reply-quote-sender">${escapeHtml(replyToSender)}</span><span class="chat-reply-quote-body">${escapeHtml(replyToPreview)}</span></div></div>` : '';
             const replyPreview = (m.type === 'file' ? (m.file_name || 'File') : (m.body || '')).substring(0, 60) + ((m.type === 'file' ? (m.file_name || 'File') : (m.body || '')).length > 60 ? '…' : '');
             const replySender = m.sender?.name || '';
+            const canEditMessage = isSent && !deletedForEveryone && m.type === 'text' && (function() {
+                if (!m.created_at) return false;
+                const createdMs = new Date(m.created_at).getTime();
+                return (Date.now() - createdMs) <= 15 * 60 * 1000;
+            })();
+            const editMenuItem = canEditMessage ? '<li><a class="dropdown-item chat-action" href="#" data-action="edit" data-id="' + m.id + '">' + (CHAT_STR.edit || 'Edit') + '</a></li>' : '';
             const menuItems = deletedForEveryone
                 ? '<li><a class="dropdown-item chat-action" href="#" data-action="history" data-id="' + m.id + '">History</a></li>'
-                : '<li><a class="dropdown-item chat-action" href="#" data-action="reply" data-id="' + m.id + '" data-reply-preview="' + escapeHtml(replyPreview) + '" data-reply-sender="' + escapeHtml(replySender) + '">Reply</a></li><li><a class="dropdown-item chat-action chat-forward-btn" href="#" data-action="forward" data-id="' + m.id + '">' + (CHAT_STR.forward || 'Forward') + '</a></li><li><a class="dropdown-item chat-action" href="#" data-action="history" data-id="' + m.id + '">History</a></li><li><a class="dropdown-item chat-action" href="#" data-action="deleteForMe" data-id="' + m.id + '">' + (CHAT_STR.removeForMe || 'Remove for me') + '</a></li>' + (isSent ? '<li><a class="dropdown-item chat-action text-danger" href="#" data-action="deleteForAll" data-id="' + m.id + '">' + (CHAT_STR.removeForEveryone || 'Remove for everyone') + '</a></li>' : '');
+                : '<li><a class="dropdown-item chat-action" href="#" data-action="reply" data-id="' + m.id + '" data-reply-preview="' + escapeHtml(replyPreview) + '" data-reply-sender="' + escapeHtml(replySender) + '">Reply</a></li>' + editMenuItem + '<li><a class="dropdown-item chat-action chat-forward-btn" href="#" data-action="forward" data-id="' + m.id + '">' + (CHAT_STR.forward || 'Forward') + '</a></li><li><a class="dropdown-item chat-action" href="#" data-action="history" data-id="' + m.id + '">History</a></li><li><a class="dropdown-item chat-action" href="#" data-action="deleteForMe" data-id="' + m.id + '">' + (CHAT_STR.removeForMe || 'Remove for me') + '</a></li>' + (isSent ? '<li><a class="dropdown-item chat-action text-danger" href="#" data-action="deleteForAll" data-id="' + m.id + '">' + (CHAT_STR.removeForEveryone || 'Remove for everyone') + '</a></li>' : '');
             const canReply = deletedForEveryone ? '0' : '1';
             const isGroup = !!(m.group_id);
             const senderDisplayName = (m.sender_display_name && m.sender_display_name.trim()) ? m.sender_display_name.trim() : (m.sender ? m.sender.name : '');
@@ -618,10 +630,11 @@
                 <div class="d-flex align-items-end gap-1 ${isSent ? 'flex-row-reverse' : ''}" style="max-width: 85%;">
                     <div class="p-2 rounded ${bubbleClass} chat-msg-bubble" style="max-width: 280px; touch-action: pan-y;">
                         ${senderLabel}${forwardedLabel}<div class="chat-msg-body">${replyQuote}${replyQuote ? '<div class="chat-msg-reply-text">' + body + '</div>' : body}</div>
-                        <div class="d-flex align-items-center justify-content-end gap-1 mt-1">
+                        <div class="d-flex align-items-center justify-content-end gap-1 mt-1 flex-wrap">
                             <span class="opacity-75" style="font-size: 10px;">${formatTime(m.created_at)}</span>
                             ${isSent && !deletedForEveryone ? `<span class="chat-msg-status-icon" style="font-size: 10px;">${statusIcon}</span>` : ''}
                         </div>
+                        ${(m.is_edited) ? '<div class="opacity-75 mt-0" style="font-size: 9px;">' + (CHAT_STR.edited || 'Edited') + '</div>' : ''}
                         ${reactionsHtml}
                     </div>
                     ${reactionBtn}
@@ -816,9 +829,12 @@
     }
 
     function setReplyTo(msg) {
+        editingMessageId = null;
         replyToMessage = msg;
         const previewWrap = el('reply-preview');
         const previewBody = el('reply-preview-body');
+        const labelEl = previewWrap ? previewWrap.querySelector('.chat-reply-preview-label') : null;
+        if (labelEl) labelEl.textContent = (typeof CHAT_STR !== 'undefined' && CHAT_STR.replyingTo) ? CHAT_STR.replyingTo : 'Replying to';
         if (previewWrap) previewWrap.classList.remove('d-none');
         if (previewBody) previewBody.textContent = (msg.sender_name ? msg.sender_name + ': ' : '') + (msg.body || '');
         const input = el('message-input');
@@ -829,6 +845,39 @@
         replyToMessage = null;
         const previewWrap = el('reply-preview');
         if (previewWrap) previewWrap.classList.add('d-none');
+    }
+
+    function setEditMessage(msgId) {
+        const msg = (messagesCache || []).find(function(m) { return m.id === msgId && m.type === 'text'; });
+        if (!msg) return;
+        editingMessageId = msgId;
+        replyToMessage = null;
+        const previewWrap = el('reply-preview');
+        const previewBody = el('reply-preview-body');
+        const labelEl = previewWrap ? previewWrap.querySelector('.chat-reply-preview-label') : null;
+        if (labelEl) labelEl.textContent = CHAT_STR.editingMessage || 'Editing message';
+        if (previewBody) previewBody.textContent = ((msg.body || '').substring(0, 80)) + ((msg.body || '').length > 80 ? '\u2026' : '');
+        if (previewWrap) previewWrap.classList.remove('d-none');
+        const input = el('message-input');
+        if (input) {
+            input.value = msg.body || '';
+            input.focus();
+        }
+    }
+
+    function clearEdit() {
+        editingMessageId = null;
+        const previewWrap = el('reply-preview');
+        if (previewWrap) previewWrap.classList.add('d-none');
+        const labelEl = previewWrap ? previewWrap.querySelector('.chat-reply-preview-label') : null;
+        if (labelEl) labelEl.textContent = (typeof CHAT_STR !== 'undefined' && CHAT_STR.replyingTo) ? CHAT_STR.replyingTo : 'Replying to';
+        const input = el('message-input');
+        if (input) input.value = '';
+    }
+
+    function cancelReplyOrEdit() {
+        if (editingMessageId) clearEdit();
+        else clearReply();
     }
 
     function showReplyPreview() { setReplyTo(replyToMessage); }
@@ -1806,6 +1855,27 @@
         if (!input || !active) return;
         const body = (input.value || '').trim();
         if (!body) return;
+        if (editingMessageId) {
+            showPreloader();
+            fetch(routes.edit, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ message_id: editingMessageId, body: body }) })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.message) {
+                        const idx = (messagesCache || []).findIndex(function(m) { return m.id === data.message.id; });
+                        if (idx !== -1) messagesCache[idx] = data.message;
+                        else messagesCache = (messagesCache || []).concat(data.message);
+                        const cont = el(isWidget ? 'messages' : 'messages-container');
+                        if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions());
+                    } else if (data.error) {
+                        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: data.error });
+                        else alert(data.error);
+                    }
+                    poll();
+                })
+                .catch(() => {})
+                .finally(function() { hidePreloader(); clearEdit(); });
+            return;
+        }
         const replyToId = replyToMessage ? replyToMessage.id : null;
         input.value = '';
         clearReply();
@@ -1983,6 +2053,7 @@
             document.getElementById('chat-widget-group-info-item')?.classList.add('d-none');
             document.getElementById('chat-widget-set-nicknames-item')?.classList.add('d-none');
             clearReply();
+            clearEdit();
             if (typeof startPollTimer === 'function') startPollTimer();
         }
         var widgetPanelHideTimer = null;
@@ -2085,7 +2156,7 @@
         document.getElementById('chat-widget-attach').addEventListener('click', () => document.getElementById('chat-widget-file-input').click());
         document.getElementById('chat-widget-file-input').addEventListener('change', function() { sendFile(this); });
         document.getElementById('chat-widget-message-input').addEventListener('keydown', onMessageInputKeydown);
-        document.getElementById('chat-widget-reply-cancel')?.addEventListener('click', clearReply);
+        document.getElementById('chat-widget-reply-cancel')?.addEventListener('click', cancelReplyOrEdit);
         document.getElementById('chat-widget-messages')?.addEventListener('scroll', onMessagesScroll);
         document.getElementById('chat-widget-search-user')?.addEventListener('input', function() { renderConversationList(conversationsCache); });
         initEmojiPicker('chat-widget-emoji-picker', 'chat-widget-emoji-btn', 'chat-widget-message-input');
@@ -2126,7 +2197,7 @@
         document.getElementById('chat-group-info')?.addEventListener('click', function(e) { e.preventDefault(); showGroupInfoModal(); });
         document.getElementById('chat-set-nicknames')?.addEventListener('click', function(e) { e.preventDefault(); openSetNicknamesModal(); });
         document.getElementById('chat-delete-conversation')?.addEventListener('click', function(e) { e.preventDefault(); deleteConversation(); });
-        document.getElementById('chat-reply-cancel')?.addEventListener('click', clearReply);
+        document.getElementById('chat-reply-cancel')?.addEventListener('click', cancelReplyOrEdit);
         document.getElementById('chat-messages-container')?.addEventListener('scroll', onMessagesScroll);
         document.getElementById('chat-send-btn').addEventListener('click', sendMessage);
         document.getElementById('chat-attach-btn')?.addEventListener('click', () => document.getElementById('chat-file-input').click());
@@ -2163,6 +2234,7 @@
                 var action = actionEl.dataset.action;
                 var msgId = parseInt(actionEl.dataset.id, 10);
                 if (action === 'reply') setReplyTo({ id: msgId, body: actionEl.dataset.replyPreview || '', sender_name: actionEl.dataset.replySender || '' });
+                else if (action === 'edit') setEditMessage(msgId);
                 else if (action === 'history') showHistory(msgId);
                 else if (action === 'deleteForMe') deleteForMe(msgId);
                 else if (action === 'deleteForAll') deleteForAll(msgId);

@@ -53,7 +53,7 @@
                <td style="color: #474751; width: 50%; vertical-align: top;">
                   <div class="inv-title mb-2" style="text-align: left; margin-bottom: 20px;">
                      <span style="font-family: {{ language_font(strip_tags($getCurrentTranslation['customer'] ?? 'customer')) }}; display: block; color: #333238;">{{ $getCurrentTranslation['customer'] ?? 'customer' }}</span>
-                     <h2 style="font-family: {{ language_font(strip_tags($getCurrentTranslation['invoice'] ?? 'invoice')) }}; margin: 0; font-size: 24px; color: #333238;">{{ $getCurrentTranslation['invoice'] ?? 'invoice' }}</h2>
+                     <h2 style="font-family: {{ language_font(strip_tags($getCurrentTranslation['recipt'] ?? 'recipt')) }}; margin: 0; font-size: 24px; color: #333238;">{{ $getCurrentTranslation['recipt'] ?? 'recipt' }}</h2>
                      <table style="width: 100%; border-collapse: collapse; margin-top: 0px;">
                         <tr>
                            <td style="color: #474751; padding: 0; vertical-align: top;">

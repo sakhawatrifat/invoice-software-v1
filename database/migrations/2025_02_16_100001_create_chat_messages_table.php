@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('file_name')->nullable();
             $table->unsignedBigInteger('file_size')->nullable();
             $table->timestamps();
+            $table->timestamp('edited_at')->nullable();
             $table->softDeletes();
             $table->timestamp('deleted_for_everyone_at')->nullable();
 
