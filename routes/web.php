@@ -461,6 +461,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::get('/sticky-note-list', 'index')->name('sticky_note.index');
         Route::get('/sticky-note-datatable', 'datatable')->name('sticky_note.datatable');
         Route::get('/sticky-note/create', 'create')->name('sticky_note.create');
+        Route::get('/sticky-note/create-ajax', 'createAjax')->name('sticky_note.create.ajax');
         Route::post('/sticky-note/store', 'store')->name('sticky_note.store');
         Route::get('/sticky-note/show/{id}', 'show')->name('sticky_note.show');
         Route::get('/sticky-note/edit/{id}', 'edit')->name('sticky_note.edit');

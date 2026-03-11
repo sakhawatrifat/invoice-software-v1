@@ -287,6 +287,21 @@
 					}
 				} else {
 					if (response.is_success === 1) {
+                        if (response.drawer_refresh !== undefined && response.drawer_refresh == 1) {
+                            if (response.drawer_html !== undefined) {
+                                $('#kt_sticky_note_list').html(response.drawer_html);
+                            }
+                            if (response.count !== undefined) {
+                                $('.sticky-note-count').text(response.count);
+                            }
+                            if (response.count_text !== undefined) {
+                                $('#kt_sticky_note_count_text').text(response.count_text);
+                            }
+
+                            $('#ajaxCreateModal').modal('hide');
+                            toastr.success(response.message);
+                            return;
+                        }
                         if (response.is_ajax_modal !== undefined && response.is_ajax_modal == 1) {
                             const selectName = response.for_input;
                             const created = response.created_data;

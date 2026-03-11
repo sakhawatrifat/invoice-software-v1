@@ -22,9 +22,10 @@
 
             <div class="card-toolbar">
                 @if(function_exists('hasPermission') && hasPermission('sticky_note.create'))
-                    <a href="{{ route('sticky_note.create') }}" class="btn btn-sm btn-primary me-2">
+                    <button type="button" class="btn btn-sm btn-primary me-2"
+                            onclick="openAjaxCreateModal('{{ route('sticky_note.create.ajax') }}', '', '{{ $getCurrentTranslation['create_sticky_note'] ?? 'Create Sticky Note' }}', 'modal-lg')">
                         {{ $getCurrentTranslation['create_sticky_note'] ?? 'Create Sticky Note' }}
-                    </a>
+                    </button>
                 @endif
                 <button
                     type="button"

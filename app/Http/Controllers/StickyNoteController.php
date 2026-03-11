@@ -172,6 +172,25 @@ class StickyNoteController extends Controller
         return view('common.sticky-note.addEdit', get_defined_vars());
     }
 
+    public function createAjax()
+    {
+        if (!hasPermission('sticky_note.create')) {
+            return response()->json([
+                'is_success' => 0,
+                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
+            ]);
+        }
+
+        $editData = null;
+        $saveRoute = route('sticky_note.store');
+        $assignableUsers = $this->getAssignableUsers();
+
+        return response()->json([
+            'is_success' => 1,
+            'view' => view('common.sticky-note.ajaxForm', get_defined_vars())->render(),
+        ]);
+    }
+
     public function store(Request $request)
     {
         if (!hasPermission('sticky_note.create')) {
@@ -201,6 +220,7 @@ class StickyNoteController extends Controller
                 'is_success' => 0,
                 'icon' => 'error',
                 'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
             ]);
         }
 
@@ -221,6 +241,16 @@ class StickyNoteController extends Controller
         $this->syncAssignedUsersWithReadStatus($note, $assignedIds);
 
         $this->logStickyNoteActivity($note, StickyNoteActivity::ACTION_CREATE, $this->buildCreateChanges($note), $request);
+
+        // Drawer AJAX modal: return drawer refresh payload and avoid redirect.
+        if ((int) $request->input('is_ajax_modal') === 1 && $request->input('ajax_context') === 'sticky_note_drawer') {
+            return response()->json(array_merge([
+                'is_success' => 1,
+                'icon' => 'success',
+                'message' => getCurrentTranslation()['data_saved'] ?? 'Data saved',
+                'drawer_refresh' => 1,
+            ], $this->buildUpcomingDrawerResponsePayload()));
+        }
 
         return response()->json([
             'is_success' => 1,
@@ -312,6 +342,7 @@ class StickyNoteController extends Controller
                 'is_success' => 0,
                 'icon' => 'error',
                 'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
             ]);
         }
 
@@ -470,6 +501,48 @@ class StickyNoteController extends Controller
             'html' => $html,
             'count_text' => $countText,
         ]);
+    }
+
+    /**
+     * Same payload shape as drawer refresh expects (used after modal create).
+     */
+    protected function buildUpcomingDrawerResponsePayload(): array
+    {
+        $priority = request('priority');
+        $allowedPriority = ['Highest', 'Medium', 'Lower', 'Optional'];
+        $priority = (!empty($priority) && in_array($priority, $allowedPriority, true)) ? $priority : null;
+
+        $now = Carbon::now();
+        $end = Carbon::now()->addDays(7);
+
+        $upcomingStickyNotesQuery = StickyNote::visibleToUser(Auth::user())
+            ->with(['assignedUsers' => function ($q) {
+                $q->withPivot('read_status');
+            }])
+            ->where(function ($q) use ($now, $end) {
+                $q->whereBetween('reminder_datetime', [$now, $end])
+                    ->orWhereBetween('deadline', [$now, $end]);
+            })
+            ->whereNotIn('status', ['Cancelled', 'Completed'])
+            ->orderByRaw('COALESCE(reminder_datetime, deadline) ASC')
+            ->limit(20);
+
+        if ($priority !== null) {
+            $upcomingStickyNotesQuery->where('priority', $priority);
+        }
+
+        $upcomingStickyNotes = $upcomingStickyNotesQuery->get();
+        $unreadCount = $upcomingStickyNotes->filter(fn ($n) => !$n->read_status)->count();
+        $totalCount = $upcomingStickyNotes->count();
+        $getCurrentTranslation = getCurrentTranslation();
+        $countText = str_replace(':count', (string) $totalCount, $getCurrentTranslation['you_have_count_notes'] ?? 'You have :count notes.');
+        $html = view('common._partials.sticky-notes-drawer-list', compact('upcomingStickyNotes'))->render();
+
+        return [
+            'count' => $unreadCount,
+            'drawer_html' => $html,
+            'count_text' => $countText,
+        ];
     }
 
     protected function getAssignableUsers()

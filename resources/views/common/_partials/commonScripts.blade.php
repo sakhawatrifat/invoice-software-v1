@@ -76,11 +76,63 @@
 		}
 	})();
 
-	function openAjaxCreateModal(route, for_input, title='New Data') {
+	function initAjaxCreateModalPlugins($modal) {
+		if (!$modal || !$modal.length) return;
+
+		// Select2 in modal (dropdownParent fix)
+		if (typeof $.fn.select2 === 'function') {
+			$modal.find('select[data-control="select2"], select.form-select').each(function() {
+				var $select = $(this);
+				var placeholder = $select.data('placeholder') || (typeof getCurrentTranslation !== 'undefined' && getCurrentTranslation.select_an_option ? getCurrentTranslation.select_an_option : 'Select an option');
+
+				if ($select.hasClass('select2-hidden-accessible') && $select.data('select2')) {
+					$select.select2('destroy');
+					$select.removeClass('select2-hidden-accessible').removeAttr('data-select2-id aria-hidden tabindex');
+				}
+
+				$select.select2({
+					placeholder: placeholder,
+					width: '100%',
+					dropdownParent: $modal
+				});
+			});
+		}
+
+		// Flatpickr for sticky note datetime fields (same as add/edit page logic)
+		if (typeof flatpickr === 'function') {
+			var reminderInput = $modal.find('#sticky_note_reminder_datetime_ajax')[0];
+			var deadlineInput = $modal.find('#sticky_note_deadline_ajax')[0];
+
+			if (reminderInput && deadlineInput) {
+				var reminderFp = flatpickr(reminderInput, { enableTime: true, dateFormat: 'Y-m-d H:i' });
+				var deadlineFp = flatpickr(deadlineInput, {
+					enableTime: true,
+					dateFormat: 'Y-m-d H:i',
+					onChange: function(selectedDates) {
+						if (selectedDates[0]) reminderFp.set('maxDate', selectedDates[0]);
+					}
+				});
+				if (deadlineFp.selectedDates[0]) reminderFp.set('maxDate', deadlineFp.selectedDates[0]);
+			} else {
+				// fallback: init any generic datetimepicker inputs if present
+				$modal.find('input.datetimepicker').each(function() {
+					if (this._flatpickr) this._flatpickr.destroy();
+					flatpickr(this, { enableTime: true, dateFormat: 'Y-m-d H:i' });
+				});
+			}
+		}
+	}
+
+	function openAjaxCreateModal(route, for_input, title='New Data', dialogSizeClass='') {
 		$('.r-preloader').show();
 
 		const modal = $('#ajaxCreateModal');
 		const myModal = new bootstrap.Modal(modal[0]);
+		const $dialog = modal.find('.modal-dialog');
+		$dialog.removeClass('modal-sm modal-lg modal-xl');
+		if (dialogSizeClass) {
+			$dialog.addClass(dialogSizeClass);
+		}
 
 		$.ajax({
 			url: route,
@@ -92,6 +144,7 @@
 					modal.find('.modal-body').html(response.view);
 					modal.find('[name="for_input"]').val(for_input);
 					modal.find('.modal-title').text(title)
+					initAjaxCreateModalPlugins(modal);
 					myModal.show();
 				} else {
 					toastr.error(response.message || 'Failed to load data.');

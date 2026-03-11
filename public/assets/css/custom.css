@@ -1006,3 +1006,15 @@ a.brand-logo-min img {
 #chat-widget-conversation-list .chat-conv-item .symbol img{
     width: 45px!important;
 }
+.passenger-count-item {
+    /* align-items: flex-start!important; */
+    font-size: 15px;
+}
+
+.passenger-count-item svg {
+    flex: 0 0 auto;
+    fill: #000000;
+}
+.passenger-count-item, .passenger-count-item * {
+    color: #000000;
+}

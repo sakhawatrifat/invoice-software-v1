@@ -34,7 +34,7 @@ Invoice Software New Features (January 2026 To March 2026):
 	-Net Profit Loss Export PDF Option
 	-Gross Profit Loss Export PDF Option
 
-05. Modified Some Pages (Ticket & Payment Details pages updated for extra informations)
+05. Modified Some Pages (Ticket & Payment Details pages updated for extra informations, Sticky Note Shortcuts from header)
 
 ======================
 
@@ -111,6 +111,11 @@ Invoice Software New Features (January 2026 To March 2026):
 06. Missing Payment Data of Tickets: Show tickets whices are not stored in "Manage Payment"
 
 07. Add Total Male, Female, Child, Infant With Icon & Number in all flight related pages and header upcomming flights drawer
+
+08. Separate Invoice for each customer like Ticket
+
+09. Search Functionality to Upcomming Flights Drawer From Header
+
 
 ======================
 

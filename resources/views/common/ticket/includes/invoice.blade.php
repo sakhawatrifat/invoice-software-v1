@@ -120,6 +120,7 @@
    @if(isset($passenger) && !empty($passenger))
       @php
          $editData->passengers = collect([$passenger]);
+         $invoice_passengers = collect([$passenger]);
       @endphp
    @endif
 

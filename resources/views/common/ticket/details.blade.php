@@ -72,7 +72,7 @@
                             <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                 {{ $getCurrentTranslation['download'] ?? 'download' }}
                             </button>
-                            <div class="dropdown-menu p-0">
+                            <div class="dropdown-menu dropdown-menu-end p-0">
                                 <a href="{{ route('ticket.downloadPdf', $editData->id) }}?ticket=1&withPrice=1&layout={{$ticketLayoutId}}" class="dropdown-item btn btn-sm fw-bold btn-success pdf-generator-btn">{{ $getCurrentTranslation['with_price'] ?? 'with_price' }}</a>
                                 <a href="{{ route('ticket.downloadPdf', $editData->id) }}?ticket=1&withPrice=0&layout={{$ticketLayoutId}}" class="dropdown-item btn btn-sm fw-bold btn-info pdf-generator-btn">{{ $getCurrentTranslation['without_price'] ?? 'without_price' }}</a>
 
@@ -116,7 +116,24 @@
                 <div class="card-header">
                     <h5 class="card-title">{{ $getCurrentTranslation['invoice'] ?? 'invoice' }}</h5>
                     <div class="d-flex align-items-center gap-2 gap-lg-3">
-                    	<a href="{{ route('ticket.downloadPdf', $editData->id) }}?invoice=1&withPrice=1" class="btn btn-sm fw-bold btn-primary pdf-generator-btn">{{ $getCurrentTranslation['download'] ?? 'download' }}</a>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                {{ $getCurrentTranslation['download'] ?? 'download' }}
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-end p-0">
+                                <a href="{{ route('ticket.downloadPdf', $editData->id) }}?invoice=1" class="dropdown-item btn btn-sm fw-bold btn-primary pdf-generator-btn">
+                                    {{ $getCurrentTranslation['all_passengers'] ?? 'All Passengers' }}
+                                </a>
+
+                                @if(count($editData->passengers) > 0)
+                                    @foreach($editData->passengers as $passenger)
+                                        <a href="{{ route('ticket.downloadPdf', $editData->id) }}?invoice=1&passenger={{ $passenger->id }}" class="dropdown-item btn btn-sm fw-bold btn-primary pdf-generator-btn">
+                                            {{ $passenger->name }}
+                                        </a>
+                                    @endforeach
+                                @endif
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <!-- Profile Information -->
@@ -168,8 +185,11 @@
 @include('common._partials.appendJs')
 @include('common._partials.formScripts')
 <script>
-	$(document).on("click", ".pdf-generator-btn", function () {
-        $('.r-preloader').show();
+	$(document).on("click", ".pdf-generator-btn", function (e) {
+        // Only show preloader when following link in same tab (not Ctrl/Cmd+click or middle-click)
+        if (e.which === 1 && !e.ctrlKey && !e.metaKey) {
+            $('.r-preloader').show();
+        }
     });
 </script>
 @endpush
