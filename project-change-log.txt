@@ -1,13 +1,3 @@
--- 1. Add read_status to sticky_note_user (after user_id)
-ALTER TABLE sticky_note_user
-ADD COLUMN read_status TINYINT(1) NOT NULL DEFAULT 0 AFTER user_id;
-
--- 3. Drop read_status from sticky_notes
-ALTER TABLE sticky_notes
-DROP COLUMN read_status;
-
-
-
 
 INSERT INTO users (
     user_type,

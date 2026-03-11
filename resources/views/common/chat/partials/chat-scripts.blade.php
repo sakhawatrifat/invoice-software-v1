@@ -988,6 +988,12 @@
             m.className = 'modal fade';
             m.innerHTML = '<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">' + (CHAT_STR.forward || 'Forward') + '</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p class="text-muted small">Select one or more chats or groups to forward to:</p><div id="chat-forward-list" class="list-group list-group-flush"></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary" id="chat-forward-send-btn">Send</button></div></div></div>';
             document.body.appendChild(m);
+            m.addEventListener('hidden.bs.modal', function() {
+                document.querySelectorAll('.modal-backdrop').forEach(function(b) { b.remove(); });
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+            });
             document.getElementById('chat-forward-send-btn').addEventListener('click', function(e) {
                 e.preventDefault();
                 const list = document.getElementById('chat-forward-list');
@@ -1004,11 +1010,7 @@
                 let done = 0;
                 const total = checked.length;
                 function onOneDone(data) {
-                    if (data && data.message) {
-                        messagesCache.push(data.message);
-                        const cont = el(isWidget ? 'messages' : 'messages-container');
-                        if (cont) renderMessages(getMessagesToRender(), cont, getRenderOptions({ scrollToBottom: false }));
-                    }
+                    // Forward API returns the message created in the target conversation - do not add to current chat
                     done++;
                     if (done >= total) {
                         forwardMessageId = null;
@@ -1035,14 +1037,15 @@
             if (c.type === 'group') {
                 const img = (c.group?.image_url) ? '<img src="' + escapeHtml(c.group.image_url) + '" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:50%;">' : '<span class="symbol-label bg-secondary text-white d-flex align-items-center justify-content-center rounded-circle" style="width:40px;height:40px;font-size:1rem;">' + (c.group?.name || 'G').charAt(0) + '</span>';
                 list.innerHTML += '<label class="list-group-item d-flex align-items-center cursor-pointer mb-0 border"><input type="checkbox" class="form-check-input chat-forward-check me-2" data-forward-id="' + (c.group?.id || '') + '" data-forward-type="group"><span class="symbol symbol-40px me-2 flex-shrink-0">' + img + '</span><span><i class="fa-solid fa-users me-1 text-muted"></i>' + escapeHtml(c.group?.name || 'Group') + '</span></label>';
-            } else if (c.user) {
+            } else if (c.user && !(c.user.is_automation_chatbot === 1 || c.user.is_automation_chatbot === true)) {
                 const img = (c.user?.image_url) ? '<img src="' + escapeHtml(c.user.image_url) + '" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:50%;">' : '<span class="symbol-label bg-primary text-white d-flex align-items-center justify-content-center rounded-circle" style="width:40px;height:40px;">' + (c.user?.name || '?').charAt(0) + '</span>';
                 list.innerHTML += '<label class="list-group-item d-flex align-items-center cursor-pointer mb-0 border"><input type="checkbox" class="form-check-input chat-forward-check me-2" data-forward-id="' + (c.user?.id || '') + '" data-forward-type="user"><span class="symbol symbol-40px me-2 flex-shrink-0">' + img + '</span><span>' + escapeHtml(c.user?.name || '') + '</span></label>';
             }
         });
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
             const modalEl = document.getElementById('chat-forward-modal');
-            const modalInst = new bootstrap.Modal(modalEl);
+            let modalInst = bootstrap.Modal.getInstance(modalEl);
+            if (!modalInst) modalInst = new bootstrap.Modal(modalEl);
             modalInst.show();
         }
     }

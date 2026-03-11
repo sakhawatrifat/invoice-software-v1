@@ -116,6 +116,9 @@
     const dailyWorkTimeHours = {{ env('DAILY_WORK_TIME', 8) }};
     const dailyWorkTimeMinutes = dailyWorkTimeHours * 60;
 
+    // 0 = location not required for clock in/pause/resume/clock out; 1 = location mandatory
+    const CLOCK_IN_LOCATION_ENABLE = {{ (int) (env('CLOCK_IN_LOCATION_ENABLE', 0)) }};
+
     // Clock-In popup: auto-show once daily between configured hours (user's local timezone, 24h)
     const CLOCK_IN_POPUP_STORAGE_KEY = 'attendance_clock_in_popup_shown_date';
     const CLOCK_IN_WINDOW_START_HOUR = {{ (int) (env('CLOCK_IN_POPUP_START_HOUR', 8)) }};   // e.g. 8 = 8:00 AM local
@@ -155,7 +158,12 @@
         if (!document.getElementById('attendanceModal')) return; // modal not in DOM (e.g. wrong layout)
         if (!isWithinClockInWindow()) return;
         if (hasShownClockInPopupToday()) return;
-        requestLocationAndShowCheckInModal(true); // true = auto-show: mark only when modal actually opens
+        if (CLOCK_IN_LOCATION_ENABLE) {
+            requestLocationAndShowCheckInModal(true); // true = auto-show: mark only when modal actually opens
+        } else {
+            markClockInPopupShownToday();
+            showCheckInModal();
+        }
     }
     // Activity endpoint caches response. Backend clears cache on pause/resume; short delay so next fetch gets fresh data.
     const ACTIVITY_CACHE_MS = 500;
@@ -409,7 +417,7 @@
         }
     }
 
-    // Show check-in modal. Pass true to show "location unavailable" message and disable Confirm (user must Retry).
+    // Show check-in modal. Pass true to show "location unavailable" message and disable Confirm (user must Retry). When CLOCK_IN_LOCATION_ENABLE=0, location is not required.
     function showCheckInModal(locationUnavailable) {
         $('#check-in-info').hide();
         $('#check-in-location-info').hide();
@@ -419,7 +427,7 @@
         $('#overtime-task-description').removeClass('is-invalid');
         $('#overtime-task-error').hide();
 
-        if (locationUnavailable) {
+        if (CLOCK_IN_LOCATION_ENABLE && locationUnavailable) {
             $('#check-in-location-unavailable').show();
             $('#confirm-attendance-action').prop('disabled', true).addClass('disabled');
         } else {
@@ -551,10 +559,15 @@
         }
     });
 
-    // Request location and show check-in modal only if user allows
+    // Request location and show check-in modal only if user allows. When CLOCK_IN_LOCATION_ENABLE=0, location is not requested.
     // isAutoShow: when true, mark "shown today" only when modal actually opens (so auto-show runs once per day)
     function requestLocationAndShowCheckInModal(isAutoShow) {
         isAutoShow = !!isAutoShow;
+        if (!CLOCK_IN_LOCATION_ENABLE) {
+            if (isAutoShow) markClockInPopupShownToday();
+            showCheckInModal();
+            return;
+        }
         if (!navigator.geolocation) {
             toastr.error('{{ $getCurrentTranslation["location_not_supported_by_browser"] ?? "Location is not supported by your browser. You cannot check in." }}');
             return;
@@ -631,9 +644,13 @@
         });
     });
 
-    // Check-in button click (requires location first)
+    // Check-in button click. When location enabled, request location first; otherwise show modal directly.
     $('#btn-check-in').on('click', function() {
-        requestLocationAndShowCheckInModal();
+        if (CLOCK_IN_LOCATION_ENABLE) {
+            requestLocationAndShowCheckInModal();
+        } else {
+            showCheckInModal();
+        }
     });
 
     // Check-out button click
@@ -660,17 +677,7 @@
                 pauseResumeInProgress = false;
                 return;
             }
-            getCurrentLocation(function(loc) {
-                var pauseData = {};
-                // Avoid overwriting saved attendance location with an unreliable reading.
-                if (loc && !isPoorAccuracy(loc)) {
-                    pauseData.latitude = loc.lat;
-                    pauseData.longitude = loc.lng;
-                    pauseData.accuracy = loc.accuracy;
-                } else if (loc && isPoorAccuracy(loc)) {
-                    const km = Math.round((loc.accuracy / 1000) * 10) / 10;
-                    toastr.warning('Location accuracy is low (~' + km + ' km). Skipping location update for pause.');
-                }
+            function doPause(pauseData) {
                 $('.r-preloader').show();
                 $.ajax({
                     url: '{{ route("attendance.pause") }}',
@@ -704,7 +711,39 @@
                         showPauseResumeToast(msg, false);
                     }
                 });
-            });
+            }
+            if (CLOCK_IN_LOCATION_ENABLE) {
+                getCurrentLocation(function(loc) {
+                    if (!loc) {
+                        pauseResumeInProgress = false;
+                        toastr.error('{{ $getCurrentTranslation["location_required_to_pause"] ?? "Location is required to pause. Please allow location and try again." }}');
+                        return;
+                    }
+                    var pauseData = {};
+                    if (!isPoorAccuracy(loc)) {
+                        pauseData.latitude = loc.lat;
+                        pauseData.longitude = loc.lng;
+                        pauseData.accuracy = loc.accuracy;
+                    } else {
+                        const km = Math.round((loc.accuracy / 1000) * 10) / 10;
+                        toastr.warning('Location accuracy is low (~' + km + ' km). Skipping location update for pause.');
+                    }
+                    doPause(pauseData);
+                });
+            } else {
+                var pauseData = {};
+                getCurrentLocation(function(loc) {
+                    if (loc && !isPoorAccuracy(loc)) {
+                        pauseData.latitude = loc.lat;
+                        pauseData.longitude = loc.lng;
+                        pauseData.accuracy = loc.accuracy;
+                    } else if (loc && isPoorAccuracy(loc)) {
+                        const km = Math.round((loc.accuracy / 1000) * 10) / 10;
+                        toastr.warning('Location accuracy is low (~' + km + ' km). Skipping location update for pause.');
+                    }
+                    doPause(pauseData);
+                });
+            }
         });
     });
 
@@ -727,17 +766,7 @@
                 pauseResumeInProgress = false;
                 return;
             }
-            getCurrentLocation(function(loc) {
-                var resumeData = {};
-                // Avoid overwriting saved attendance location with an unreliable reading.
-                if (loc && !isPoorAccuracy(loc)) {
-                    resumeData.latitude = loc.lat;
-                    resumeData.longitude = loc.lng;
-                    resumeData.accuracy = loc.accuracy;
-                } else if (loc && isPoorAccuracy(loc)) {
-                    const km = Math.round((loc.accuracy / 1000) * 10) / 10;
-                    toastr.warning('Location accuracy is low (~' + km + ' km). Skipping location update for resume.');
-                }
+            function doResume(resumeData) {
                 $('.r-preloader').show();
                 $.ajax({
                     url: '{{ route("attendance.resume") }}',
@@ -770,7 +799,39 @@
                         showPauseResumeToast(msg, false);
                     }
                 });
-            });
+            }
+            if (CLOCK_IN_LOCATION_ENABLE) {
+                getCurrentLocation(function(loc) {
+                    if (!loc) {
+                        pauseResumeInProgress = false;
+                        toastr.error('{{ $getCurrentTranslation["location_required_to_resume"] ?? "Location is required to resume. Please allow location and try again." }}');
+                        return;
+                    }
+                    var resumeData = {};
+                    if (!isPoorAccuracy(loc)) {
+                        resumeData.latitude = loc.lat;
+                        resumeData.longitude = loc.lng;
+                        resumeData.accuracy = loc.accuracy;
+                    } else {
+                        const km = Math.round((loc.accuracy / 1000) * 10) / 10;
+                        toastr.warning('Location accuracy is low (~' + km + ' km). Skipping location update for resume.');
+                    }
+                    doResume(resumeData);
+                });
+            } else {
+                var resumeData = {};
+                getCurrentLocation(function(loc) {
+                    if (loc && !isPoorAccuracy(loc)) {
+                        resumeData.latitude = loc.lat;
+                        resumeData.longitude = loc.lng;
+                        resumeData.accuracy = loc.accuracy;
+                    } else if (loc && isPoorAccuracy(loc)) {
+                        const km = Math.round((loc.accuracy / 1000) * 10) / 10;
+                        toastr.warning('Location accuracy is low (~' + km + ' km). Skipping location update for resume.');
+                    }
+                    doResume(resumeData);
+                });
+            }
         });
     });
 
@@ -800,9 +861,15 @@
                 cancelButtonText: '{{ $getCurrentTranslation["cancel"] ?? "Cancel" }}',
             }).then((result) => {
                 if (result.isConfirmed) {
-                    if (!pendingCheckInLocation) {
+                    if (CLOCK_IN_LOCATION_ENABLE && !pendingCheckInLocation) {
                         toastr.error('{{ $getCurrentTranslation["location_required_to_check_in"] ?? "Location is required to check in. Please allow location and try again." }}');
                         return;
+                    }
+                    var checkInData = {};
+                    if (pendingCheckInLocation) {
+                        checkInData.latitude = pendingCheckInLocation.lat;
+                        checkInData.longitude = pendingCheckInLocation.lng;
+                        checkInData.accuracy = pendingCheckInLocation.accuracy;
                     }
                     $('.r-preloader').show();
                     $.ajax({
@@ -811,11 +878,7 @@
                         headers: {
                             'X-CSRF-TOKEN': getCsrfToken()
                         },
-                        data: {
-                            latitude: pendingCheckInLocation.lat,
-                            longitude: pendingCheckInLocation.lng,
-                            accuracy: pendingCheckInLocation.accuracy
-                        },
+                        data: checkInData,
                         success: function(response) {
                             $('.r-preloader').hide();
                             if (response.success) {
@@ -873,18 +936,16 @@
                 cancelButtonText: '{{ $getCurrentTranslation["cancel"] ?? "Cancel" }}',
             }).then((result) => {
                 if (result.isConfirmed) {
-                    $('.r-preloader').show();
-                    $.ajax({
-                        url: '{{ route("attendance.checkOut") }}',
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': getCsrfToken()
-                        },
-                        data: {
-                            overtime_task_description: overtimeTaskDescription,
-                            forgot_clock_out: forgotClockOut ? 1 : 0
-                        },
-                        success: function(response) {
+                    function doCheckOut(checkOutData) {
+                        $('.r-preloader').show();
+                        $.ajax({
+                            url: '{{ route("attendance.checkOut") }}',
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': getCsrfToken()
+                            },
+                            data: checkOutData,
+                            success: function(response) {
                             $('.r-preloader').hide();
                             if (response.success) {
                                 $('#attendanceModal').modal('hide');
@@ -932,6 +993,25 @@
                             }
                         }
                     });
+                    }
+                    var baseData = {
+                        overtime_task_description: overtimeTaskDescription,
+                        forgot_clock_out: forgotClockOut ? 1 : 0
+                    };
+                    if (CLOCK_IN_LOCATION_ENABLE) {
+                        getCurrentLocation(function(loc) {
+                            if (!loc) {
+                                toastr.error('{{ $getCurrentTranslation["location_required_to_check_out"] ?? "Location is required to check out. Please allow location and try again." }}');
+                                return;
+                            }
+                            baseData.latitude = loc.lat;
+                            baseData.longitude = loc.lng;
+                            baseData.accuracy = loc.accuracy;
+                            doCheckOut(baseData);
+                        });
+                    } else {
+                        doCheckOut(baseData);
+                    }
                 }
             });
         }

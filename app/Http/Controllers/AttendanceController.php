@@ -143,14 +143,20 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Check-in. Requires location (lat/lng) from browser geolocation.
+     * Check-in. When CLOCK_IN_LOCATION_ENABLE=1, location (lat/lng) is required; when 0, location is optional.
      */
     public function checkIn(Request $request)
     {
-        $request->validate([
-            'latitude' => 'required|numeric|between:-90,90',
-            'longitude' => 'required|numeric|between:-180,180',
-        ], [
+        $locationRequired = (int) env('CLOCK_IN_LOCATION_ENABLE', 0) === 1;
+        $rules = [];
+        if ($locationRequired) {
+            $rules['latitude'] = 'required|numeric|between:-90,90';
+            $rules['longitude'] = 'required|numeric|between:-180,180';
+        } else {
+            $rules['latitude'] = 'nullable|numeric|between:-90,90';
+            $rules['longitude'] = 'nullable|numeric|between:-180,180';
+        }
+        $request->validate($rules, [
             'latitude.required' => __('Location is required to check in. Please allow location access.'),
             'longitude.required' => __('Location is required to check in. Please allow location access.'),
         ]);
@@ -190,18 +196,21 @@ class AttendanceController extends Controller
         DB::beginTransaction();
         try {
             $now = Carbon::now();
-            $lat = (float) $request->latitude;
-            $lng = (float) $request->longitude;
-            $location = [
-                'lat' => $lat,
-                'lng' => $lng,
-            ];
-            if ($request->has('accuracy') && is_numeric($request->accuracy)) {
-                $location['accuracy'] = (float) $request->accuracy;
-            }
-            $locationName = Attendance::getLocationNameFromCoordinates($lat, $lng);
-            if ($locationName !== null) {
-                $location['name'] = $locationName;
+            $location = null;
+            if ($request->filled('latitude') && $request->filled('longitude')) {
+                $lat = (float) $request->latitude;
+                $lng = (float) $request->longitude;
+                $location = [
+                    'lat' => $lat,
+                    'lng' => $lng,
+                ];
+                if ($request->has('accuracy') && is_numeric($request->accuracy)) {
+                    $location['accuracy'] = (float) $request->accuracy;
+                }
+                $locationName = Attendance::getLocationNameFromCoordinates($lat, $lng);
+                if ($locationName !== null) {
+                    $location['name'] = $locationName;
+                }
             }
 
             // Get or create attendance for today
@@ -215,7 +224,7 @@ class AttendanceController extends Controller
                     'status' => 'Present',
                     'ip_address' => $request->ip(),
                     'device_browser' => $request->userAgent(),
-                    'location' => $location,
+                    'location' => $location ?? [],
                 ]
             );
 
@@ -233,7 +242,9 @@ class AttendanceController extends Controller
                 $attendance->check_out = null;
                 $attendance->ip_address = $request->ip();
                 $attendance->device_browser = $request->userAgent();
-                $attendance->location = $location;
+                if ($location !== null) {
+                    $attendance->location = $location;
+                }
                 $attendance->status = 'Present';
                 $attendance->save();
             } elseif (empty($attendance->check_in)) {
@@ -241,7 +252,9 @@ class AttendanceController extends Controller
                 $attendance->check_in = $now;
                 $attendance->ip_address = $request->ip();
                 $attendance->device_browser = $request->userAgent();
-                $attendance->location = $location;
+                if ($location !== null) {
+                    $attendance->location = $location;
+                }
                 $attendance->save();
             }
 
@@ -305,8 +318,37 @@ class AttendanceController extends Controller
             ], 400);
         }
 
+        $locationRequired = (int) env('CLOCK_IN_LOCATION_ENABLE', 0) === 1;
+        if ($locationRequired) {
+            $request->validate([
+                'latitude' => 'required|numeric|between:-90,90',
+                'longitude' => 'required|numeric|between:-180,180',
+            ], [
+                'latitude.required' => __('Location is required to check out. Please allow location access.'),
+                'longitude.required' => __('Location is required to check out. Please allow location access.'),
+            ]);
+        }
+
         DB::beginTransaction();
         try {
+            // Update attendance location when provided (check-out location)
+            if ($request->filled('latitude') && $request->filled('longitude')) {
+                $lat = (float) $request->latitude;
+                $lng = (float) $request->longitude;
+                if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                    $location = ['lat' => $lat, 'lng' => $lng];
+                    if ($request->has('accuracy') && is_numeric($request->accuracy)) {
+                        $location['accuracy'] = (float) $request->accuracy;
+                    }
+                    $locationName = Attendance::getLocationNameFromCoordinates($lat, $lng);
+                    if ($locationName !== null) {
+                        $location['name'] = $locationName;
+                    }
+                    $attendance->location = $location;
+                    $attendance->save();
+                }
+            }
+
             // Determine the current session's check-in time
             $timeline = $attendance->attendance_timeline ?? [];
             $checkInTime = null;
@@ -604,6 +646,17 @@ class AttendanceController extends Controller
             ], 400);
         }
 
+        $locationRequired = (int) env('CLOCK_IN_LOCATION_ENABLE', 0) === 1;
+        if ($locationRequired) {
+            $request->validate([
+                'latitude' => 'required|numeric|between:-90,90',
+                'longitude' => 'required|numeric|between:-180,180',
+            ], [
+                'latitude.required' => __('Location is required to pause. Please allow location access.'),
+                'longitude.required' => __('Location is required to pause. Please allow location access.'),
+            ]);
+        }
+
         DB::beginTransaction();
         try {
             // Update attendance location when provided (pause location)
@@ -692,6 +745,17 @@ class AttendanceController extends Controller
                 'success' => false,
                 'message' => 'Timer is not paused.',
             ], 400);
+        }
+
+        $locationRequired = (int) env('CLOCK_IN_LOCATION_ENABLE', 0) === 1;
+        if ($locationRequired) {
+            $request->validate([
+                'latitude' => 'required|numeric|between:-90,90',
+                'longitude' => 'required|numeric|between:-180,180',
+            ], [
+                'latitude.required' => __('Location is required to resume. Please allow location access.'),
+                'longitude.required' => __('Location is required to resume. Please allow location access.'),
+            ]);
         }
 
         DB::beginTransaction();
