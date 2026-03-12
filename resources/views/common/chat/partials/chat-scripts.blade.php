@@ -42,6 +42,7 @@
         groupUpdate: @json(route('chat.groupUpdate')),
         groupSetMemberRole: @json(route('chat.groupSetMemberRole')),
         groupRemoveMember: @json(route('chat.groupRemoveMember')),
+        groupLeave: @json(route('chat.groupLeave')),
         groupDelete: @json(route('chat.groupDelete')),
         setNickname: @json(route('chat.setNickname')),
     };
@@ -90,6 +91,9 @@
         removeFromGroup: @json($getCurrentTranslation['remove_from_group'] ?? 'Remove from group'),
         deleteGroup: @json($getCurrentTranslation['delete_group'] ?? 'Delete group'),
         deleteGroupConfirm: @json($getCurrentTranslation['delete_group_confirm'] ?? 'Permanently delete this group and all messages? This cannot be undone.'),
+        leaveGroup: @json($getCurrentTranslation['leave_group'] ?? 'Leave group'),
+        leaveGroupConfirm: @json($getCurrentTranslation['leave_group_confirm'] ?? 'Leave this group? You can be added again by a member.'),
+        leaveGroupSuccess: @json($getCurrentTranslation['leave_group_success'] ?? 'You have left the group.'),
         nickname: @json($getCurrentTranslation['nickname'] ?? 'Nickname'),
         setNickname: @json($getCurrentTranslation['set_nickname'] ?? 'Set nickname'),
         clearNickname: @json($getCurrentTranslation['clear_nickname'] ?? 'Clear nickname'),
@@ -371,6 +375,12 @@
             if (groupInfoItem) groupInfoItem.classList.remove('d-none');
             const setNicknamesItem = document.getElementById(isWidget ? 'chat-widget-set-nicknames-item' : 'chat-set-nicknames-item');
             if (setNicknamesItem) setNicknamesItem.classList.add('d-none');
+            const leaveGroupItem = document.getElementById(isWidget ? 'chat-widget-leave-group-item' : 'chat-leave-group-item');
+            const deleteConversationBtn = document.getElementById(isWidget ? 'chat-widget-delete-conversation' : 'chat-delete-conversation');
+            const deleteConversationItem = deleteConversationBtn ? (deleteConversationBtn.closest('li') || deleteConversationBtn) : null;
+            const isCreator = conv.group && conv.group.created_by_user_id != null && conv.group.created_by_user_id === currentUserId;
+            if (leaveGroupItem) leaveGroupItem.classList.toggle('d-none', !!isCreator);
+            if (deleteConversationItem) deleteConversationItem.classList.add('d-none');
         } else if (conv?.user) {
             currentGroupData = null;
             name = getRecipientDisplayName(conv.user) || 'User';
@@ -380,6 +390,12 @@
             if (groupInfoItem) groupInfoItem.classList.add('d-none');
             const setNicknamesItem = document.getElementById(isWidget ? 'chat-widget-set-nicknames-item' : 'chat-set-nicknames-item');
             if (setNicknamesItem) setNicknamesItem.classList.remove('d-none');
+            const leaveGroupItem = document.getElementById(isWidget ? 'chat-widget-leave-group-item' : 'chat-leave-group-item');
+            if (leaveGroupItem) leaveGroupItem.classList.add('d-none');
+            const deleteConversationBtn = document.getElementById(isWidget ? 'chat-widget-delete-conversation' : 'chat-delete-conversation');
+            const deleteConversationItem = deleteConversationBtn ? (deleteConversationBtn.closest('li') || deleteConversationBtn) : null;
+            if (deleteConversationItem) deleteConversationItem.classList.remove('d-none');
+            if (deleteConversationBtn) deleteConversationBtn.innerHTML = '<i class="fa-solid fa-trash me-2"></i>' + (CHAT_STR.deleteChat || 'Delete Chat');
         }
 
         if (isWidget) {
@@ -1057,6 +1073,37 @@
     }
     function isCurrentUserGroupCreator() {
         return currentGroupData && currentGroupData.created_by_user_id != null && currentGroupData.created_by_user_id === currentUserId;
+    }
+    function doLeaveGroup() {
+        if (!currentGroupId || !routes.groupLeave) return;
+        const doIt = () => {
+            showPreloader();
+            fetch(routes.groupLeave, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ group_id: currentGroupId }) })
+                .then(r => r.json())
+                .then(function(data) {
+                    if (data.error) {
+                        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: data.error });
+                        else alert(data.error);
+                        return;
+                    }
+                    const gid = currentGroupId;
+                    currentGroupId = null;
+                    currentGroupData = null;
+                    conversationsCache = conversationsCache.filter(function(c) { return c.type !== 'group' || !c.group || c.group.id !== gid; });
+                    if (isWidget && typeof closeWidgetThread === 'function') closeWidgetThread();
+                    else if (typeof closeChatThread === 'function') closeChatThread();
+                    poll();
+                    renderConversationList(conversationsCache);
+                    if (isWidget) updateWidgetBadge(conversationsCache);
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', text: CHAT_STR.leaveGroupSuccess || 'You have left the group.' });
+                    else alert(CHAT_STR.leaveGroupSuccess || 'You have left the group.');
+                })
+                .catch(function() {})
+                .finally(function() { hidePreloader(); });
+        };
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ title: CHAT_STR.leaveGroup || 'Leave group', text: CHAT_STR.leaveGroupConfirm || 'Leave this group? You can be added again by a member.', icon: 'question', showCancelButton: true, confirmButtonText: CHAT_STR.leaveGroup || 'Leave group', confirmButtonColor: '#f59e0b' }).then(function(res) { if (res && res.isConfirmed) doIt(); });
+        } else if (confirm(CHAT_STR.leaveGroupConfirm || 'Leave this group?')) doIt();
     }
     function doGroupDelete() {
         if (!currentGroupId) return;
@@ -2055,6 +2102,7 @@
             currentGroupData = null;
             document.getElementById('chat-widget-group-info-item')?.classList.add('d-none');
             document.getElementById('chat-widget-set-nicknames-item')?.classList.add('d-none');
+            document.getElementById('chat-widget-leave-group-item')?.classList.add('d-none');
             clearReply();
             clearEdit();
             if (typeof startPollTimer === 'function') startPollTimer();
@@ -2153,7 +2201,11 @@
         document.getElementById('chat-widget-set-nicknames')?.addEventListener('click', function(e) { e.preventDefault(); openSetNicknamesModal(); });
         document.getElementById('chat-widget-delete-conversation')?.addEventListener('click', function(e) {
             e.preventDefault();
-            deleteConversation();
+            if (currentOtherUserId) deleteConversation();
+        });
+        document.getElementById('chat-widget-leave-group')?.addEventListener('click', function(e) {
+            e.preventDefault();
+            doLeaveGroup();
         });
         document.getElementById('chat-widget-send').addEventListener('click', sendMessage);
         document.getElementById('chat-widget-attach').addEventListener('click', () => document.getElementById('chat-widget-file-input').click());
@@ -2186,6 +2238,7 @@
             currentGroupData = null;
             document.getElementById('chat-group-info-item')?.classList.add('d-none');
             document.getElementById('chat-set-nicknames-item')?.classList.add('d-none');
+            document.getElementById('chat-leave-group-item')?.classList.add('d-none');
             clearReply();
             if (typeof startPollTimer === 'function') startPollTimer();
             if (window.history && window.history.replaceState) {
@@ -2199,7 +2252,11 @@
         document.getElementById('chat-close-thread')?.addEventListener('click', closeChatThread);
         document.getElementById('chat-group-info')?.addEventListener('click', function(e) { e.preventDefault(); showGroupInfoModal(); });
         document.getElementById('chat-set-nicknames')?.addEventListener('click', function(e) { e.preventDefault(); openSetNicknamesModal(); });
-        document.getElementById('chat-delete-conversation')?.addEventListener('click', function(e) { e.preventDefault(); deleteConversation(); });
+        document.getElementById('chat-delete-conversation')?.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (currentOtherUserId) deleteConversation();
+        });
+        document.getElementById('chat-leave-group')?.addEventListener('click', function(e) { e.preventDefault(); doLeaveGroup(); });
         document.getElementById('chat-reply-cancel')?.addEventListener('click', cancelReplyOrEdit);
         document.getElementById('chat-messages-container')?.addEventListener('scroll', onMessagesScroll);
         document.getElementById('chat-send-btn').addEventListener('click', sendMessage);

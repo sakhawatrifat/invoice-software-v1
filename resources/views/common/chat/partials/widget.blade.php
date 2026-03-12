@@ -140,6 +140,7 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li class="d-none" id="chat-widget-group-info-item"><a class="dropdown-item" href="javascript:void(0)" id="chat-widget-group-info"><i class="fa-solid fa-info-circle me-2"></i>{{ $getCurrentTranslation['group_info'] ?? 'Group info' }}</a></li>
                             <li class="d-none" id="chat-widget-set-nicknames-item"><a class="dropdown-item" href="javascript:void(0)" id="chat-widget-set-nicknames"><i class="fa-solid fa-tag me-2"></i>{{ $getCurrentTranslation['set_nicknames'] ?? 'Set nicknames' }}</a></li>
+                            <li class="d-none" id="chat-widget-leave-group-item"><a class="dropdown-item text-warning" href="javascript:void(0)" id="chat-widget-leave-group"><i class="fa-solid fa-right-from-bracket me-2"></i>{{ $getCurrentTranslation['leave_group'] ?? 'Leave group' }}</a></li>
                             <li><a class="dropdown-item" href="javascript:void(0)" id="chat-widget-close-thread"><i class="fa-solid fa-xmark me-2"></i>{{ $getCurrentTranslation['close_chat'] ?? 'Close Chat' }}</a></li>
                             <li><a class="dropdown-item text-danger" href="javascript:void(0)" id="chat-widget-delete-conversation"><i class="fa-solid fa-trash me-2"></i>{{ $getCurrentTranslation['delete_chat'] ?? 'Delete Chat' }}</a></li>
                         </ul>

@@ -1123,8 +1123,37 @@ class ChatController extends Controller
     }
 
     /**
+     * Leave the group. Only non-creator members can leave; creator cannot leave.
+     */
+    public function groupLeave(Request $request)
+    {
+        $request->validate(['group_id' => 'required|exists:chat_groups,id']);
+        $userId = Auth::id();
+        $group = ChatGroup::findOrFail($request->group_id);
+        if ($group->created_by_user_id === $userId) {
+            return response()->json(['error' => 'The group creator cannot leave the group'], 403);
+        }
+        $pivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $userId)->first();
+        if (!$pivot) {
+            return response()->json(['error' => 'Not a group member'], 404);
+        }
+        ChatGroupEvent::create([
+            'group_id' => $group->id,
+            'user_id' => $userId,
+            'action' => 'member_left',
+            'target_user_id' => $userId,
+        ]);
+        $pivot->delete();
+        $this->clearActivityCache($userId);
+        foreach (ChatGroupMember::where('group_id', $group->id)->pluck('user_id') as $uid) {
+            Cache::forget('chat_activity_' . $uid);
+        }
+        return response()->json(['ok' => true]);
+    }
+
+    /**
      * Delete the group. Only group creator can delete.
-     * Permanently deletes all group chat data and deletes non-forwarded file attachments from storage.
+     * Permanently deletes the group, all messages (force delete), and all file attachments from storage.
      */
     public function groupDelete(Request $request)
     {
@@ -1136,11 +1165,10 @@ class ChatController extends Controller
         }
         $memberIds = ChatGroupMember::where('group_id', $group->id)->pluck('user_id')->all();
         $messageIds = ChatMessage::where('group_id', $group->id)->pluck('id')->all();
-        // Delete files only for messages that are file type and NOT forwarded (forwarded files belong to original message)
+        // Permanently delete all file attachments from storage (group is being deleted)
         ChatMessage::where('group_id', $group->id)
             ->where('type', 'file')
             ->whereNotNull('file_path')
-            ->whereNull('forwarded_from_message_id')
             ->get()
             ->each(function (ChatMessage $msg) {
                 if (Storage::disk('public')->exists($msg->file_path)) {
@@ -1318,6 +1346,9 @@ class ChatController extends Controller
                 break;
             case 'member_removed':
                 $text = $actorName . ' removed ' . $targetName;
+                break;
+            case 'member_left':
+                $text = $actorName . ' left the group';
                 break;
             case 'admin_added':
                 $text = $actorName . ' added ' . $targetName . ' as admin';

@@ -74,6 +74,33 @@ Route::get('/seed', function () {
         '--force' => true,
     ]);
 
+    $usersUpdated = 0;
+
+    // If admin=1, flag all users to clear translation cache on their next request (do this first, before any cache clear)
+    $adminParam = request()->get('admin');
+    if ($adminParam === '1' || $adminParam === 1) {
+        $usersUpdated = DB::table('users')->update(['clear_cache' => 1]);
+    }
+
+    Artisan::call('route:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('config:cache');
+    Artisan::call('config:clear');
+    Artisan::call('view:clear');
+
+    // Forget all flight status session data (cached API responses per payment)
+    foreach (array_keys(session()->all()) as $key) {
+        if (str_starts_with((string) $key, 'flight_status_data_')) {
+            session()->forget($key);
+        }
+    }
+
+    // Immediate clear translation cache for all languages
+    $langs = Translation::distinct()->pluck('lang');
+    foreach ($langs as $lang) {
+        Cache::forget('translations_' . $lang);
+    }
+
     return 'Seeding done!';
 });
 
@@ -201,6 +228,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::post('/groups/update', 'groupUpdate')->name('groupUpdate');
         Route::post('/groups/set-member-role', 'groupSetMemberRole')->name('groupSetMemberRole');
         Route::post('/groups/remove-member', 'groupRemoveMember')->name('groupRemoveMember');
+        Route::post('/groups/leave', 'groupLeave')->name('groupLeave');
         Route::post('/groups/delete', 'groupDelete')->name('groupDelete');
         Route::post('/nickname', 'setNickname')->name('setNickname');
         Route::get('/groups/{groupId}/messages', 'groupMessages')->name('groupMessages');
