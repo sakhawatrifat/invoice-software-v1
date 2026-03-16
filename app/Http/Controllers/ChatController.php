@@ -187,6 +187,7 @@ class ChatController extends Controller
                     'image_url' => $group->image ? getUploadedUrl($group->image) : null,
                     'created_by_user_id' => $group->created_by_user_id,
                     'creator_name' => $group->creator ? $group->creator->name : null,
+                    'created_at' => $group->created_at,
                     'members' => $members,
                     'member_count' => count($members),
                     'admin_count' => $adminCount,
@@ -201,13 +202,24 @@ class ChatController extends Controller
             $userB = $b['user'] ?? null;
             $botA = $userA && (bool) ($userA['is_automation_chatbot'] ?? false);
             $botB = $userB && (bool) ($userB['is_automation_chatbot'] ?? false);
+            // Chatbots are always pinned to the very top.
             if ($botA && !$botB) return -1;
             if (!$botA && $botB) return 1;
+
+            // Activity time: latest between last message and group creation (for groups with no messages yet).
             $t1 = $a['last_message']['created_at'] ?? null;
             $t2 = $b['last_message']['created_at'] ?? null;
+            if (!$t1 && ($a['type'] ?? null) === 'group') {
+                $t1 = $a['group']['created_at'] ?? null;
+            }
+            if (!$t2 && ($b['type'] ?? null) === 'group') {
+                $t2 = $b['group']['created_at'] ?? null;
+            }
+
+            if (!$t1 && !$t2) return 0;
             if (!$t1) return 1;
             if (!$t2) return -1;
-            return strcmp($t2, $t1);
+            return strcmp($t2, $t1); // Newest first
         });
 
         return $conversations;
@@ -1043,7 +1055,7 @@ class ChatController extends Controller
     }
 
     /**
-     * Set member role (admin/member). Only group creator can change roles.
+     * Set member role (admin/member). Creator or any group admin can change roles (except their own or the creator's role).
      */
     public function groupSetMemberRole(Request $request)
     {
@@ -1054,12 +1066,21 @@ class ChatController extends Controller
         ]);
         $userId = Auth::id();
         $group = ChatGroup::findOrFail($request->group_id);
-        if ($group->created_by_user_id !== $userId) {
-            return response()->json(['error' => 'Only the group creator can change roles'], 403);
+        $myPivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $userId)->first();
+        if (!$myPivot) {
+            return response()->json(['error' => 'Not a group member'], 403);
+        }
+        $isCreator = $group->created_by_user_id === $userId;
+        $isAdmin = $myPivot->role === 'admin';
+        if (!$isCreator && !$isAdmin) {
+            return response()->json(['error' => 'Only the group creator or a group admin can change roles'], 403);
         }
         $targetUserId = (int) $request->user_id;
         if ($targetUserId === $userId) {
             return response()->json(['error' => 'You cannot change your own role'], 422);
+        }
+        if ($targetUserId === $group->created_by_user_id) {
+            return response()->json(['error' => 'The group creator role cannot be changed'], 403);
         }
         $pivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $targetUserId)->first();
         if (!$pivot) {
@@ -1152,7 +1173,7 @@ class ChatController extends Controller
     }
 
     /**
-     * Delete the group. Only group creator can delete.
+     * Delete the group. Group creator or any group admin can delete.
      * Permanently deletes the group, all messages (force delete), and all file attachments from storage.
      */
     public function groupDelete(Request $request)
@@ -1160,8 +1181,11 @@ class ChatController extends Controller
         $request->validate(['group_id' => 'required|exists:chat_groups,id']);
         $userId = Auth::id();
         $group = ChatGroup::findOrFail($request->group_id);
-        if ($group->created_by_user_id !== $userId) {
-            return response()->json(['error' => 'Only the group creator can delete the group'], 403);
+        $myPivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $userId)->first();
+        $isCreator = $group->created_by_user_id === $userId;
+        $isAdmin = $myPivot && $myPivot->role === 'admin';
+        if (!$isCreator && !$isAdmin) {
+            return response()->json(['error' => 'Only the group creator or a group admin can delete the group'], 403);
         }
         $memberIds = ChatGroupMember::where('group_id', $group->id)->pluck('user_id')->all();
         $messageIds = ChatMessage::where('group_id', $group->id)->pluck('id')->all();

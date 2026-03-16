@@ -105,6 +105,7 @@ Invoice Software New Features (January 2026 To March 2026):
 05. Marketing
 	-Email Marketing with attachment (image,pdf)
 	-Sent Mail List Records With sent files
+	-Custom Email Templates
 	-WhatsApp Marketing with attachment (image,pdf)
 	-Sent WhatsApp Message Records With sent files
 

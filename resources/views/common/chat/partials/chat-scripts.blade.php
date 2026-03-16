@@ -6,7 +6,7 @@
 @endphp
 <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 <script type="module">
-    import { polyfillCountryFlagEmojis } from "https://cdn.skypack.dev/country-flag-emoji-polyfill";
+    import { polyfillCountryFlagEmojis } from "/assets/js/country-flag-emoji-polyfill.js";
     polyfillCountryFlagEmojis();
 </script>
 <script>
@@ -88,6 +88,8 @@
         changeGroupPhoto: @json($getCurrentTranslation['change_group_photo'] ?? 'Change group photo'),
         makeAdmin: @json($getCurrentTranslation['make_admin'] ?? 'Make admin'),
         removeAdmin: @json($getCurrentTranslation['remove_admin'] ?? 'Remove admin'),
+        makeAdminSuccess: @json($getCurrentTranslation['make_admin_success'] ?? 'Member is now an admin.'),
+        removeAdminSuccess: @json($getCurrentTranslation['remove_admin_success'] ?? 'Admin role removed from member.'),
         removeFromGroup: @json($getCurrentTranslation['remove_from_group'] ?? 'Remove from group'),
         deleteGroup: @json($getCurrentTranslation['delete_group'] ?? 'Delete group'),
         deleteGroupConfirm: @json($getCurrentTranslation['delete_group_confirm'] ?? 'Permanently delete this group and all messages? This cannot be undone.'),
@@ -199,6 +201,16 @@
                             if (initialEl) { initialEl.textContent = name.charAt(0).toUpperCase(); initialEl.style.display = avatar ? 'none' : 'flex'; }
                             document.getElementById('chat-thread-name').textContent = name;
                         }
+                    } else {
+                        // Current group no longer in conversations (deleted or left) – close the open thread and any related modals.
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                            document.querySelectorAll('.modal.show').forEach(function(m) {
+                                var inst = bootstrap.Modal.getInstance(m);
+                                if (inst) inst.hide();
+                            });
+                        }
+                        if (isWidget && typeof closeWidgetThread === 'function') closeWidgetThread();
+                        else if (typeof closeChatThread === 'function') closeChatThread();
                     }
                 }
                 if (currentOtherUserId && !currentGroupId) {
@@ -1090,6 +1102,12 @@
                     currentGroupId = null;
                     currentGroupData = null;
                     conversationsCache = conversationsCache.filter(function(c) { return c.type !== 'group' || !c.group || c.group.id !== gid; });
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                        document.querySelectorAll('.modal.show').forEach(function(m) {
+                            const inst = bootstrap.Modal.getInstance(m);
+                            if (inst) inst.hide();
+                        });
+                    }
                     if (isWidget && typeof closeWidgetThread === 'function') closeWidgetThread();
                     else if (typeof closeChatThread === 'function') closeChatThread();
                     poll();
@@ -1124,10 +1142,11 @@
                 currentGroupId = null;
                 currentGroupData = null;
                 conversationsCache = conversationsCache.filter(function(c) { return c.type !== 'group' || !c.group || c.group.id !== gid; });
+                if (isWidget && typeof closeWidgetThread === 'function') closeWidgetThread();
+                else if (typeof closeChatThread === 'function') closeChatThread();
                 poll();
                 renderConversationList(conversationsCache);
                 if (isWidget) updateWidgetBadge(conversationsCache);
-                closeThread();
             })
             .catch(function() {})
             .finally(function() { hidePreloader(); });
@@ -1161,6 +1180,21 @@
                     refreshGroupInfoModalContent();
                     refetchGroupMessagesIfOpen();
                 });
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    var modalEl = document.getElementById('chat-group-info-modal');
+                    if (modalEl) {
+                        var inst = bootstrap.Modal.getInstance(modalEl);
+                        if (inst) inst.hide();
+                    }
+                }
+                var successText;
+                if (newRole === 'admin') {
+                    successText = (CHAT_STR.makeAdminSuccess || 'Member is now an admin.');
+                } else {
+                    successText = (CHAT_STR.removeAdminSuccess || 'Admin role removed from member.');
+                }
+                if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, icon: 'success', text: successText });
+                else alert(successText);
             })
             .catch(function() {})
             .finally(function() { hidePreloader(); });
@@ -1616,11 +1650,12 @@
                 const num = String(idx + 1).padStart(padLen, '0');
                 const displayName = (m.nickname && m.nickname.trim()) ? m.nickname.trim() : (m.name || '');
                 const isMemberCreator = currentGroupData.created_by_user_id === m.user_id;
-                const canChangeRole = isCreator && !isMemberCreator && m.user_id !== currentUserId;
-                const canRemove = (isCreator || isAdmin) && !isMemberCreator;
+                const canChangeRole = (isCreator || isAdmin) && !isMemberCreator && m.user_id !== currentUserId;
+                const canRemove = (isCreator || isAdmin) && !isMemberCreator && m.user_id !== currentUserId;
                 const canSetNickname = isCreator || isAdmin;
+                const canLeaveSelf = m.user_id === currentUserId && !isMemberCreator;
                 let actionsHtml = '';
-                if (canChangeRole || canRemove || canSetNickname) {
+                if (canChangeRole || canRemove || canSetNickname || canLeaveSelf) {
                     actionsHtml = '<div class="dropdown"><button type="button" class="btn btn-sm btn-light-primary" data-bs-toggle="dropdown"><i class="fa-solid fa-ellipsis-vertical"></i></button><ul class="dropdown-menu dropdown-menu-end">';
                     if (canSetNickname) {
                         actionsHtml += '<li><a class="dropdown-item chat-group-member-action" href="#" data-action="set-nickname" data-user-id="' + m.user_id + '">' + (CHAT_STR.setNickname || 'Set nickname') + '</a></li>';
@@ -1631,6 +1666,7 @@
                         else actionsHtml += '<li><a class="dropdown-item chat-group-member-action" href="#" data-action="make-admin" data-user-id="' + m.user_id + '">' + (CHAT_STR.makeAdmin || 'Make admin') + '</a></li>';
                     }
                     if (canRemove) actionsHtml += '<li><a class="dropdown-item chat-group-member-action" href="#" data-action="remove-member" data-user-id="' + m.user_id + '">' + (CHAT_STR.removeFromGroup || 'Remove from group') + '</a></li>';
+                    if (canLeaveSelf) actionsHtml += '<li><a class="dropdown-item chat-group-member-action" href="#" data-action="leave-group" data-user-id="' + m.user_id + '">' + (CHAT_STR.leaveGroup || 'Leave group') + '</a></li>';
                     actionsHtml += '</ul></div>';
                 }
                 membersListEl.innerHTML += '<li class="list-group-item d-flex align-items-center justify-content-between"><span>' + escapeHtml(num + '. ' + displayName) + '</span>' + actionsHtml + '</li>';
@@ -1639,7 +1675,7 @@
         if (addMembersBtn) addMembersBtn.style.display = isAdmin ? '' : 'none';
         if (changePhotoBtn) changePhotoBtn.style.display = isAdmin ? '' : 'none';
         const deleteGroupBtn = document.getElementById('chat-group-info-delete-group-btn');
-        if (deleteGroupBtn) deleteGroupBtn.style.display = isCreator ? '' : 'none';
+        if (deleteGroupBtn) deleteGroupBtn.style.display = (isCreator || isAdmin) ? '' : 'none';
     }
 
     function showGroupInfoModal() {
@@ -1700,7 +1736,7 @@
                 openAddMembersToGroupModal();
             });
             document.getElementById('chat-group-info-delete-group-btn').addEventListener('click', function() {
-                if (!currentGroupId || !isCurrentUserGroupCreator()) return;
+                if (!currentGroupId || (!isCurrentUserGroupCreator() && !isCurrentUserGroupAdmin())) return;
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({ title: CHAT_STR.deleteGroup || 'Delete group', text: CHAT_STR.deleteGroupConfirm || 'Permanently delete this group?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#f1416c', confirmButtonText: CHAT_STR.yesRemove || 'Yes, remove' }).then(function(res) {
                         if (res && res.isConfirmed) doGroupDelete();
@@ -1718,6 +1754,7 @@
                 else if (action === 'make-admin') doGroupSetMemberRole(userId, 'admin');
                 else if (action === 'remove-admin') doGroupSetMemberRole(userId, 'member');
                 else if (action === 'remove-member') doGroupRemoveMember(userId);
+                else if (action === 'leave-group' && userId === currentUserId) doLeaveGroup();
             });
         }
         document.getElementById('chat-group-info-modal-title').textContent = title;
