@@ -495,6 +495,46 @@ if (!function_exists('convertVideo')) {
 }
 
 // For Storage
+/**
+ * Encode only the URL path segments (spaces, unicode, parentheses, etc).
+ * This keeps scheme/host/query intact while making the URL safe for APIs (e.g. Twilio mediaUrl).
+ */
+function encodeUrlPath($fullUrl)
+{
+    if (empty($fullUrl) || !is_string($fullUrl)) {
+        return $fullUrl;
+    }
+
+    $parts = parse_url($fullUrl);
+    if ($parts === false || !isset($parts['path'])) {
+        return $fullUrl;
+    }
+
+    $path = $parts['path'];
+    $segments = explode('/', $path);
+    $segments = array_map(function ($seg) {
+        // rawurlencode encodes spaces as %20 (required for many APIs)
+        return rawurlencode($seg);
+    }, $segments);
+    $encodedPath = implode('/', $segments);
+
+    $scheme = isset($parts['scheme']) ? $parts['scheme'] . '://' : '';
+    $user = $parts['user'] ?? null;
+    $pass = $parts['pass'] ?? null;
+    $auth = $user !== null ? $user . ($pass !== null ? ':' . $pass : '') . '@' : '';
+    $host = $parts['host'] ?? '';
+    $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+    $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+    $fragment = isset($parts['fragment']) ? '#' . $parts['fragment'] : '';
+
+    // If there's no host (relative URL), just return encoded path + query/fragment.
+    if ($host === '' && $scheme === '' && $auth === '' && $port === '') {
+        return $encodedPath . $query . $fragment;
+    }
+
+    return $scheme . $auth . $host . $port . $encodedPath . $query . $fragment;
+}
+
 function getUploadedUrl($url) {
     // If already a full URL, return as-is
     if (Str::startsWith($url, ['http://', 'https://'])) {
@@ -504,13 +544,13 @@ function getUploadedUrl($url) {
     // 1️⃣ Check storage folder
     $storagePath = 'storage/' . ltrim($url, '/');
     if (file_exists(public_path($storagePath))) {
-        return asset($storagePath);
+        return encodeUrlPath(asset($storagePath));
     }
 
     // 2️⃣ Check public folder
     $publicPath = ltrim($url, '/'); // assume relative to public/
     if (file_exists(public_path($publicPath))) {
-        return asset($publicPath);
+        return encodeUrlPath(asset($publicPath));
     }
 
     // 3️⃣ Not found, optionally return null or placeholder

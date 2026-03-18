@@ -58,4 +58,20 @@ return [
         'base_url' => env('FLIGHTAPI_BASE_URL', 'https://api.flightapi.io'),
     ],
 
+    /*
+    | WhatsApp Marketing via Twilio (Meta-approved message templates)
+    | Docs: https://www.twilio.com/docs/content/send-templates-created-with-the-content-template-builder
+    */
+    'twilio' => [
+        'sid' => env('TWILIO_ACCOUNT_SID'),
+        'token' => env('TWILIO_AUTH_TOKEN'),
+        'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+        // If you have optional attachment, use 2 templates:
+        // - text-only template: {{1}} (set TWILIO_WHATSAPP_CONTENT_SID_TEXT)
+        // - media template: {{1}} + {{2}} (set TWILIO_WHATSAPP_CONTENT_SID_MEDIA)
+        // Backward compatible: TWILIO_WHATSAPP_CONTENT_SID behaves like "media" SID.
+        'whatsapp_content_sid_text' => env('TWILIO_WHATSAPP_CONTENT_SID_TEXT'),
+        'whatsapp_content_sid_media' => env('TWILIO_WHATSAPP_CONTENT_SID_MEDIA', env('TWILIO_WHATSAPP_CONTENT_SID')),
+    ],
+
 ];

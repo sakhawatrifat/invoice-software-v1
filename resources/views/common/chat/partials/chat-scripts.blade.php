@@ -84,6 +84,7 @@
         admins: @json($getCurrentTranslation['admins'] ?? 'Admins'),
         members: @json($getCurrentTranslation['members'] ?? 'Members'),
         member: @json($getCurrentTranslation['member'] ?? 'Member'),
+        owner: @json($getCurrentTranslation['owner'] ?? 'Owner'),
         groupInfo: @json($getCurrentTranslation['group_info'] ?? 'Group info'),
         changeGroupPhoto: @json($getCurrentTranslation['change_group_photo'] ?? 'Change group photo'),
         makeAdmin: @json($getCurrentTranslation['make_admin'] ?? 'Make admin'),
@@ -1669,7 +1670,10 @@
                     if (canLeaveSelf) actionsHtml += '<li><a class="dropdown-item chat-group-member-action" href="#" data-action="leave-group" data-user-id="' + m.user_id + '">' + (CHAT_STR.leaveGroup || 'Leave group') + '</a></li>';
                     actionsHtml += '</ul></div>';
                 }
-                membersListEl.innerHTML += '<li class="list-group-item d-flex align-items-center justify-content-between"><span>' + escapeHtml(num + '. ' + displayName) + '</span>' + actionsHtml + '</li>';
+                const ownerBadge = isMemberCreator ? ' <span class="badge badge-sm badge-primary ms-1">' + (CHAT_STR.owner || 'Owner') + '</span>' : '';
+                const isMemberAdmin = (m.role || '') === 'admin';
+                const adminBadge = isMemberAdmin ? ' <span class="badge badge-sm badge-info ms-1">' + (CHAT_STR.admin || 'Admin') + '</span>' : '';
+                membersListEl.innerHTML += '<li class="list-group-item d-flex align-items-center justify-content-between"><span>' + escapeHtml(num + '. ' + displayName) + ownerBadge + adminBadge + '</span>' + actionsHtml + '</li>';
             });
         }
         if (addMembersBtn) addMembersBtn.style.display = isAdmin ? '' : 'none';

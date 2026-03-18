@@ -26,6 +26,22 @@
 		<div id="kt_app_content_container" class="app-container container-fluid">
 			<form id="marketing-form" method="post" action="{{ $submitRoute }}" enctype="multipart/form-data">
 				@csrf
+				@if($type === 'whatsapp')
+				<div class="card rounded border mt-5 bg-white">
+					<div class="card-header">
+						<h3 class="card-title">{{ $getCurrentTranslation['content'] ?? 'Content' }}</h3>
+					</div>
+					<div class="card-body">
+						<div class="form-item mb-0">
+							<label class="form-label">{{ $getCurrentTranslation['content'] ?? 'Content' }}: <span class="text-danger">*</span></label>
+							<textarea class="form-control" name="content" rows="10" placeholder="{{ $getCurrentTranslation['enter_content'] ?? 'Enter message content' }}" ip-required required>{{ old('content', '') }}</textarea>
+							@error('content')
+								<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+							@enderror
+						</div>
+					</div>
+				</div>
+				@else
 				<div class="card rounded border mt-5 bg-white">
 					<div class="card-header">
 						<h3 class="card-title">{{ $getCurrentTranslation['message_content'] ?? 'Message Content' }}</h3>
@@ -44,6 +60,7 @@
 						</div>
 					</div>
 				</div>
+				@endif
 
 				<div class="card rounded border mt-5 bg-white">
 					<div class="card-header">

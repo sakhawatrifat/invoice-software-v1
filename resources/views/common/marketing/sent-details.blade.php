@@ -79,7 +79,7 @@
 										<h5 class="mb-0 text-light">{{ $getCurrentTranslation['message_content'] ?? 'Message Content' }}</h5>
 									</div>
 									<div class="card-body">
-										<div class="editor-address">{!! $editData->content ?? '—' !!}</div>
+										<div class="editor-address">{!! $editData->content ? nl2br($editData->content) : '—' !!}</div>
 									</div>
 								</div>
 

@@ -19,6 +19,7 @@
         "patrickschur/language-detection": "^5.3",
         "spatie/browsershot": "^5.0",
         "spatie/laravel-backup": "^9.2",
+        "twilio/sdk": "^8.11",
         "yajra/laravel-datatables-oracle": "^12.3"
     },
     "require-dev": {

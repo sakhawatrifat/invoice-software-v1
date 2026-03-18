@@ -239,14 +239,14 @@
 								<span class="menu-title">{{ $getCurrentTranslation['upcomming_flights'] ?? 'upcomming_flights' }}</span>
 							</a>
 						</div>
-						<div class="menu-item">
+						{{-- <div class="menu-item">
 							<a class="menu-link {{ getCurrentRouteName() == 'flight.changedCancelled' ? 'active' : '' }}" href="{{ route('flight.changedCancelled') }}">
 								<span class="menu-bullet">
 									<span class="bullet bullet-dot"></span>
 								</span>
 								<span class="menu-title">{{ $getCurrentTranslation['changed_cancelled_flights'] ?? 'Rescheduled & Cancelled Flights' }}</span>
 							</a>
-						</div>
+						</div> --}}
 					</div>
 				</div>
 				@endif
