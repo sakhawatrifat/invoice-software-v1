@@ -73,9 +73,16 @@
                         {{ $getCurrentTranslation['edit'] ?? 'edit' }}
                     </a>
                 @endif
+
+				@if (hasPermission('ticket.whatsapp') && isset($editData) && !empty($editData) && ($editData->document_type ?? '') == 'ticket')
+                    <a href="{{ route('ticket.whatsapp', $editData->id) }}" class="btn btn-sm fw-bold btn-success">
+                        <i class="fa-brands fa-whatsapp"></i>
+                        {{ $getCurrentTranslation['send_whatsapp'] ?? 'Send WhatsApp' }}
+                    </a>
+                @endif
 				
 				@if(isset($listRoute) && !empty($listRoute))
-					<a href="{{ $listRoute }}" class="btn btn-sm fw-bold btn-primary">
+					<a href="{{ $listRoute }}?document_type=ticket" class="btn btn-sm fw-bold btn-primary">
 						<i class="fa-solid fa-arrow-left"></i>
 						{{ $getCurrentTranslation['back_to_list'] ?? 'back_to_list' }}
 					</a>

@@ -116,31 +116,43 @@
                                     $sysArr = $seg['arrival_date_time'] ? \Carbon\Carbon::parse($seg['arrival_date_time'])->format('Y-m-d H:i') : 'N/A';
                                     $liveDepStr = null;
                                     $liveArrStr = null;
+                                    $liveDepComparableStr = null;
+                                    $liveArrComparableStr = null;
                                     if ($liveDep) {
-                                        $liveDepStr = $liveDep['departureDateTime'] ?? $liveDep['scheduledTime'] ?? null;
-                                        if ($liveDepStr) $liveDepStr = \Carbon\Carbon::parse($liveDepStr)->format('Y-m-d H:i');
+                                        $liveDepComparableRaw = $liveDep['departureDateTime'] ?? null;
+                                        $liveDepDisplayRaw = $liveDepComparableRaw ?? ($liveDep['scheduledTime'] ?? null);
+                                        if ($liveDepComparableRaw) {
+                                            $liveDepComparableStr = \Carbon\Carbon::parse($liveDepComparableRaw)->format('Y-m-d H:i');
+                                        }
+                                        $liveDepStr = $liveDepComparableStr ?? ($liveDepDisplayRaw ?: null);
                                     }
                                     if ($liveArr) {
-                                        $liveArrStr = $liveArr['arrivalDateTime'] ?? $liveArr['scheduledTime'] ?? null;
-                                        if ($liveArrStr) $liveArrStr = \Carbon\Carbon::parse($liveArrStr)->format('Y-m-d H:i');
+                                        $liveArrComparableRaw = $liveArr['arrivalDateTime'] ?? null;
+                                        $liveArrDisplayRaw = $liveArrComparableRaw ?? ($liveArr['scheduledTime'] ?? null);
+                                        if ($liveArrComparableRaw) {
+                                            $liveArrComparableStr = \Carbon\Carbon::parse($liveArrComparableRaw)->format('Y-m-d H:i');
+                                        }
+                                        $liveArrStr = $liveArrComparableStr ?? ($liveArrDisplayRaw ?: null);
                                     }
-                                    $depMatch = $liveDepStr ? ($sysDep === $liveDepStr) : null;
-                                    $arrMatch = $liveArrStr ? ($sysArr === $liveArrStr) : null;
+                                    // Match accuracy: compare only absolute datetime fields (departureDateTime/arrivalDateTime).
+                                    // Do not compare scheduledTime text because it may not include full date/year/timezone.
+                                    $depMatch = $liveDepComparableStr ? ($sysDep === $liveDepComparableStr) : null;
+                                    $arrMatch = $liveArrComparableStr ? ($sysArr === $liveArrComparableStr) : null;
                                     $depDiffText = null;
                                     $arrDiffText = null;
-                                    if ($depMatch === false && $sysDep !== 'N/A' && $liveDepStr) {
+                                    if ($depMatch === false && $sysDep !== 'N/A' && $liveDepComparableStr) {
                                         try {
                                             $sysDepC = \Carbon\Carbon::parse($seg['departure_date_time']);
-                                            $liveDepC = \Carbon\Carbon::parse($liveDepStr);
+                                            $liveDepC = \Carbon\Carbon::parse($liveDepComparableStr);
                                             $depDiffMins = $liveDepC->diffInMinutes($sysDepC, false);
                                             $absM = abs($depDiffMins);
                                             $depDiffText = ($depDiffMins <= 0 ? '+' : '-') . ($absM >= 60 ? (intval($absM / 60) . 'h ' . ($absM % 60) . 'm') : ($absM . 'm'));
                                         } catch (\Throwable $e) { }
                                     }
-                                    if ($arrMatch === false && $sysArr !== 'N/A' && $liveArrStr) {
+                                    if ($arrMatch === false && $sysArr !== 'N/A' && $liveArrComparableStr) {
                                         try {
                                             $sysArrC = \Carbon\Carbon::parse($seg['arrival_date_time']);
-                                            $liveArrC = \Carbon\Carbon::parse($liveArrStr);
+                                            $liveArrC = \Carbon\Carbon::parse($liveArrComparableStr);
                                             $arrDiffMins = $liveArrC->diffInMinutes($sysArrC, false);
                                             $absM = abs($arrDiffMins);
                                             $arrDiffText = ($arrDiffMins <= 0 ? '+' : '-') . ($absM >= 60 ? (intval($absM / 60) . 'h ' . ($absM % 60) . 'm') : ($absM . 'm'));

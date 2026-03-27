@@ -31,6 +31,9 @@ return new class extends Migration
             $table->longText('footer_title')->nullable();
             $table->longText('footer_text')->nullable();
             $table->longText('bank_details')->nullable();
+
+            $table->string('contacted_with_client')->nullable()->comment('Not Yet/Call/Message')->default('Not Yet');
+            $table->longText('client_contact_note')->nullable();
             
             $table->bigInteger('mail_sent_count')->nullable();
 

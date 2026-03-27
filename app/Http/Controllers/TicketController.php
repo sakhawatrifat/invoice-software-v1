@@ -15,6 +15,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\TicketInvoiceMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\View;
 
@@ -40,6 +41,8 @@ use App\Services\PdfService;
 
 use App\Services\TravelpayoutsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
+use App\Jobs\SendWhatsAppMarketingMessage;
 
 class TicketController extends Controller
 {
@@ -129,6 +132,11 @@ class TicketController extends Controller
                 if (request()->filled('missing_payment') && request()->missing_payment == '1') {
                     $query->whereNotIn('id', Payment::whereNotNull('ticket_id')->pluck('ticket_id'));
                     $query->where('invoice_date', '>=', '2026-01-01');
+                    // Exclude "On Hold" tickets from missing payments page
+                    $query->where(function ($q) {
+                        $q->whereNull('booking_status')
+                          ->orWhere('booking_status', '!=', 'On Hold');
+                    });
                 }
 
                 // Restrict by user
@@ -241,13 +249,13 @@ class TicketController extends Controller
                         }
 
                         // Search users
-                        $userIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id');
+                        $userIds = User::excludeAutomationChatbot()->excludeUserTypeUsers()->where('name', 'like', "%{$search}%")->pluck('id');
                         if ($userIds->isNotEmpty()) {
                             $q->orWhereIn('user_id', $userIds);
                         }
 
                         // Search creators
-                        $creatorIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id');
+                        $creatorIds = User::excludeAutomationChatbot()->excludeUserTypeUsers()->where('name', 'like', "%{$search}%")->pluck('id');
                         if ($creatorIds->isNotEmpty()) {
                             $q->orWhereIn('created_by', $creatorIds);
                         }
@@ -402,6 +410,16 @@ class TicketController extends Controller
                     $buttons .= '
                         <a href="' . $mailUrl . '" class="btn btn-sm btn-secondary my-1" title="Mail">
                             <i class="fa-solid fa-envelope"></i>
+                        </a>
+                    ';
+                }
+
+                if (hasPermission('ticket.whatsapp') && $row->document_type == 'ticket') {
+                    $waUrl = route('ticket.whatsapp', $row->id);
+                    $waTitle = $currentTranslation['send_whatsapp'] ?? 'WhatsApp';
+                    $buttons .= '
+                        <a href="' . $waUrl . '" class="btn btn-sm btn-success my-1" title="' . e($waTitle) . '">
+                            <i class="fa-brands fa-whatsapp"></i>
                         </a>
                     ';
                 }
@@ -819,6 +837,8 @@ class TicketController extends Controller
             $newTicket->reservation_number = $original->reservation_number . '-' . strtoupper(Str::random(4));
             $newTicket->invoice_id = generateInvoiceId();
             $newTicket->booking_status = 'On Hold';
+            $newTicket->contacted_with_client = null;
+            $newTicket->client_contact_note = null;
             $newTicket->mail_sent_count = 0;
             $newTicket->created_by = $user->id;
             $newTicket->updated_by = $user->id;
@@ -937,6 +957,65 @@ class TicketController extends Controller
         }
 
         return $this->saveTicketData($request, $id);
+    }
+
+    /**
+     * AJAX: set contacted_with_client (Not Yet/Call/Message) and optional client_contact_note.
+     */
+    public function updateClientContact(Request $request): JsonResponse
+    {
+        if (!hasPermission('ticket.edit')) {
+            return response()->json([
+                'is_success' => 0,
+                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'ticket_id' => 'required|integer|exists:tickets,id',
+            'contacted_with_client' => ['required', Rule::in(['Not Yet', 'Call', 'Message'])],
+            'client_contact_note' => 'nullable|string|max:65535',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'is_success' => 0,
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = Auth::user();
+        $ticket = Ticket::where('id', $request->ticket_id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'is_success' => 0,
+                'message' => getCurrentTranslation()['data_not_found'] ?? 'data_not_found',
+            ], 404);
+        }
+        if ($user->user_type != 'admin' && $ticket->user_id != $user->business_id) {
+            return response()->json([
+                'is_success' => 0,
+                'message' => getCurrentTranslation()['data_not_found'] ?? 'data_not_found',
+            ], 404);
+        }
+
+        $contacted = $request->input('contacted_with_client');
+        $ticket->contacted_with_client = ($contacted === 'Not Yet' || $contacted === null || $contacted === '') ? null : $contacted;
+        $note = $request->input('client_contact_note');
+        $ticket->client_contact_note = ($note !== null && trim((string) $note) !== '') ? trim((string) $note) : null;
+        $ticket->updated_by = $user->id;
+        $ticket->save();
+
+        $t = getCurrentTranslation();
+
+        return response()->json([
+            'is_success' => 1,
+            'message' => $t['data_updated'] ?? $t['saved'] ?? 'Saved',
+            'contacted_with_client' => $ticket->contacted_with_client,
+            'client_contact_note' => $ticket->client_contact_note,
+            'summary_html' => ticketClientContactSummaryHtml($ticket, $t),
+        ]);
     }
 
     public function destroy(Request $request, $id)
@@ -1183,6 +1262,8 @@ class TicketController extends Controller
             'footer_title' => 'nullable|string|max:100',
             'footer_text' => 'nullable|string',
             'bank_details' => 'nullable|string',
+            'contacted_with_client' => ['nullable', Rule::in(['Not Yet', 'Call', 'Message'])],
+            'client_contact_note' => 'nullable|string|max:65535',
         ];
 
         $validator = Validator::make($request->all(), $rules, [
@@ -1374,6 +1455,15 @@ class TicketController extends Controller
             $ticket->trip_type = $request->trip_type ?? null;
             $ticket->ticket_type = $request->ticket_type ?? null;
             $ticket->booking_status = $request->booking_status ?? null;
+
+            $cw = $request->input('contacted_with_client');
+            if ($cw === 'Not Yet' || $cw === '' || $cw === null) {
+                $ticket->contacted_with_client = null;
+            } else {
+                $ticket->contacted_with_client = $cw;
+            }
+            $note = $request->input('client_contact_note');
+            $ticket->client_contact_note = ($note !== null && trim((string) $note) !== '') ? trim((string) $note) : null;
 
             $ticket->bill_to = $request->bill_to ?? null;
             $ticket->bill_to_info = $request->bill_to_info ?? null;
@@ -1736,6 +1826,30 @@ class TicketController extends Controller
 
         //dd($editData);
         return view('common.ticket.sendMailForm', get_defined_vars());
+    }
+
+    public function whatsapp($id)
+    {
+        if (!hasPermission('ticket.whatsapp')) {
+            abort(403, getCurrentTranslation()['permission_denied'] ?? 'Permission denied');
+        }
+
+        $user = Auth::user();
+
+        $listRoute = hasPermission('ticket.index') ? route('ticket.index') : '';
+
+        $editData = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'user.company', 'creator')->where('id', $id)->first();
+        if (empty($editData)) {
+            abort(404);
+        }
+        if ($editData->document_type !== 'ticket') {
+            abort(404);
+        }
+        if ($user->user_type != 'admin' && $editData->user_id != $user->business_id) {
+            abort(404);
+        }
+
+        return view('common.ticket.sendWhatsAppForm', get_defined_vars());
     }
 
 
@@ -2116,6 +2230,382 @@ class TicketController extends Controller
         ];
 
        
+    }
+
+    public function whatsappSend(Request $request, $id, PdfService $pdfService)
+    {
+        if (!hasPermission('ticket.whatsapp')) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied',
+            ]);
+        }
+
+        $user = Auth::user();
+        $messages = getCurrentTranslation();
+
+        $rules = [
+            'passengers' => 'nullable|array',
+            'passengers.*.id' => 'nullable|integer|exists:ticket_passengers,id',
+            'passengers.*.phone' => 'nullable|string|max:50',
+            'whatsapp_message' => 'required|string|max:4096',
+            'ticket_layout' => 'required|in:1,2,3,4,5',
+            'send_individually' => 'nullable|in:1',
+            'ticket_with_price' => 'nullable|in:1',
+        ];
+
+        $validator = Validator::make($request->all(), $rules, [
+            'required' => $messages['required_message'] ?? 'This field is required.',
+            'string' => $messages['string_message'] ?? 'This field must be a string.',
+            'integer' => $messages['integer_message'] ?? 'This field must be an integer.',
+            'exists' => $messages['exists_message'] ?? 'The selected value is invalid.',
+            'in' => $messages['in_message'] ?? 'The selected value is invalid.',
+        ]);
+
+        $validator->after(function ($validator) use ($request, $messages) {
+            $passengers = $request->input('passengers', []);
+            if (!is_array($passengers)) {
+                $validator->errors()->add(
+                    'passengers.0.phone',
+                    $messages['at_least_one_passenger_phone_whatsapp'] ?? 'Select at least one passenger and enter a WhatsApp number (with country code).'
+                );
+
+                return;
+            }
+
+            $selectedCount = 0;
+            foreach ($passengers as $index => $passenger) {
+                if (!is_array($passenger)) {
+                    continue;
+                }
+                if (empty($passenger['id'])) {
+                    continue;
+                }
+                $selectedCount++;
+                $phone = trim((string) ($passenger['phone'] ?? ''));
+                if ($phone === '') {
+                    $validator->errors()->add(
+                        'passengers.' . $index . '.phone',
+                        $messages['whatsapp_phone_required_each_selected'] ?? 'Enter a WhatsApp number (with country code) for each selected passenger.'
+                    );
+
+                    continue;
+                }
+                if ($this->toE164OrNullForWhatsapp($phone) === null) {
+                    $validator->errors()->add(
+                        'passengers.' . $index . '.phone',
+                        $messages['whatsapp_invalid_phone'] ?? 'Invalid or incomplete phone number. Use full number with country code (e.g. +16019571040).'
+                    );
+                }
+            }
+
+            if ($selectedCount === 0) {
+                $validator->errors()->add(
+                    'passengers.0.phone',
+                    $messages['at_least_one_passenger_select_whatsapp'] ?? 'Select at least one passenger to send the WhatsApp ticket confirmation.'
+                );
+            }
+        });
+
+        if ($validator->fails()) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'errors' => $validator->errors(),
+            ]);
+        }
+
+        $passengersInput = $request->input('passengers', []);
+        $filtered = array_values(array_filter($passengersInput, fn ($p) => isset($p['id']) && $p['id'] !== ''));
+        $request->merge(['passengers' => $filtered]);
+
+        $passengerIds = array_column(
+            array_filter($filtered, fn ($p) => isset($p['id']) && $p['id'] !== ''),
+            'id'
+        );
+
+        if ($passengerIds === []) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'errors' => [
+                    'passengers.0.phone' => [
+                        $messages['at_least_one_passenger_select_whatsapp'] ?? 'Select at least one passenger to send the WhatsApp ticket confirmation.',
+                    ],
+                ],
+            ]);
+        }
+
+        $ticketRow = Ticket::where('id', $id)->first();
+        if (empty($ticketRow)) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => $messages['data_not_found'] ?? 'data_not_found',
+            ]);
+        }
+        if ($ticketRow->document_type !== 'ticket') {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => $messages['data_not_found'] ?? 'data_not_found',
+            ]);
+        }
+        if ($user->user_type != 'admin' && $ticketRow->user_id != $user->business_id) {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => $messages['data_not_found'] ?? 'data_not_found',
+            ]);
+        }
+
+        foreach ($filtered as $item) {
+            $passengerModel = TicketPassenger::where('ticket_id', $id)->where('id', $item['id'])->first();
+            if ($passengerModel) {
+                $passengerModel->phone = $item['phone'] ?? $passengerModel->phone;
+                $passengerModel->save();
+            }
+        }
+
+        $editData = Ticket::with('flights', 'flights.transits', 'passengers', 'passengers.flights', 'fareSummary', 'user', 'user.company', 'creator')->where('id', $id)->first();
+        $passengers = TicketPassenger::where('ticket_id', $id)->whereIn('id', $passengerIds)->get();
+
+        $sid = config('services.twilio.sid', env('TWILIO_ACCOUNT_SID', ''));
+        $token = config('services.twilio.token', env('TWILIO_AUTH_TOKEN', ''));
+        $from = config('services.twilio.whatsapp_from', env('TWILIO_WHATSAPP_FROM', ''));
+        $contentSidText = (string) config('services.twilio.whatsapp_content_sid_text', env('TWILIO_WHATSAPP_CONTENT_SID_TEXT', ''));
+        $contentSidMedia = (string) config('services.twilio.whatsapp_content_sid_media', env('TWILIO_WHATSAPP_CONTENT_SID_MEDIA', env('TWILIO_WHATSAPP_CONTENT_SID', '')));
+
+        if ($sid === '' || $token === '' || $from === '') {
+            $msg = $messages['whatsapp_api_not_configured'] ?? 'WhatsApp via Twilio is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_FROM in .env';
+
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => $msg,
+            ]);
+        }
+
+        if ($contentSidMedia === '') {
+            return response()->json([
+                'is_success' => 0,
+                'icon' => 'error',
+                'message' => $messages['whatsapp_ticket_pdf_template_required'] ?? 'Set TWILIO_WHATSAPP_CONTENT_SID_MEDIA (or TWILIO_WHATSAPP_CONTENT_SID) in .env for WhatsApp messages with a PDF attachment.',
+            ]);
+        }
+
+        $sendIndividually = isset($request->send_individually) && (int) $request->send_individually === 1;
+        $useTemplate = ($contentSidText !== '' || $contentSidMedia !== '');
+
+        $sharedMediaUrl = null;
+        if (!$sendIndividually) {
+            $relPath = $this->storeTicketPdfForWhatsapp($pdfService, $editData, $request, $passengers, null);
+            if ($relPath === null) {
+                return response()->json([
+                    'is_success' => 0,
+                    'icon' => 'error',
+                    'message' => $messages['pdf_generation_failed'] ?? 'Could not generate ticket PDF.',
+                ]);
+            }
+            $sharedMediaUrl = getUploadedUrl($relPath);
+            if (empty($sharedMediaUrl)) {
+                return response()->json([
+                    'is_success' => 0,
+                    'icon' => 'error',
+                    'message' => $messages['whatsapp_media_url_failed'] ?? 'Ticket PDF is not reachable via a public URL. Check APP_URL and the storage symlink.',
+                ]);
+            }
+        }
+
+        $perMinute = (int) env('WHATSAPP_MARKETING_RATE_PER_MINUTE', 30);
+        $perMinute = max(1, min($perMinute, 600));
+        $secondsPerMessage = (int) ceil(60 / $perMinute);
+        $jitterMax = (int) env('WHATSAPP_MARKETING_JITTER_SECONDS', 2);
+        $jitterMax = max(0, min($jitterMax, 10));
+
+        $queued = 0;
+        $skipped = 0;
+        $errors = [];
+        $index = 0;
+
+        foreach ($passengers as $passengerItem) {
+            $passengersForPlaceholder = $sendIndividually ? collect([$passengerItem]) : $passengers;
+            $plainData = $this->passengerDetailsPlainText($passengersForPlaceholder);
+            $messageBody = str_replace(
+                ['{passenger_automatic_name_here}', '{passenger_automatic_data_here}'],
+                [$passengerItem->name ?? 'N/A', $plainData],
+                (string) $request->whatsapp_message
+            );
+
+            if (trim((string) $passengerItem->phone) === '') {
+                $skipped++;
+                $errors[] = ($passengerItem->name ?? 'Passenger') . ': ' . ($messages['whatsapp_phone_missing'] ?? 'Phone number is required.');
+
+                continue;
+            }
+
+            $toE164 = $this->toE164OrNullForWhatsapp($passengerItem->phone);
+            if ($toE164 === null) {
+                $skipped++;
+                $errors[] = ($passengerItem->name ?? 'Passenger') . ': ' . ($messages['whatsapp_invalid_phone'] ?? 'Invalid phone number. Use full number with country code.');
+
+                continue;
+            }
+
+            if ($sendIndividually) {
+                $ticketPassengers = collect([$passengerItem]);
+                $relPath = $this->storeTicketPdfForWhatsapp($pdfService, $editData, $request, $ticketPassengers, $passengerItem);
+                if ($relPath === null) {
+                    $skipped++;
+                    $errors[] = ($passengerItem->name ?? 'Passenger') . ': ' . ($messages['pdf_generation_failed'] ?? 'Could not generate ticket PDF.');
+
+                    continue;
+                }
+                $mediaUrl = getUploadedUrl($relPath);
+                if (empty($mediaUrl)) {
+                    $skipped++;
+                    $errors[] = ($passengerItem->name ?? 'Passenger') . ': ' . ($messages['whatsapp_media_url_failed'] ?? 'PDF URL could not be built.');
+
+                    continue;
+                }
+            } else {
+                $mediaUrl = $sharedMediaUrl;
+            }
+
+            $delaySeconds = ($index * $secondsPerMessage) + ($jitterMax > 0 ? random_int(0, $jitterMax) : 0);
+            $index++;
+
+            SendWhatsAppMarketingMessage::dispatch([
+                'marketing_send_id' => 0,
+                'ticket_passenger_id' => $passengerItem->id,
+                'to_e164' => $toE164,
+                'content' => $messageBody,
+                'content_raw' => (string) $request->whatsapp_message,
+                'media_url' => $mediaUrl,
+                'use_template' => $useTemplate,
+            ])
+                ->onQueue('whatsapp-marketing')
+                ->delay(now()->addSeconds($delaySeconds));
+
+            $queued++;
+        }
+
+        $hint = $messages['whatsapp_check_twilio_logs'] ?? '';
+        $extra = " Queued: {$queued}. Skipped: {$skipped}.";
+
+        if ($queued > 0) {
+            return [
+                'is_success' => 1,
+                'icon' => 'success',
+                'message' => ($messages['marketing_whatsapp_sent'] ?? 'WhatsApp message queued successfully.') . $extra . $hint,
+            ];
+        }
+
+        return response()->json([
+            'is_success' => 0,
+            'icon' => 'error',
+            'message' => $errors[0] ?? ($messages['whatsapp_send_failed'] ?? 'WhatsApp send failed.'),
+        ]);
+    }
+
+    /**
+     * Plain-text passenger block for WhatsApp (same placeholders as mail, without HTML).
+     */
+    private function passengerDetailsPlainText($passengers): string
+    {
+        $html = getPassengerDataForMail($passengers);
+        $text = str_ireplace(['<br>', '<br/>', '<br />'], "\n", $html);
+        $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim(preg_replace("/\n{3,}/", "\n\n", $text));
+    }
+
+    private function normalizePhoneForWhatsapp($phone): string
+    {
+        return preg_replace('/[^0-9]/', '', (string) $phone);
+    }
+
+    /**
+     * E.164 for Twilio/WhatsApp (aligned with WhatsAppMarketingController).
+     */
+    private function toE164OrNullForWhatsapp($phone): ?string
+    {
+        $raw = $this->normalizePhoneForWhatsapp($phone);
+        $digits = ltrim($raw, '0');
+        $len = strlen($digits);
+
+        if (strlen($raw) === 11 && isset($raw[0]) && $raw[0] === '0' && $len === 10) {
+            return '+880' . $digits;
+        }
+
+        if ($len < 10 || $len > 15) {
+            return null;
+        }
+        if (isset($digits[0]) && $digits[0] === '1' && $len !== 11) {
+            return null;
+        }
+
+        return '+' . $digits;
+    }
+
+    /**
+     * Generate ticket PDF into storage/app/public/ticket-whatsapp for Twilio mediaUrl.
+     *
+     * @param  \Illuminate\Support\Collection|null  $ticket_passengers
+     */
+    private function storeTicketPdfForWhatsapp(PdfService $pdfService, Ticket $editData, Request $request, $ticket_passengers, $passengerForIndividualPdf): ?string
+    {
+        $withPrice = isset($request->ticket_with_price) && $request->ticket_with_price == 1 ? 1 : 0;
+        $isTicket = 1;
+        $isInvoice = 0;
+        $passenger = $passengerForIndividualPdf;
+
+        $ticketLayout = 'common.ticket.includes.ticket-1';
+        $ticketLayoutId = 1;
+        if (isset($request->ticket_layout) && filter_var($request->ticket_layout, FILTER_VALIDATE_INT) !== false) {
+            $ticketLayout = 'common.ticket.includes.ticket-' . $request->ticket_layout;
+            $ticketLayoutId = (int) $request->ticket_layout;
+
+            if (!View::exists($ticketLayout)) {
+                $ticketLayout = 'common.ticket.includes.ticket-1';
+                $ticketLayoutId = 1;
+            }
+        }
+
+        if (!hasPermission('ticket.multiLayout')) {
+            $ticketLayout = 'common.ticket.includes.ticket-1';
+            $ticketLayoutId = 1;
+        }
+
+        try {
+            $html = view($ticketLayout, compact('editData', 'passenger', 'ticket_passengers', 'withPrice', 'isTicket', 'isInvoice'))->render();
+        } catch (\Throwable $e) {
+            \Log::error('Ticket WhatsApp PDF view failed', ['error' => $e->getMessage(), 'ticket_id' => $editData->id]);
+
+            return null;
+        }
+
+        $rawFilename = 'Reservation-' . $editData->reservation_number . '-' . uniqid('', true) . '.pdf';
+        $filename = preg_replace('/[\/\\\\?%*:|"<>]/', '_', $rawFilename);
+
+        Storage::disk('public')->makeDirectory('ticket-whatsapp');
+        $relativePath = 'ticket-whatsapp/' . $filename;
+        $fullPath = storage_path('app/public/' . $relativePath);
+
+        try {
+            $pdfService->generatePdf($editData, $html, $fullPath, 'F', 'ticket');
+        } catch (\Throwable $e) {
+            \Log::error('Ticket WhatsApp PDF generation failed', ['error' => $e->getMessage(), 'ticket_id' => $editData->id]);
+
+            return null;
+        }
+
+        if (!is_file($fullPath)) {
+            return null;
+        }
+
+        return $relativePath;
     }
 
     /**

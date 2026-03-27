@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth as AuthFacade;
 
 use App\Services\TravelpayoutsService;
 use App\Services\FlightApiService;
+use App\Services\FlightApiCreditUsageService;
 use Illuminate\Http\JsonResponse;
 
 use App\Models\Language;
@@ -196,6 +197,10 @@ class TravelSearchController extends Controller
             $flightApi = app(FlightApiService::class);
             if ($flightApi->isConfigured()) {
                 $flights = $flightApi->searchCheapestFlights($searchParams);
+                app(FlightApiCreditUsageService::class)->recordTicketSearch(
+                    AuthFacade::check() ? (int) AuthFacade::id() : null,
+                    $searchParams
+                );
             } else {
                 $flights = $this->travelpayouts->searchCheapestFlights($searchParams);
             }
@@ -437,24 +442,58 @@ class TravelSearchController extends Controller
         $flightType = $searchParams['flight_type'] ?? 'one_way';
 
         if ($flightType === 'one_way') {
+            // Providers may return a single journey container with legs (segments[0].legs) even for one-way.
             $flight = $this->processSingleFlight($flightData, $searchParams);
             $formatted['ticket_flight_info'][] = $flight;
         } elseif ($flightType === 'round_trip') {
-            // Outbound flight
-            $outboundFlight = $this->processSingleFlight($flightData, $searchParams, 'outbound');
-            $formatted['ticket_flight_info'][] = $outboundFlight;
+            /**
+             * Round-trip responses can be shaped in multiple ways:
+             * - Flat: selected flight contains one journey in `segments` and return info in `return_*` keys.
+             * - Journey groups: `segments` is an array where each item contains `legs` (outbound + return).
+             *
+             * Prefer journey-group legs when present because it contains the correct transit breakdown
+             * for BOTH outbound and return (and avoids missing `return_segments`).
+             */
+            $journeys = $this->extractJourneyLegGroups($flightData);
+            if (count($journeys) === 1) {
+                $split = $this->splitRoundTripLegsByRoute(
+                    $journeys[0],
+                    $searchParams['origin'] ?? ($searchParams['round_trip']['origin'] ?? ''),
+                    $searchParams['destination'] ?? ($searchParams['round_trip']['destination'] ?? '')
+                );
+                if (count($split) === 2) {
+                    $journeys = $split;
+                }
+            }
+            if (count($journeys) >= 2) {
+                $journeys = $this->ensureRoundTripJourneyOrder(
+                    $journeys,
+                    $searchParams['origin'] ?? ($searchParams['round_trip']['origin'] ?? ''),
+                    $searchParams['destination'] ?? ($searchParams['round_trip']['destination'] ?? '')
+                );
+            }
+            if (count($journeys) >= 1) {
+                $formatted['ticket_flight_info'][] = $this->buildFlightFromLegs($journeys[0], $searchParams);
+            } else {
+                $formatted['ticket_flight_info'][] = $this->processSingleFlight($flightData, $searchParams, 'outbound');
+            }
 
-            // Return flight (if return date is provided)
-            if (isset($searchParams['return_at']) && !empty($searchParams['return_at'])) {
-                $returnFlight = $this->processReturnFlight($flightData, $searchParams);
-                $formatted['ticket_flight_info'][] = $returnFlight;
+            if (count($journeys) >= 2) {
+                $formatted['ticket_flight_info'][] = $this->buildFlightFromLegs($journeys[1], $searchParams);
+            } elseif (isset($searchParams['return_at']) && !empty($searchParams['return_at'])) {
+                $formatted['ticket_flight_info'][] = $this->processReturnFlight($flightData, $searchParams);
             }
         } elseif ($flightType === 'multi_city') {
-            // Process multi-city segments
-            if (isset($flightData['segments']) && is_array($flightData['segments'])) {
+            // Multi-city can also come back as multiple journey leg-groups.
+            $journeys = $this->extractJourneyLegGroups($flightData);
+            if (!empty($journeys)) {
+                foreach ($journeys as $legs) {
+                    $formatted['ticket_flight_info'][] = $this->buildFlightFromLegs($legs, $searchParams);
+                }
+            } elseif (isset($flightData['segments']) && is_array($flightData['segments'])) {
+                // Fallback: older format where each "segment" is already a flight-like array
                 foreach ($flightData['segments'] as $segment) {
-                    $flight = $this->processSingleFlight($segment, $searchParams);
-                    $formatted['ticket_flight_info'][] = $flight;
+                    $formatted['ticket_flight_info'][] = $this->processSingleFlight($segment, $searchParams);
                 }
             }
         }
@@ -489,6 +528,386 @@ class TravelSearchController extends Controller
         return $formatted;
     }
 
+    private function splitRoundTripLegsByRoute(array $legs, string $searchOrigin, string $searchDestination): array
+    {
+        $legs = array_values(array_filter($legs, fn ($l) => is_array($l)));
+        if (count($legs) < 2) {
+            return [];
+        }
+
+        $originCandidates = $this->buildAirportCandidates($searchOrigin, '');
+        $destinationCandidates = $this->buildAirportCandidates($searchDestination, '');
+
+        // Expand candidates by scanning segment displays for searched IATA codes.
+        $this->enrichAirportCandidatesByCode($originCandidates, $this->extractAirportCode($searchOrigin), $legs);
+        $this->enrichAirportCandidatesByCode($destinationCandidates, $this->extractAirportCode($searchDestination), $legs);
+
+        $splitAt = -1;
+
+        // Preferred split: first leg that starts from destination side.
+        for ($i = 1; $i < count($legs); $i++) {
+            $from = $legs[$i]['origin_iata'] ?? $legs[$i]['origin'] ?? $legs[$i]['origin_display'] ?? '';
+            if ($this->airportMatches($from, $destinationCandidates)) {
+                $splitAt = $i;
+                break;
+            }
+        }
+
+        // Fallback: continuity at same airport + long layover (turn-around boundary).
+        if ($splitAt === -1) {
+            $bestIdx = -1;
+            $bestScore = -1;
+            for ($i = 1; $i < count($legs); $i++) {
+                $prev = $legs[$i - 1] ?? [];
+                $cur = $legs[$i] ?? [];
+                $prevTo = $prev['destination_display'] ?? $prev['destination_iata'] ?? $prev['destination'] ?? '';
+                $curFrom = $cur['origin_display'] ?? $cur['origin_iata'] ?? $cur['origin'] ?? '';
+                if ($this->normalizeAirportString($prevTo) !== $this->normalizeAirportString($curFrom)) {
+                    continue;
+                }
+                $prevArrival = $prev['arrival_at'] ?? $prev['arrival'] ?? '';
+                $curDeparture = $cur['departure_at'] ?? $cur['departure'] ?? '';
+                $layover = $this->minutesBetween($prevArrival, $curDeparture);
+                if ($layover === null || $layover < 360) {
+                    continue;
+                }
+                $atDestinationSide = $this->airportMatches($prevTo, $destinationCandidates) || $this->airportMatches($curFrom, $destinationCandidates);
+                $score = ($atDestinationSide ? 1000000 : 0) + $layover;
+                if ($score > $bestScore) {
+                    $bestScore = $score;
+                    $bestIdx = $i;
+                }
+            }
+            if ($bestIdx !== -1) {
+                $splitAt = $bestIdx;
+            }
+        }
+
+        if ($splitAt > 0 && $splitAt < count($legs)) {
+            return [
+                array_values(array_slice($legs, 0, $splitAt)),
+                array_values(array_slice($legs, $splitAt)),
+            ];
+        }
+
+        return [];
+    }
+
+    private function ensureRoundTripJourneyOrder(array $journeys, string $searchOrigin, string $searchDestination): array
+    {
+        if (count($journeys) < 2) {
+            return $journeys;
+        }
+        $originCandidates = $this->buildAirportCandidates($searchOrigin, '');
+        $destinationCandidates = $this->buildAirportCandidates($searchDestination, '');
+        $firstStart = $journeys[0][0]['origin_iata'] ?? $journeys[0][0]['origin'] ?? $journeys[0][0]['origin_display'] ?? '';
+        $secondStart = $journeys[1][0]['origin_iata'] ?? $journeys[1][0]['origin'] ?? $journeys[1][0]['origin_display'] ?? '';
+
+        $firstIsOutbound = $this->airportMatches($firstStart, $originCandidates);
+        $secondIsOutbound = $this->airportMatches($secondStart, $originCandidates);
+        $firstIsReturn = $this->airportMatches($firstStart, $destinationCandidates);
+        $secondIsReturn = $this->airportMatches($secondStart, $destinationCandidates);
+
+        if ((!$firstIsOutbound && $secondIsOutbound) || ($firstIsReturn && !$secondIsReturn)) {
+            return [$journeys[1], $journeys[0]];
+        }
+        return $journeys;
+    }
+
+    private function minutesBetween(?string $from, ?string $to): ?int
+    {
+        if (empty($from) || empty($to)) {
+            return null;
+        }
+        try {
+            $a = new \DateTime(str_replace(' ', 'T', $from));
+            $b = new \DateTime(str_replace(' ', 'T', $to));
+            if ($b <= $a) {
+                return null;
+            }
+            return (int) round(($b->getTimestamp() - $a->getTimestamp()) / 60);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function extractAirportCode(?string $value): string
+    {
+        if (empty($value)) {
+            return '';
+        }
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return '';
+        }
+        if (preg_match('/\(([A-Za-z]{3})\)/', $raw, $m)) {
+            return strtoupper($m[1]);
+        }
+        if (preg_match('/^([A-Za-z]{3})$/', $raw, $m)) {
+            return strtoupper($m[1]);
+        }
+        if (preg_match('/\b([A-Z]{3})\b/', $raw, $m)) {
+            return strtoupper($m[1]);
+        }
+        return '';
+    }
+
+    private function normalizeAirportString(?string $value): string
+    {
+        if (empty($value)) {
+            return '';
+        }
+        $s = strtoupper((string) $value);
+        $s = preg_replace('/[\(\)\.,\-_\/]/', ' ', $s);
+        $s = preg_replace('/\b(AIRPORT|INTERNATIONAL|INTL|TERMINAL|CITY)\b/', ' ', $s);
+        $s = preg_replace('/\s+/', ' ', $s);
+        return trim($s);
+    }
+
+    private function buildAirportCandidates(?string $primary, ?string $fallback): array
+    {
+        $set = [];
+        foreach ([$primary, $fallback] as $v) {
+            if (empty($v)) {
+                continue;
+            }
+            $code = $this->extractAirportCode((string) $v);
+            if ($code !== '') {
+                $set[$code] = true;
+            }
+            $norm = $this->normalizeAirportString((string) $v);
+            if ($norm !== '') {
+                $set[$norm] = true;
+            }
+        }
+        return $set;
+    }
+
+    private function airportMatches(?string $value, array $candidates): bool
+    {
+        if (empty($value) || empty($candidates)) {
+            return false;
+        }
+        $code = $this->extractAirportCode((string) $value);
+        if ($code !== '' && isset($candidates[$code])) {
+            return true;
+        }
+        $norm = $this->normalizeAirportString((string) $value);
+        if ($norm === '') {
+            return false;
+        }
+        if (isset($candidates[$norm])) {
+            return true;
+        }
+        foreach (array_keys($candidates) as $k) {
+            if (strlen($k) < 4) {
+                continue;
+            }
+            if (str_contains($norm, $k) || str_contains($k, $norm)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function enrichAirportCandidatesByCode(array &$candidates, string $airportCode, array $legs): void
+    {
+        if ($airportCode === '') {
+            return;
+        }
+        foreach ($legs as $leg) {
+            $fromCode = strtoupper((string) ($leg['origin_iata'] ?? $leg['origin'] ?? ''));
+            $toCode = strtoupper((string) ($leg['destination_iata'] ?? $leg['destination'] ?? ''));
+            if ($fromCode === $airportCode) {
+                $fromDisplay = $this->normalizeAirportString((string) ($leg['origin_display'] ?? $leg['origin'] ?? ''));
+                if ($fromDisplay !== '') {
+                    $candidates[$fromDisplay] = true;
+                }
+            }
+            if ($toCode === $airportCode) {
+                $toDisplay = $this->normalizeAirportString((string) ($leg['destination_display'] ?? $leg['destination'] ?? ''));
+                if ($toDisplay !== '') {
+                    $candidates[$toDisplay] = true;
+                }
+            }
+        }
+    }
+
+    /**
+     * Extract "journey leg groups" from a provider response.
+     *
+     * Supported shapes (common in travel APIs):
+     * - segments: [ { legs: [..] }, { legs: [..] } ]   (round trip: outbound+return; multi-city: many)
+     * - journeys: [ { legs: [..] }, ... ]
+     * - flightData itself is a journey container: { legs: [..] }
+     *
+     * Returns an array of leg arrays. Each leg array is a chronological list of flight legs.
+     */
+    private function extractJourneyLegGroups(array $flightData): array
+    {
+        $groups = [];
+
+        // Pre-structured from flight list UI:
+        // journey_groups => [ [leg1, leg2...], [legA, legB...] ]
+        if (isset($flightData['journey_groups']) && is_array($flightData['journey_groups'])) {
+            foreach ($flightData['journey_groups'] as $g) {
+                if (is_array($g) && count($g) > 0) {
+                    $groups[] = array_values(array_filter($g, fn ($leg) => is_array($leg)));
+                }
+            }
+            if (!empty($groups)) {
+                return $groups;
+            }
+        }
+
+        if (isset($flightData['journeys']) && is_array($flightData['journeys'])) {
+            foreach ($flightData['journeys'] as $j) {
+                if (isset($j['legs']) && is_array($j['legs']) && count($j['legs']) > 0) {
+                    $groups[] = array_values($j['legs']);
+                }
+            }
+            if (!empty($groups)) {
+                return $groups;
+            }
+        }
+
+        if (isset($flightData['segments']) && is_array($flightData['segments'])) {
+            // If segments look like journey containers (each has legs), return those.
+            $hasLegContainers = false;
+            foreach ($flightData['segments'] as $s) {
+                if (is_array($s) && isset($s['legs']) && is_array($s['legs'])) {
+                    $hasLegContainers = true;
+                    break;
+                }
+            }
+            if ($hasLegContainers) {
+                foreach ($flightData['segments'] as $s) {
+                    if (isset($s['legs']) && is_array($s['legs']) && count($s['legs']) > 0) {
+                        $groups[] = array_values($s['legs']);
+                    }
+                }
+                if (!empty($groups)) {
+                    return $groups;
+                }
+            }
+        }
+
+        if (isset($flightData['legs']) && is_array($flightData['legs']) && count($flightData['legs']) > 0) {
+            return [array_values($flightData['legs'])];
+        }
+
+        return [];
+    }
+
+    /**
+     * Build a ticket flight row from a list of chronological legs.
+     * Main row represents the full journey (origin -> final destination),
+     * and `transit` rows represent the subsequent legs (2..n).
+     */
+    private function buildFlightFromLegs(array $legs, array $searchParams): array
+    {
+        $legs = array_values(array_filter($legs, fn ($l) => is_array($l)));
+        $first = $legs[0] ?? [];
+        $last = $legs[count($legs) - 1] ?? [];
+
+        $originCode = $first['origin_iata'] ?? $first['origin'] ?? $searchParams['origin'] ?? '';
+        $destinationCode = $last['destination_iata'] ?? $last['destination'] ?? $searchParams['destination'] ?? '';
+
+        $origin = !empty($first['origin_display']) ? $first['origin_display'] : $this->getAirportFullName($originCode);
+        $destination = !empty($last['destination_display']) ? $last['destination_display'] : $this->getAirportFullName($destinationCode);
+        if ($origin === '' && $originCode !== '') $origin = $originCode;
+        if ($destination === '' && $destinationCode !== '') $destination = $destinationCode;
+
+        $depRaw = $first['departure_at'] ?? $first['departure'] ?? '';
+        $arrRaw = $last['arrival_at'] ?? $last['arrival'] ?? '';
+        $departureDateTime = $this->formatDateTime($depRaw);
+        $arrivalDateTime = $this->formatDateTime($arrRaw);
+
+        if (!empty($departureDateTime) && !empty($arrivalDateTime)) {
+            $dep = new \DateTime($departureDateTime);
+            $arr = new \DateTime($arrivalDateTime);
+            if ($arr <= $dep) {
+                $arr->modify('+1 hour');
+                $arrivalDateTime = $arr->format('Y-m-d H:i');
+            }
+        }
+
+        // Airline + flight number: take first leg as "main" identity; include more legs in flight_number when necessary.
+        $airlineName = $first['airline'] ?? $first['airline_name'] ?? null;
+        $airlineCode = $first['airline_code'] ?? null;
+        $airlineId = $this->findOrCreateAirline($airlineName, $airlineCode);
+
+        // Parent flight number should be a single value (first leg),
+        // transit leg numbers are filled in child rows.
+        $flightNumber = $first['flight_number'] ?? $first['marketing_flight_number'] ?? $first['number'] ?? '';
+
+        $totalFlyTime = $this->calculateDuration($departureDateTime, $arrivalDateTime);
+        if (!empty($first['duration']) && count($legs) === 1) {
+            $totalFlyTime = $first['duration'];
+        }
+
+        $transits = [];
+        if (count($legs) > 1) {
+            // For transit rows, we skip the first leg and add each next leg as a transit flight.
+            for ($i = 1; $i < count($legs); $i++) {
+                $leg = $legs[$i];
+                $prev = $legs[$i - 1] ?? [];
+
+                $oCode = $leg['origin_iata'] ?? $leg['origin'] ?? '';
+                $dCode = $leg['destination_iata'] ?? $leg['destination'] ?? '';
+
+                $lf = !empty($leg['origin_display']) ? $leg['origin_display'] : $this->getAirportFullName($oCode);
+                $gt = !empty($leg['destination_display']) ? $leg['destination_display'] : $this->getAirportFullName($dCode);
+                if ($lf === '' && $oCode !== '') $lf = $oCode;
+                if ($gt === '' && $dCode !== '') $gt = $dCode;
+
+                $tDep = $this->formatDateTime($leg['departure_at'] ?? $leg['departure'] ?? '');
+                $tArr = $this->formatDateTime($leg['arrival_at'] ?? $leg['arrival'] ?? '');
+                if (!empty($tDep) && !empty($tArr)) {
+                    $d = new \DateTime($tDep);
+                    $a = new \DateTime($tArr);
+                    if ($a <= $d) {
+                        $a->modify('+1 hour');
+                        $tArr = $a->format('Y-m-d H:i');
+                    }
+                }
+
+                $prevArr = $this->formatDateTime($prev['arrival_at'] ?? $prev['arrival'] ?? '');
+                $layover = (!empty($prevArr) && !empty($tDep)) ? $this->calculateDuration($prevArr, $tDep) : '';
+
+                $tAirlineName = $leg['airline'] ?? $leg['airline_name'] ?? null;
+                $tAirlineCode = $leg['airline_code'] ?? null;
+                $tAirlineId = $this->findOrCreateAirline($tAirlineName, $tAirlineCode);
+
+                $tNum = $leg['flight_number'] ?? $leg['marketing_flight_number'] ?? $leg['number'] ?? '';
+                $tFly = $leg['duration'] ?? $this->calculateDuration($tDep, $tArr);
+
+                $transits[] = [
+                    'airline_id' => $tAirlineId,
+                    'flight_number' => $tNum,
+                    'leaving_from' => $lf,
+                    'going_to' => $gt,
+                    'departure_date_time' => $tDep,
+                    'arrival_date_time' => $tArr,
+                    'total_fly_time' => $tFly,
+                    'total_transit_time' => $layover,
+                ];
+            }
+        }
+
+        return [
+            'airline_id' => $airlineId,
+            'flight_number' => $flightNumber,
+            'leaving_from' => $origin,
+            'going_to' => $destination,
+            'departure_date_time' => $departureDateTime,
+            'arrival_date_time' => $arrivalDateTime,
+            'total_fly_time' => $totalFlyTime,
+            'is_transit' => !empty($transits) ? 1 : 0,
+            'transit' => $transits,
+        ];
+    }
+
     /**
      * Process a single flight with transit handling.
      * When segments exist: main flight = first segment only (one airline, one flight number);
@@ -496,6 +915,11 @@ class TravelSearchController extends Controller
      */
     private function processSingleFlight(array $flightData, array $searchParams, string $direction = 'outbound'): array
     {
+        // Some providers wrap a journey as `legs` instead of flat segments.
+        if (isset($flightData['legs']) && is_array($flightData['legs']) && count($flightData['legs']) > 0) {
+            return $this->buildFlightFromLegs($flightData['legs'], $searchParams);
+        }
+
         $segments = $flightData['segments'] ?? null;
         $hasSegments = is_array($segments) && count($segments) > 0;
 
@@ -612,6 +1036,12 @@ class TravelSearchController extends Controller
      */
     private function processReturnFlight(array $flightData, array $searchParams): array
     {
+        // Prefer journey-group legs when present (segments[1].legs), so return transit is always available.
+        $journeys = $this->extractJourneyLegGroups($flightData);
+        if (count($journeys) >= 2) {
+            return $this->buildFlightFromLegs($journeys[1], $searchParams);
+        }
+
         // Extract airport codes for return flight (reversed)
         $originCode = $flightData['destination_iata'] ?? $flightData['search_destination'] ?? $flightData['destination'] ?? $searchParams['destination'] ?? '';
         $destinationCode = $flightData['origin_iata'] ?? $flightData['search_origin'] ?? $flightData['origin'] ?? $searchParams['origin'] ?? '';

@@ -13,6 +13,7 @@ return new class extends Migration
             $table->string('name');
             $table->foreignId('created_by_user_id')->constrained('users')->cascadeOnDelete();
             $table->string('image')->nullable();
+            $table->boolean('is_fixed_group')->nullable()->default(0);
             $table->timestamps();
         });
     }

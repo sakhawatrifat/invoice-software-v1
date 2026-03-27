@@ -68,6 +68,12 @@
                         {{ $getCurrentTranslation['mail'] ?? 'mail' }} ({{ $editData->mail_sent_count ?? 0 }})
                     </a>
                 @endif
+				@if(hasPermission('ticket.whatsapp') && isset($editData) && !empty($editData) && ($editData->document_type ?? '') == 'ticket')
+                    <a href="{{ route('ticket.whatsapp', $editData->id) }}" class="btn btn-sm fw-bold btn-success">
+                        <i class="fa-brands fa-whatsapp"></i>
+                        {{ $getCurrentTranslation['send_whatsapp'] ?? 'Send WhatsApp' }}
+                    </a>
+                @endif
 
 				@if(hasPermission('ticket.search.form') && !isset($editData))
                 	<a href="{{ route('ticket.search.form') }}?document_type=ticket" class="btn btn-sm fw-bold btn-primary">
@@ -87,7 +93,7 @@
 				@endif
 				
 				@if(isset($listRoute) && !empty($listRoute))
-					<a href="{{ $listRoute }}" class="btn btn-sm fw-bold btn-primary">
+					<a href="{{ $listRoute }}{{ request()->document_type ? '?document_type='.request()->document_type : '' }}" class="btn btn-sm fw-bold btn-primary">
 						<i class="fa-solid fa-arrow-left"></i>
 						{{ $getCurrentTranslation['back_to_list'] ?? 'back_to_list' }}
 					</a>
@@ -241,6 +247,42 @@
 										@endforeach
 									</select>
 									@error('booking_status')
+										<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+									@enderror
+								</div>
+							</div>
+
+							@php
+								$ccStored = isset($editData) ? ($editData->contacted_with_client ?? null) : null;
+								$ccVal = old('contacted_with_client', ($ccStored === null || $ccStored === '') ? 'Not Yet' : $ccStored);
+							@endphp
+							<div class="col-md-6">
+								<div class="form-item mb-5">
+									<label class="form-label">{{ $getCurrentTranslation['contacted_with_client_label'] ?? 'Contacted with client' }}:</label>
+									<div class="d-flex flex-wrap gap-5 mt-2">
+										<div class="form-check form-check-custom form-check-solid">
+											<input class="form-check-input" type="radio" name="contacted_with_client" id="contacted_with_client_not_yet" value="Not Yet" {{ $ccVal === 'Not Yet' ? 'checked' : '' }} />
+											<label class="ps-1 form-check-label" for="contacted_with_client_not_yet">{{ $getCurrentTranslation['contact_status_not_yet'] ?? 'Not Yet' }}</label>
+										</div>
+										<div class="form-check form-check-custom form-check-solid">
+											<input class="form-check-input" type="radio" name="contacted_with_client" id="contacted_with_client_call" value="Call" {{ $ccVal === 'Call' ? 'checked' : '' }} />
+											<label class="ps-1 form-check-label" for="contacted_with_client_call">{{ $getCurrentTranslation['contact_call'] ?? 'Call' }}</label>
+										</div>
+										<div class="form-check form-check-custom form-check-solid">
+											<input class="form-check-input" type="radio" name="contacted_with_client" id="contacted_with_client_message" value="Message" {{ $ccVal === 'Message' ? 'checked' : '' }} />
+											<label class="ps-1 form-check-label" for="contacted_with_client_message">{{ $getCurrentTranslation['contact_message'] ?? 'Message' }}</label>
+										</div>
+									</div>
+									@error('contacted_with_client')
+										<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
+									@enderror
+								</div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-item mb-5">
+									<label class="form-label" for="client_contact_note">{{ $getCurrentTranslation['client_contact_note_label'] ?? 'Client contact note' }}:</label>
+									<textarea class="form-control" id="client_contact_note" name="client_contact_note" rows="3" placeholder="{{ $getCurrentTranslation['client_contact_note_placeholder'] ?? '' }}">{{ old('client_contact_note', isset($editData) ? ($editData->client_contact_note ?? '') : '') }}</textarea>
+									@error('client_contact_note')
 										<span class="text-danger text-sm text-red text-bold">{{ $message }}</span>
 									@enderror
 								</div>

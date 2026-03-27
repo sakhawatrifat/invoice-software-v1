@@ -30,6 +30,12 @@
                         {{ $getCurrentTranslation['mail'] ?? 'mail' }} ({{ $editData->mail_sent_count ?? 0 }})
                     </a>
                 @endif
+                @if (hasPermission('ticket.whatsapp') && isset($editData->document_type) && $editData->document_type == 'ticket')
+                    <a href="{{ route('ticket.whatsapp', $editData->id) }}" class="btn btn-sm fw-bold btn-success">
+                        <i class="fa-brands fa-whatsapp"></i>
+                        {{ $getCurrentTranslation['send_whatsapp'] ?? 'Send WhatsApp' }}
+                    </a>
+                @endif
                 @if (hasPermission('ticket.edit'))
                     <a href="{{ route('ticket.edit', $editData->id) }}" class="btn btn-sm fw-bold btn-primary">
                         <i class="fa-solid fa-pen-to-square"></i>
@@ -44,7 +50,7 @@
                     </a>
                 @endif
 				@if(isset($listRoute) && !empty($listRoute))
-					<a href="{{ $listRoute }}" class="btn btn-sm fw-bold btn-primary">
+					<a href="{{ $listRoute }}?document_type={{$editData->document_type == 'ticket' ? 'ticket' : ($editData->document_type == 'invoice' ? 'invoice' : 'quotation')}}" class="btn btn-sm fw-bold btn-primary">
 						<i class="fa-solid fa-arrow-left"></i>
 						{{ $getCurrentTranslation['back_to_list'] ?? 'back_to_list' }}
 					</a>

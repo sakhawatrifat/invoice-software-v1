@@ -239,14 +239,14 @@
 								<span class="menu-title">{{ $getCurrentTranslation['upcomming_flights'] ?? 'upcomming_flights' }}</span>
 							</a>
 						</div>
-						{{-- <div class="menu-item">
+						<div class="menu-item">
 							<a class="menu-link {{ getCurrentRouteName() == 'flight.changedCancelled' ? 'active' : '' }}" href="{{ route('flight.changedCancelled') }}">
 								<span class="menu-bullet">
 									<span class="bullet bullet-dot"></span>
 								</span>
 								<span class="menu-title">{{ $getCurrentTranslation['changed_cancelled_flights'] ?? 'Rescheduled & Cancelled Flights' }}</span>
 							</a>
-						</div> --}}
+						</div>
 					</div>
 				</div>
 				@endif
@@ -442,9 +442,9 @@
 				@endif
 
 				@php
-					$reportRoutes = ['admin.grossProfitLossReport', 'admin.netProfitLossReport'];
+					$reportRoutes = ['admin.grossProfitLossReport', 'admin.netProfitLossReport', 'admin.flight_api_credit_usage.index'];
 				@endphp
-				@if(hasPermission('admin.grossProfitLossReport') || hasPermission('admin.netProfitLossReport'))
+				@if(hasPermission('admin.grossProfitLossReport') || hasPermission('admin.netProfitLossReport') || hasPermission('expense.index'))
 				<div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ getActiveClass($reportRoutes, 'hover show') }} ">
 					<span class="menu-link">
 						<span class="menu-icon">
@@ -476,6 +476,21 @@
 									<span class="bullet bullet-dot"></span>
 								</span>
 								<span class="menu-title">{{ $getCurrentTranslation['net_profit_loss_report'] ?? 'net_profit_loss_report' }}</span>
+							</a>
+						</div>
+						@endif
+						@if(hasPermission('expense.index'))
+						@php
+							$flightApiCreditMonthStart = \Carbon\Carbon::now()->firstOfMonth()->format('Y/m/d');
+							$flightApiCreditMonthEnd = \Carbon\Carbon::now()->endOfMonth()->format('Y/m/d');
+							$flightApiCreditMonthRange = $flightApiCreditMonthStart . '-' . $flightApiCreditMonthEnd;
+						@endphp
+						<div class="menu-item">
+							<a class="menu-link {{ getCurrentRouteName() == 'admin.flight_api_credit_usage.index' ? 'active' : '' }}" href="{{ route('admin.flight_api_credit_usage.index') }}?date_range={{ $flightApiCreditMonthRange }}">
+								<span class="menu-bullet">
+									<span class="bullet bullet-dot"></span>
+								</span>
+								<span class="menu-title">{{ $getCurrentTranslation['flight_api_credit_usage'] ?? 'Flight API Credit Usage' }}</span>
 							</a>
 						</div>
 						@endif

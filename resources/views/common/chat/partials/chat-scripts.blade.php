@@ -87,6 +87,9 @@
         owner: @json($getCurrentTranslation['owner'] ?? 'Owner'),
         groupInfo: @json($getCurrentTranslation['group_info'] ?? 'Group info'),
         changeGroupPhoto: @json($getCurrentTranslation['change_group_photo'] ?? 'Change group photo'),
+        renameGroup: @json($getCurrentTranslation['rename_group'] ?? 'Rename group'),
+        renameGroupPlaceholder: @json($getCurrentTranslation['rename_group_placeholder'] ?? 'New group name'),
+        groupRenamedSuccess: @json($getCurrentTranslation['group_renamed_success'] ?? 'Group name updated.'),
         makeAdmin: @json($getCurrentTranslation['make_admin'] ?? 'Make admin'),
         removeAdmin: @json($getCurrentTranslation['remove_admin'] ?? 'Remove admin'),
         makeAdminSuccess: @json($getCurrentTranslation['make_admin_success'] ?? 'Member is now an admin.'),
@@ -1615,11 +1618,35 @@
         }
     }
 
+    /** Merge groupUpdate JSON into conversation cache without dropping members[]. */
+    function mergeGroupUpdateResponseIntoCaches(apiGroup) {
+        if (!apiGroup || apiGroup.id == null) return;
+        const gid = apiGroup.id;
+        const conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === gid; });
+        if (conv && conv.group) {
+            const keep = { members: conv.group.members, member_count: conv.group.member_count, admin_count: conv.group.admin_count, created_at: conv.group.created_at };
+            Object.assign(conv.group, apiGroup);
+            if (keep.members) conv.group.members = keep.members;
+            if (keep.member_count != null) conv.group.member_count = keep.member_count;
+            if (keep.admin_count != null) conv.group.admin_count = keep.admin_count;
+            if (keep.created_at != null) conv.group.created_at = keep.created_at;
+        }
+        if (currentGroupData && currentGroupData.id === gid) {
+            const keep = { members: currentGroupData.members, member_count: currentGroupData.member_count, admin_count: currentGroupData.admin_count, created_at: currentGroupData.created_at };
+            Object.assign(currentGroupData, apiGroup);
+            if (keep.members) currentGroupData.members = keep.members;
+            if (keep.member_count != null) currentGroupData.member_count = keep.member_count;
+            if (keep.admin_count != null) currentGroupData.admin_count = keep.admin_count;
+            if (keep.created_at != null) currentGroupData.created_at = keep.created_at;
+        }
+    }
+
     function refreshGroupInfoModalContent() {
         const imgEl = document.getElementById('chat-group-info-modal-img');
         const membersListEl = document.getElementById('chat-group-info-members-list');
         const membersCountEl = document.getElementById('chat-group-info-members-count');
         const addMembersBtn = document.getElementById('chat-group-info-add-members-btn');
+        const renameGroupBtn = document.getElementById('chat-group-info-rename-group-btn');
         const changePhotoBtn = document.getElementById('chat-group-info-change-photo-btn');
         if (!currentGroupData) return;
         if (imgEl) {
@@ -1673,13 +1700,16 @@
                 const ownerBadge = isMemberCreator ? ' <span class="badge badge-sm badge-primary ms-1">' + (CHAT_STR.owner || 'Owner') + '</span>' : '';
                 const isMemberAdmin = (m.role || '') === 'admin';
                 const adminBadge = isMemberAdmin ? ' <span class="badge badge-sm badge-info ms-1">' + (CHAT_STR.admin || 'Admin') + '</span>' : '';
-                membersListEl.innerHTML += '<li class="list-group-item d-flex align-items-center justify-content-between"><span>' + escapeHtml(num + '. ' + displayName) + ownerBadge + adminBadge + '</span>' + actionsHtml + '</li>';
+                const chatbotBadge = (m.is_automation_chatbot === 1 || m.is_automation_chatbot === true) ? ' <span class="badge badge-sm badge-info ms-1">Chatbot</span>' : '';
+                membersListEl.innerHTML += '<li class="list-group-item d-flex align-items-center justify-content-between"><span>' + escapeHtml(num + '. ' + displayName) + chatbotBadge + ownerBadge + adminBadge + '</span>' + actionsHtml + '</li>';
             });
         }
         if (addMembersBtn) addMembersBtn.style.display = isAdmin ? '' : 'none';
+        if (renameGroupBtn) renameGroupBtn.style.display = isAdmin ? '' : 'none';
         if (changePhotoBtn) changePhotoBtn.style.display = isAdmin ? '' : 'none';
         const deleteGroupBtn = document.getElementById('chat-group-info-delete-group-btn');
-        if (deleteGroupBtn) deleteGroupBtn.style.display = (isCreator || isAdmin) ? '' : 'none';
+        const isFixedGroup = !!(currentGroupData && (currentGroupData.is_fixed_group === 1 || currentGroupData.is_fixed_group === true));
+        if (deleteGroupBtn) deleteGroupBtn.style.display = ((isCreator || isAdmin) && !isFixedGroup) ? '' : 'none';
     }
 
     function showGroupInfoModal() {
@@ -1696,7 +1726,7 @@
             modal.innerHTML = '<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="chat-group-info-modal-title"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="chat-group-info-modal-body">' +
                 '<div class="text-center mb-3"><div class="position-relative d-inline-block"><img id="chat-group-info-modal-img" src="" alt="" class="rounded-circle" style="width:80px;height:80px;object-fit:cover;display:none;"><span id="chat-group-info-modal-initial" class="d-flex align-items-center justify-content-center rounded-circle bg-secondary text-white fw-bold" style="width:80px;height:80px;font-size:2rem;">G</span><input type="file" id="chat-group-info-image-input" class="d-none" accept="image/jpeg,image/png,image/gif,image/webp"></div><p id="chat-group-info-image-size-hint" class="text-muted small mt-1 mb-0">300×300 px, Max 2 MB</p></div>' +
                 '<ul class="list-group list-group-flush" id="chat-group-info-members-list"><li class="list-group-item text-muted small mb-0">' + (CHAT_STR.members || 'Members') + ' (<span id="chat-group-info-members-count">0</span>)</li></ul></div>' +
-                '<div class="modal-footer chat-group-info-modal-footer py-3 px-3"><div class="row g-2 w-100"><div class="col-6"><button type="button" class="btn btn-primary w-100" id="chat-group-info-add-members-btn" style="display:none;"><i class="fa-solid fa-user-plus me-1"></i>' + (CHAT_STR.addMembers || 'Add members') + '</button></div><div class="col-6"><button type="button" class="btn btn-info w-100" id="chat-group-info-change-photo-btn" style="display:none;"><i class="fa-solid fa-camera me-1"></i>' + (CHAT_STR.changeGroupPhoto || 'Change photo') + '</button></div><div class="col-6"><button type="button" class="btn btn-danger w-100" id="chat-group-info-delete-group-btn" style="display:none;"><i class="fa-solid fa-trash me-1"></i>' + (CHAT_STR.deleteGroup || 'Delete group') + '</button></div><div class="col-6"><button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">' + (CHAT_STR.close || 'Close') + '</button></div></div></div></div></div>';
+                '<div class="modal-footer chat-group-info-modal-footer py-3 px-3"><div class="row g-2 w-100"><div class="col-6"><button type="button" class="btn btn-primary w-100" id="chat-group-info-add-members-btn" style="display:none;"><i class="fa-solid fa-user-plus me-1"></i>' + (CHAT_STR.addMembers || 'Add members') + '</button></div><div class="col-6"><button type="button" class="btn btn-primary w-100" id="chat-group-info-rename-group-btn" style="display:none;"><i class="fa-solid fa-pen me-1"></i>' + (CHAT_STR.renameGroup || 'Rename group') + '</button></div><div class="col-6"><button type="button" class="btn btn-info w-100" id="chat-group-info-change-photo-btn" style="display:none;"><i class="fa-solid fa-camera me-1"></i>' + (CHAT_STR.changeGroupPhoto || 'Change photo') + '</button></div><div class="col-6"><button type="button" class="btn btn-danger w-100" id="chat-group-info-delete-group-btn" style="display:none;"><i class="fa-solid fa-trash me-1"></i>' + (CHAT_STR.deleteGroup || 'Delete group') + '</button></div><div class="col-12"><button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">' + (CHAT_STR.close || 'Close') + '</button></div></div></div></div></div>';
             document.body.appendChild(modal);
             document.getElementById('chat-group-info-change-photo-btn').addEventListener('click', function() {
                 document.getElementById('chat-group-info-image-input').click();
@@ -1718,9 +1748,7 @@
                             return;
                         }
                         if (data.group) {
-                            const conv = conversationsCache.find(function(c) { return c.type === 'group' && c.group && c.group.id === currentGroupId; });
-                            if (conv) conv.group = data.group;
-                            currentGroupData = data.group;
+                            mergeGroupUpdateResponseIntoCaches(data.group);
                             refreshGroupInfoModalContent();
                             const avatar = document.getElementById(isWidget ? 'chat-widget-thread-avatar' : 'chat-thread-avatar');
                             const initial = document.getElementById(isWidget ? 'chat-widget-thread-avatar-initial' : 'chat-thread-avatar-initial');
@@ -1738,6 +1766,83 @@
                     if (inst) inst.hide();
                 }
                 openAddMembersToGroupModal();
+            });
+            document.getElementById('chat-group-info-rename-group-btn').addEventListener('click', function() {
+                if (!currentGroupId || !currentGroupData) return;
+                const prevName = (currentGroupData.name || '').trim();
+                const groupInfoModalEl = modal;
+                const reopenGroupInfoModal = function() {
+                    if (typeof bootstrap === 'undefined' || !bootstrap.Modal || !groupInfoModalEl) return;
+                    const inst = bootstrap.Modal.getOrCreateInstance(groupInfoModalEl);
+                    inst.show();
+                };
+                const submitRename = function(newName) {
+                    newName = (newName || '').trim();
+                    if (!newName || newName === prevName) return;
+                    const fd = new FormData();
+                    fd.append('group_id', currentGroupId);
+                    fd.append('name', newName);
+                    fd.append('_token', csrf);
+                    showPreloader();
+                    fetch(routes.groupUpdate, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data.error) {
+                                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', text: data.error });
+                                else alert(data.error);
+                                return;
+                            }
+                            if (data.group) {
+                                mergeGroupUpdateResponseIntoCaches(data.group);
+                                refreshGroupInfoModalContent();
+                                const titleEl = document.getElementById('chat-group-info-modal-title');
+                                if (titleEl && currentGroupData) titleEl.textContent = (currentGroupData.name || 'Group') + ' – ' + (CHAT_STR.groupInfo || 'Group info');
+                                const threadNameEl = document.getElementById(isWidget ? 'chat-widget-thread-name' : 'chat-thread-name');
+                                if (threadNameEl && currentGroupId === data.group.id) threadNameEl.textContent = data.group.name || 'Group';
+                                const avatarInitial = document.getElementById(isWidget ? 'chat-widget-thread-avatar-initial' : 'chat-thread-avatar-initial');
+                                if (avatarInitial && currentGroupId === data.group.id) avatarInitial.textContent = (data.group.name || 'G').charAt(0).toUpperCase();
+                                renderConversationList(conversationsCache);
+                                if (isWidget && typeof updateWidgetBadge === 'function') updateWidgetBadge(conversationsCache);
+                                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', text: CHAT_STR.groupRenamedSuccess || 'Group name updated.', timer: 2000, showConfirmButton: false });
+                            }
+                            poll();
+                        })
+                        .catch(function() {})
+                        .finally(function() { hidePreloader(); });
+                };
+                const openRenamePrompt = function() {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: CHAT_STR.renameGroup || 'Rename group',
+                            input: 'text',
+                            inputValue: prevName,
+                            inputPlaceholder: CHAT_STR.renameGroupPlaceholder || (CHAT_STR.groupName || 'Group name'),
+                            showCancelButton: true,
+                            confirmButtonText: CHAT_STR.confirm || 'Confirm',
+                            cancelButtonText: CHAT_STR.cancel || 'Cancel',
+                            inputValidator: function(value) {
+                                if (!value || !String(value).trim()) return 'Enter a name';
+                            }
+                        }).then(function(res) {
+                            if (res && res.isConfirmed) submitRename(res.value);
+                            reopenGroupInfoModal();
+                        });
+                    } else {
+                        var v = prompt((CHAT_STR.renameGroup || 'Rename group') + ':', prevName);
+                        if (v) submitRename(v);
+                        reopenGroupInfoModal();
+                    }
+                };
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal && groupInfoModalEl) {
+                    const groupModalInst = bootstrap.Modal.getInstance(groupInfoModalEl) || bootstrap.Modal.getOrCreateInstance(groupInfoModalEl);
+                    groupInfoModalEl.addEventListener('hidden.bs.modal', function onGroupInfoHidden() {
+                        groupInfoModalEl.removeEventListener('hidden.bs.modal', onGroupInfoHidden);
+                        openRenamePrompt();
+                    }, { once: true });
+                    groupModalInst.hide();
+                } else {
+                    openRenamePrompt();
+                }
             });
             document.getElementById('chat-group-info-delete-group-btn').addEventListener('click', function() {
                 if (!currentGroupId || (!isCurrentUserGroupCreator() && !isCurrentUserGroupAdmin())) return;
@@ -1774,7 +1879,7 @@
         if (!currentGroupId || !currentGroupData) return;
         const existingIds = (currentGroupData.members || []).map(function(m) { return m.user_id; });
         const usersToAdd = (conversationsCache || []).filter(function(c) {
-            return c.type === 'user' && c.user && existingIds.indexOf(c.user.id) === -1 && !(c.user.is_automation_chatbot === 1 || c.user.is_automation_chatbot === true);
+            return c.type === 'user' && c.user && existingIds.indexOf(c.user.id) === -1;
         });
         let addModal = document.getElementById('chat-group-add-members-modal');
         if (!addModal) {
@@ -1835,7 +1940,12 @@
                 cb.className = 'form-check-input';
                 cb.dataset.userId = c.user.id;
                 label.appendChild(cb);
-                label.appendChild(document.createTextNode(c.user.name || 'User'));
+                const nameWrap = document.createElement('span');
+                nameWrap.textContent = c.user.name || 'User';
+                if (c.user.is_automation_chatbot === 1 || c.user.is_automation_chatbot === true) {
+                    nameWrap.insertAdjacentHTML('beforeend', ' <span class="badge badge-sm badge-info ms-1">Chatbot</span>');
+                }
+                label.appendChild(nameWrap);
                 listEl.appendChild(label);
             });
         }
@@ -1899,7 +2009,7 @@
         document.getElementById('chat-create-group-name').value = '';
         const membersEl = document.getElementById('chat-create-group-members');
         membersEl.innerHTML = '';
-        (conversationsCache || []).filter(function(c) { return c.type === 'user' && c.user && !(c.user.is_automation_chatbot === 1 || c.user.is_automation_chatbot === true); }).forEach(function(c) {
+        (conversationsCache || []).filter(function(c) { return c.type === 'user' && c.user; }).forEach(function(c) {
             const label = document.createElement('label');
             label.className = 'd-flex align-items-center gap-2 py-1 cursor-pointer';
             const cb = document.createElement('input');
@@ -1907,7 +2017,12 @@
             cb.className = 'form-check-input';
             cb.dataset.userId = c.user.id;
             label.appendChild(cb);
-            label.appendChild(document.createTextNode(c.user.name || 'User'));
+            const nameWrap = document.createElement('span');
+            nameWrap.textContent = c.user.name || 'User';
+            if (c.user.is_automation_chatbot === 1 || c.user.is_automation_chatbot === true) {
+                nameWrap.insertAdjacentHTML('beforeend', ' <span class="badge badge-sm badge-info ms-1">Chatbot</span>');
+            }
+            label.appendChild(nameWrap);
             membersEl.appendChild(label);
         });
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {

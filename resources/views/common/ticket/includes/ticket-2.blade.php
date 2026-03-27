@@ -244,7 +244,13 @@
                   {{ $getCurrentTranslation['flight'] ?? 'flight' }} {{ $key+1 }}
                </th> --}}
                <th style="width: 230px; text-align: left; font-size: 15px; color: #32323b; font-weight: bold;padding: 15px 10px;">
-                  Flight {{ $key+1 }}
+                  @if(($editData->trip_type ?? '') === 'Round Trip' && $loop->first)
+                     Departure
+                  @elseif(($editData->trip_type ?? '') === 'Round Trip' && $loop->last)
+                     Return
+                  @else
+                     Flight {{ $key+1 }}
+                  @endif
                </th>
                <th style="text-align: left; font-size: 15px; color: #32323b; font-weight: bold;padding: 15px 10px;">
                   {{ \Carbon\Carbon::parse($flight->departure_date_time)->format('d M, Y') }}

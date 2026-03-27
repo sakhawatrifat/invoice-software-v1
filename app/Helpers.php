@@ -1223,15 +1223,12 @@ if (!function_exists('getPreFooterDetails')) {
     function getPreFooterDetails(): string
     {
         return <<<TEXT
-            <p><strong>Ticket Notice:</strong></p>
-            <p>Carriage and other services provided by the carrier are subject to conditions of carriage which are hereby incorporated by reference. These conditions may be</p>
-            <p>obtained from the issuing carrier.</p>
-            <p><strong>Passport/Visa/Health :</strong></p>
-            <p>Please ensure that you have all the required travel documents for your entire journey - i.e. valid passport &amp;necessary visas - and that you have had the</p>
-            <p>recommended inoculations for your destination(s).</p>
-            <p><strong>Reconfirmation of flights :</strong></p>
+            <p style="margin-bottom: 0;"><strong>Ticket Notice:</strong></p>
+            <p>Carriage and other services provided by the carrier are subject to conditions of carriage which are hereby incorporated by reference. These conditions may be obtained from the issuing carrier.</p>
+            <p style="margin-bottom: 0;"><strong>Passport/Visa/Health :</strong></p>
+            <p>Please ensure that you have all the required travel documents for your entire journey - i.e. valid passport &amp;necessary visas - and that you have had the recommended inoculations for your destination(s).</p>
+            <p style="margin-bottom: 0;"><strong>Reconfirmation of flights :</strong></p>
             <p>Please reconfirm all flights at least 72 hours in advance direct with the airline concerned. Failure to do so could result in the cancellation of your reservation</p>
-            <p>&nbsp;</p>
             TEXT;
     }
 }
@@ -1320,6 +1317,7 @@ if (!function_exists('getPermissionList')) {
                     ['title' => 'edit', 'key' => 'ticket.edit'],
                     ['title' => 'delete', 'key' => 'ticket.delete'],
                     ['title' => 'mail', 'key' => 'ticket.mail'],
+                    ['title' => 'whatsapp', 'key' => 'ticket.whatsapp'],
                     ['title' => 'reminder', 'key' => 'ticket.reminder'],
                 ],
             ],
@@ -2309,6 +2307,54 @@ if (!function_exists('flightListData')) {
             ->values();
 
         return $toDoData;
+    }
+}
+
+if (!function_exists('ticketClientContactStatusLabel')) {
+    /**
+     * Human-readable client contact status for tickets.contacted_with_client.
+     */
+    function ticketClientContactStatusLabel(?string $contacted, array $t = []): string
+    {
+        if ($contacted === 'Call' || $contacted === 'Message') {
+            return $contacted;
+        }
+
+        return $t['contact_status_not_yet'] ?? 'Not Yet';
+    }
+}
+
+if (!function_exists('ticketClientContactSummaryHtml')) {
+    /**
+     * HTML block for drawer / list: status badge + optional note (escaped).
+     */
+    function ticketClientContactSummaryHtml(?Ticket $ticket, array $t = []): string
+    {
+        if (!$ticket) {
+            return '';
+        }
+
+        $label = ticketClientContactStatusLabel($ticket->contacted_with_client, $t);
+        $note = $ticket->client_contact_note ?? '';
+        $title = e($t['contacted_with_client_label'] ?? 'Client contact');
+        $noteLbl = e($t['client_contact_note_label'] ?? 'Note');
+
+        $badgeClass = 'badge-secondary';
+        if ($ticket->contacted_with_client === 'Call') {
+            $badgeClass = 'badge-success';
+        } elseif ($ticket->contacted_with_client === 'Message') {
+            $badgeClass = 'badge-info';
+        }
+
+        $html = '<div class="fs-7 text-gray-800 mb-0 kt-client-contact-summary"><strong>' . $title . ':</strong> '
+            . '<span class="badge ' . $badgeClass . '">' . e($label) . '</span>';
+
+        if ($note !== '') {
+            $html .= '<div class=""><strong>' . $noteLbl . ':</strong> ' . nl2br(e($note)) . '</div>';
+        }
+        $html .= '</div>';
+
+        return $html;
     }
 }
 

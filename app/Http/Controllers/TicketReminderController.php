@@ -93,13 +93,13 @@ class TicketReminderController extends Controller
             });
 
             // Users by name
-            $userIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id');
+            $userIds = User::excludeAutomationChatbot()->excludeUserTypeUsers()->where('name', 'like', "%{$search}%")->pluck('id');
             if (!empty($userIds)) {
                 $query->orWhereIn('user_id', $userIds);
             }
 
             // Creators by name
-            $creatorIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id');
+            $creatorIds = User::excludeAutomationChatbot()->excludeUserTypeUsers()->where('name', 'like', "%{$search}%")->pluck('id');
             if (!empty($creatorIds)) {
                 $query->orWhereIn('created_by', $creatorIds);
             }
@@ -302,7 +302,7 @@ class TicketReminderController extends Controller
         // before 2 days
         $targetDate = $today->copy()->addDays(2)->toDateString();
 
-        $subscribedUserIds = User::excludeAutomationChatbot()->where('is_staff', 0)->whereJsonContains('permissions', 'ticket.reminder')->pluck('id')->toArray();
+        $subscribedUserIds = User::excludeAutomationChatbot()->excludeUserTypeUsers()->where('is_staff', 0)->whereJsonContains('permissions', 'ticket.reminder')->pluck('id')->toArray();
 
         $subQuery = TicketFlight::select(
                 'ticket_id',

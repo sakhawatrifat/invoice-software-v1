@@ -44,6 +44,7 @@ use App\Http\Controllers\Admin\DepartmentController as AdminDepartmentController
 use App\Http\Controllers\Admin\DesignationController as AdminDesignationController;
 use App\Http\Controllers\Admin\ExpenseCategoryController as AdminExpenseCategoryController;
 use App\Http\Controllers\Admin\ExpenseController as AdminExpenseController;
+use App\Http\Controllers\Admin\FlightApiCreditUsageController as AdminFlightApiCreditUsageController;
 use App\Http\Controllers\AttendanceController;
 
 // Admin Controllers
@@ -83,6 +84,7 @@ Route::get('/seed', function () {
     }
 
     Artisan::call('route:clear');
+    Artisan::call('optimize:clear');
     Artisan::call('cache:clear');
     Artisan::call('config:cache');
     Artisan::call('config:clear');
@@ -114,6 +116,7 @@ Route::get('/clear-cache', function() {
     }
 
     Artisan::call('route:clear');
+    Artisan::call('optimize:clear');
     Artisan::call('cache:clear');
     Artisan::call('config:cache');
     Artisan::call('config:clear');
@@ -324,6 +327,10 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
                 Route::get('/expense/report/export-pdf', 'exportPdf')->name('expense.exportPdf');
             });
 
+            Route::controller(AdminFlightApiCreditUsageController::class)->group(function () {
+                Route::get('/flight-api-credit-usage', 'index')->name('flight_api_credit_usage.index');
+            });
+
             //Homepage CRUD Routes
             Route::controller(AdminHomepageController::class)->group(function () {
                 Route::get('/homepage-list', 'index')->name('homepage.index');
@@ -438,11 +445,14 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::get('/ticket/mail/{id}', 'mail')->name('ticket.mail');
         Route::post('/ticket/mail-content-load/{id}', 'mailContentLoad')->name('ticket.mailContentLoad');
         Route::put('/ticket/mail/{id}', 'mailSend')->name('ticket.mailSend');
+        Route::get('/ticket/whatsapp/{id}', 'whatsapp')->name('ticket.whatsapp');
+        Route::put('/ticket/whatsapp/{id}', 'whatsappSend')->name('ticket.whatsappSend');
         Route::get('/ticket/download-pdf/{id}', 'downloadPdf')->name('ticket.downloadPdf');
         Route::get('/ticket/duplicate/{id}', 'duplicate')->name('ticket.duplicate');
 
         Route::get('/ticket/edit/{id}', 'edit')->name('ticket.edit');
         Route::put('/ticket/update/{id}', 'update')->name('ticket.update');
+        Route::post('/ticket/client-contact', 'updateClientContact')->name('ticket.clientContact');
         Route::get('/ticket/update-missing-ticket-uid', 'updateMissingTicketUid')->name('ticket.updateMissingTicketUid');
         Route::delete('/ticket/delete/{id}', 'destroy')->name('ticket.destroy');
     });
@@ -529,6 +539,7 @@ Route::group(['middleware' => ['auth', 'activeStatus', 'verificationStatus']], f
         Route::post('/changed-cancelled-flights/check', 'checkAllUpcomingFlights')->name('flight.changedCancelled.check');
         Route::post('/changed-cancelled-flights/stop', 'stopRescheduledCancelledCheck')->name('flight.changedCancelled.stop');
         Route::post('/changed-cancelled-flights/clear', 'clearChangedCancelledResult')->name('flight.changedCancelled.clear');
+        Route::post('/changed-cancelled-flights/retry', 'retryChangedCancelledFlightCheck')->name('flight.changedCancelled.retry');
         Route::get('/payment/flight-status/{id}', 'flightStatus')->name('payment.flight.status');
         Route::get('/payment/flight-status/{id}/clear-cache', 'clearFlightStatusCache')->name('payment.flight.status.clearCache');
         Route::get('/payment/flight-status/{id}/mail', 'flightStatusMail')->name('payment.flight.status.mail');

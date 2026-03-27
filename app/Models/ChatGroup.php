@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ChatGroup extends Model
 {
-    protected $fillable = ['name', 'created_by_user_id', 'image'];
+    protected $fillable = ['name', 'created_by_user_id', 'image', 'is_fixed_group'];
 
     public function creator(): BelongsTo
     {

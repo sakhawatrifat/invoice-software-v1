@@ -82,7 +82,7 @@ class StaffController extends Controller
                                     ->orWhere('email_2', 'like', $searchTerm);
                             });
                         // Creator name search
-                        $creatorIds = User::excludeAutomationChatbot()->where('name', 'like', $searchTerm)->pluck('id')->toArray();
+                        $creatorIds = User::excludeAutomationChatbot()->excludeUserTypeUsers()->where('name', 'like', $searchTerm)->pluck('id')->toArray();
                         if (!empty($creatorIds)) {
                             $q->orWhereIn('users.created_by', $creatorIds);
                         }
@@ -259,7 +259,7 @@ class StaffController extends Controller
         $saveRoute = hasPermission('staff.create') ? route('staff.store') : '';
 
         $languages = Language::orderBy('name', 'asc')->where('status', 1)->get();
-        $users = User::excludeAutomationChatbot()->with(['company', 'designation'])->orderBy('name', 'asc')->where('is_staff', 0)->where('status', 1)->get();
+        $users = User::excludeAutomationChatbot()->excludeUserTypeUsers()->with(['company', 'designation'])->orderBy('name', 'asc')->where('is_staff', 0)->where('status', 1)->get();
         $currencies = Currency::where('status', 'Active')->orderBy('currency_name', 'asc')->get();
         $departments = Department::where('status', 1)->orderBy('name', 'asc')->get();
         $designations = Designation::where('status', 1)->orderBy('name', 'asc')->get();
@@ -403,7 +403,7 @@ class StaffController extends Controller
         //dd($editData);
 
         $languages = Language::orderBy('name', 'asc')->where('status', 1)->get();
-        $users = User::excludeAutomationChatbot()->with(['company', 'designation'])->orderBy('name', 'asc')->where('is_staff', 0)->where('status', 1)->get();
+        $users = User::excludeAutomationChatbot()->excludeUserTypeUsers()->with(['company', 'designation'])->orderBy('name', 'asc')->where('is_staff', 0)->where('status', 1)->get();
         $currencies = Currency::where('status', 'Active')->orderBy('currency_name', 'asc')->get();
         $departments = Department::where('status', 1)->orderBy('name', 'asc')->get();
         $designations = Designation::where('status', 1)->orderBy('name', 'asc')->get();

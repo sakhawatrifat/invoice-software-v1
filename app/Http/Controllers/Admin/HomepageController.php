@@ -54,7 +54,7 @@ class HomepageController extends Controller
             });
 
             // Similarly for creator, if needed
-            $creatorIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id')->toArray();
+            $creatorIds = User::excludeAutomationChatbot()->excludeUserTypeUsers()->where('name', 'like', "%{$search}%")->pluck('id')->toArray();
             if (!empty($creatorIds)) {
                 $query->orWhereIn('created_by', $creatorIds);
             }

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Exceptions\FlightApiHttpException;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -160,17 +162,38 @@ class FlightApiService
      */
     private function get(string $url, array $query = [], array $logContext = []): array
     {
-        $response = Http::connectTimeout(20)->timeout(120)->get($url, $query);
+        $logUrl = $this->redactApiKeyFromUrl($url);
+        try {
+            $response = Http::connectTimeout(20)->timeout(120)->get($url, $query);
+        } catch (ConnectionException $e) {
+            Log::warning('FlightAPI connection failed', array_merge(
+                ['url' => $logUrl, 'error' => $e->getMessage()],
+                $logContext
+            ));
+            throw new FlightApiHttpException(
+                'FlightAPI connection failed. Please try again shortly.',
+                0,
+                null,
+                $e
+            );
+        }
 
         if ($response->failed()) {
             $body = $response->body();
             $message = $this->parseFlightApiErrorMessage($body, $response->status());
-            $logUrl = $this->redactApiKeyFromUrl($url);
-            Log::error('FlightAPI request failed', array_merge(
-                ['url' => $logUrl, 'status' => $response->status(), 'body' => $body],
+            $status = $response->status();
+            $logPayload = array_merge(
+                ['url' => $logUrl, 'status' => $status, 'body' => $body],
                 $logContext
-            ));
-            throw new Exception($message);
+            );
+            // 4xx for tracking is commonly "no data for this flight" (bad/mismatched airline/date/number).
+            // Log as warning to avoid drowning real production errors.
+            if ($status >= 400 && $status <= 499) {
+                Log::warning('FlightAPI request failed', $logPayload);
+            } else {
+                Log::error('FlightAPI request failed', $logPayload);
+            }
+            throw new FlightApiHttpException($message, $response->status(), $body);
         }
 
         $data = $response->json();
@@ -178,6 +201,82 @@ class FlightApiService
             throw new Exception('FlightAPI returned invalid response.');
         }
         return $data;
+    }
+
+    /**
+     * When true, bulk rescheduled/cancelled checks should stop calling the API for remaining segments
+     * and other payments (after a short cache pause) to avoid burning credits on repeated failures.
+     */
+    public static function shouldPauseAllTrackingRequests(\Throwable $e): bool
+    {
+        if ($e instanceof FlightApiHttpException) {
+            $code = $e->statusCode;
+            // Typical per-flight / per-request issues — do not pause the whole bulk run.
+            if (in_array($code, [400, 404, 422], true)) {
+                return false;
+            }
+            // Account / plan / throttling — stop burning credits on the rest of the queue.
+            if (in_array($code, [401, 402, 403, 429], true)) {
+                return true;
+            }
+        }
+
+        $haystack = strtolower($e->getMessage());
+        if ($e instanceof FlightApiHttpException && $e->responseBody !== null) {
+            $haystack .= ' ' . strtolower($e->responseBody);
+        }
+        if ($e->getPrevious() instanceof FlightApiHttpException) {
+            $prev = $e->getPrevious();
+            $haystack .= ' ' . strtolower($prev->getMessage());
+            if ($prev->responseBody !== null) {
+                $haystack .= ' ' . strtolower($prev->responseBody);
+            }
+        }
+
+        foreach ([
+            'not configured',
+            'flightapi is not configured',
+            'unauthorized',
+            'forbidden',
+            'invalid api',
+            'invalid key',
+            'api key',
+            'quota',
+            'credit',
+            'credits',
+            'limit exceeded',
+            'rate limit',
+            'too many requests',
+            'subscription',
+            'billing',
+            'payment required',
+            'insufficient',
+        ] as $needle) {
+            if (str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Transient errors: do not trigger global pause; one segment can fail while others succeed.
+     */
+    public static function isLikelyTransientTrackingFailure(\Throwable $e): bool
+    {
+        if ($e instanceof FlightApiHttpException) {
+            $code = $e->statusCode;
+            if ($code >= 500 && $code <= 599) {
+                return true;
+            }
+            if ($code === 408 || $code === 504) {
+                return true;
+            }
+        }
+        $msg = strtolower($e->getMessage());
+
+        return str_contains($msg, 'connection failed') || str_contains($msg, 'try again shortly');
     }
 
     /**
@@ -994,6 +1093,14 @@ class FlightApiService
     private static function trackingAirlineIata(string $code): string
     {
         $raw = strtoupper(trim($code));
+        // Accept free-text inputs like "Thai Airways (TG)", "TG - Thai", "CCA/CA", etc.
+        if (preg_match('/\(([A-Z]{2,3})\)/', $raw, $m)) {
+            $raw = $m[1];
+        } elseif (preg_match('/\b([A-Z]{2,3})\b/', $raw, $m)) {
+            $raw = $m[1];
+        } else {
+            $raw = preg_replace('/[^A-Z]/', '', $raw);
+        }
         if (strlen($raw) === 2) {
             return $raw;
         }
@@ -1003,7 +1110,8 @@ class FlightApiService
             'AFR' => 'AF', 'KLM' => 'KL', 'DLH' => 'LH', 'QTR' => 'QR',
             'CPA' => 'CX', 'CAL' => 'CI', 'EVA' => 'BR', 'CCA' => 'CA', 'CSN' => 'CZ',
         ];
-        return $icaoToIata[$raw] ?? substr($raw, 0, 2);
+        $mapped = $icaoToIata[$raw] ?? substr($raw, 0, 2);
+        return preg_match('/^[A-Z]{2}$/', $mapped) ? $mapped : '';
     }
 
     /**
@@ -1025,16 +1133,19 @@ class FlightApiService
         if (empty($this->apiKey)) {
             throw new Exception('FlightAPI is not configured.');
         }
-        $num = trim((string) $flightNumber);
+        $num = self::extractFlightNumberOnly($flightNumber);
         $airlineCodeTrim = trim((string) $airlineCode);
         if (empty($airlineCodeTrim)) {
             throw new Exception('Flight number and airline IATA code (2 letters) are required for tracking.');
         }
         $name = self::trackingAirlineIata($airlineCodeTrim);
-        if ($num === '' || strlen($name) !== 2) {
+        if ($num === '' || !preg_match('/^\d{1,5}$/', $num) || strlen($name) !== 2 || !preg_match('/^[A-Z]{2}$/', $name)) {
             throw new Exception('Flight number and airline IATA code (2 letters) are required for tracking.');
         }
         $dateStr = $this->formatDateForTracking($date);
+        if (!preg_match('/^\d{8}$/', $dateStr)) {
+            throw new Exception('Flight date must be in YYYYMMDD format for tracking.');
+        }
         $path = '/airline/' . $this->apiKey;
         $url = $this->baseUrl . $path;
         $query = [
@@ -1047,7 +1158,7 @@ class FlightApiService
             $extracted = $this->extractAirportIataFromPlace((string) $departureAirportCode);
             $depap = $extracted !== null ? $extracted : '';
         }
-        if ($depap !== '') {
+        if ($depap !== '' && preg_match('/^[A-Z]{3}$/', $depap)) {
             $query['depap'] = $depap;
         }
 

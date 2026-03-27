@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Database\Seeder;
+use App\Models\ChatGroup;
+use App\Models\ChatGroupMember;
 use App\Models\User;
 use App\Models\UserCompany;
 
@@ -57,6 +59,46 @@ class DatabaseSeeder extends Seeder
             $chatbot->ip_address = null;
             $chatbot->status = 'Active';
             $chatbot->save();
+        }
+
+        // Fixed support group: NTT Support Team (cannot be deleted from UI/API)
+        $creator = User::where('email', 'admin@gmail.com')->first();
+        if (is_null($creator)) {
+            $creator = User::where('email', 'chatbot@system')->first();
+        }
+        if (is_null($creator)) {
+            $creator = User::where('user_type', '!=', 'user')->first();
+        }
+
+        if (!is_null($creator)) {
+            $fixedGroup = ChatGroup::firstOrCreate(
+                ['name' => 'NTT Support Team'],
+                [
+                    'created_by_user_id' => $creator->id,
+                    'is_fixed_group' => 1,
+                ]
+            );
+
+            if ((int) ($fixedGroup->is_fixed_group ?? 0) !== 1) {
+                $fixedGroup->is_fixed_group = 1;
+                $fixedGroup->save();
+            }
+
+            ChatGroupMember::firstOrCreate(
+                ['group_id' => $fixedGroup->id, 'user_id' => $creator->id],
+                ['role' => 'admin']
+            );
+
+            $memberIds = User::where('user_type', '!=', 'user')->pluck('id')->all();
+            foreach ($memberIds as $memberId) {
+                if ((int) $memberId === (int) $creator->id) {
+                    continue;
+                }
+                ChatGroupMember::firstOrCreate(
+                    ['group_id' => $fixedGroup->id, 'user_id' => $memberId],
+                    ['role' => 'member']
+                );
+            }
         }
 
         $this->call(CurrencySeeder::class);

@@ -1537,24 +1537,132 @@ class TravelpayoutsService
         $cacheKey = 'travelpayouts_airports_list';
         
         return Cache::remember($cacheKey, 604800, function () { // Cache for 1 week
-            try {
-                $endpoint = '/data/en/airports.json';
-                $airports = $this->makeRequest('GET', $endpoint);
-                
-                // Format for easier use
-                return collect($airports)->map(function($airport) {
-                    return [
-                        'code' => $airport['code'] ?? '',
-                        'name' => $airport['name'] ?? '',
-                        'city' => $airport['city_name'] ?? '',
-                        'country' => $airport['country_name'] ?? '',
-                        'display' => ($airport['code'] ?? '') . ' - ' . ($airport['name'] ?? '') . ', ' . ($airport['city_name'] ?? ''),
-                    ];
-                })->toArray();
-            } catch (Exception $e) {
+            // 1) Try Travelpayouts dataset first (requires token).
+            $airports = $this->fetchAirportsFromTravelpayouts();
+            if (!empty($airports)) {
+                return $airports;
+            }
+
+            // 2) Fallback to a public global airports dataset (does not require token).
+            $airports = $this->fetchAirportsFromPublicDataset();
+            if (!empty($airports)) {
+                return $airports;
+            }
+
+            // 3) Final fallback handled by searchCommonAirports().
+            return [];
+        });
+    }
+
+    /**
+     * Fetch airports from Travelpayouts static data endpoint.
+     */
+    private function fetchAirportsFromTravelpayouts(): array
+    {
+        if (empty($this->apiToken)) {
+            return [];
+        }
+
+        try {
+            $response = Http::timeout(30)
+                ->retry(1, 500)
+                ->withHeaders([
+                    'X-Access-Token' => $this->apiToken,
+                    'Accept' => 'application/json',
+                ])
+                ->get($this->baseUrl . '/data/en/airports.json');
+
+            if (!$response->successful()) {
                 return [];
             }
-        });
+
+            $airports = $response->json();
+            if (!is_array($airports)) {
+                return [];
+            }
+
+            return $this->normalizeAirportRecords($airports);
+        } catch (Exception $e) {
+            Log::warning('Travelpayouts airports dataset fetch failed', [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Fetch airports from a public worldwide airport dataset.
+     */
+    private function fetchAirportsFromPublicDataset(): array
+    {
+        $datasetUrl = config('services.travelpayouts.airports_dataset_url', 'https://raw.githubusercontent.com/mwgg/Airports/master/airports.json');
+
+        try {
+            $response = Http::timeout(45)->retry(1, 500)->get($datasetUrl);
+            if (!$response->successful()) {
+                return [];
+            }
+
+            $payload = $response->json();
+            if (!is_array($payload)) {
+                return [];
+            }
+
+            $records = [];
+            // mwgg/Airports format: { ICAO: { iata, name, city, country, ... } }
+            foreach ($payload as $airport) {
+                if (!is_array($airport)) {
+                    continue;
+                }
+                $records[] = [
+                    'code' => $airport['iata'] ?? '',
+                    'name' => $airport['name'] ?? '',
+                    'city_name' => $airport['city'] ?? '',
+                    'country_name' => $airport['country'] ?? '',
+                ];
+            }
+
+            return $this->normalizeAirportRecords($records);
+        } catch (Exception $e) {
+            Log::warning('Public airports dataset fetch failed', [
+                'url' => $datasetUrl,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Normalize and filter airport records for autocomplete.
+     *
+     * @param array<int, array<string, mixed>> $records
+     */
+    private function normalizeAirportRecords(array $records): array
+    {
+        $normalized = collect($records)
+            ->map(function ($airport) {
+                $code = strtoupper(trim((string) ($airport['code'] ?? $airport['iata'] ?? '')));
+                $name = trim((string) ($airport['name'] ?? ''));
+                $city = trim((string) ($airport['city_name'] ?? $airport['city'] ?? ''));
+                $country = trim((string) ($airport['country_name'] ?? $airport['country'] ?? ''));
+
+                return [
+                    'code' => $code,
+                    'name' => $name,
+                    'city' => $city,
+                    'country' => $country,
+                    'display' => $code . ' - ' . $name . ($city !== '' ? ', ' . $city : ''),
+                ];
+            })
+            ->filter(function ($airport) {
+                return preg_match('/^[A-Z]{3}$/', $airport['code'] ?? '')
+                    && !empty($airport['name']);
+            })
+            ->unique('code')
+            ->values()
+            ->toArray();
+
+        return is_array($normalized) ? $normalized : [];
     }
 
     /**

@@ -92,7 +92,7 @@ class StickyNoteController extends Controller
                         $q->where('note_title', 'like', "%{$search}%")
                             ->orWhere('note_description', 'like', "%{$search}%");
                     });
-                    $creatorIds = User::excludeAutomationChatbot()->where('name', 'like', "%{$search}%")->pluck('id')->toArray();
+                    $creatorIds = User::excludeAutomationChatbot()->excludeUserTypeUsers()->where('name', 'like', "%{$search}%")->pluck('id')->toArray();
                     if (!empty($creatorIds)) {
                         $query->orWhereIn('created_by', $creatorIds);
                     }

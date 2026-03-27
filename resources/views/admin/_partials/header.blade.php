@@ -344,6 +344,8 @@
 									    @php
 									        $segmentBadge = $flight->ticket?->upcoming_segment_badge ?? '';
 									        $segmentLabel = $segmentBadge === 'Return' ? ($getCurrentTranslation['segment_return'] ?? 'Return') : ($getCurrentTranslation['segment_outbound'] ?? 'Outbound');
+									        $contactLabel = ticketClientContactStatusLabel($flight->ticket?->contacted_with_client, $getCurrentTranslation);
+									        $contactNoteSearch = $flight->ticket?->client_contact_note ?? '';
 									        $searchParts = [
 									            $flight->client_name ?? '',
 									            $flight->client_phone ?? '',
@@ -354,6 +356,8 @@
 									            $flight->introductionSource->name ?? '',
 									            $segmentBadge,
 									            $segmentLabel,
+									            $contactLabel,
+									            $contactNoteSearch,
 									            $flight->ticket?->upcoming_departure_date ? \Carbon\Carbon::parse($flight->ticket->upcoming_departure_date)->format('Y-m-d H:i') : '',
 									            $flight->return_date_time ? \Carbon\Carbon::parse($flight->return_date_time)->format('Y-m-d H:i') : '',
 									        ];
@@ -413,9 +417,13 @@
 									                <b>{{ $getCurrentTranslation['introduction_source_label'] ?? 'introduction_source_label' }}:</b> 
 									                {{ $flight->introductionSource?->name ?? 'N/A' }}
 									            </div>
+									            @if($flight->ticket)
+									            {!! ticketClientContactSummaryHtml($flight->ticket, $getCurrentTranslation) !!}
+									            @endif
 									        </div>
 
-									        <div class="ms-auto d-flex gap-1">
+									        <div class="ms-auto d-flex flex-column align-items-end gap-1">
+									            <div class="d-flex gap-1">
 									            <a href="{{ route('payment.flight.status', $flight->id) }}" 
 									               class="btn btn-sm btn-primary" title="Check Flight Status">
 									                <i class="fa-solid fa-plane"></i>
@@ -424,6 +432,17 @@
 									               class="btn btn-sm btn-info">
 									                <i class="fa-solid fa-pager"></i>
 									            </a>
+												@if($flight->ticket && function_exists('hasPermission') && hasPermission('ticket.edit'))
+									            <button type="button"
+									                class="btn btn-sm btn-primary btn-client-contact-popup"
+									                data-ticket-id="{{ $flight->ticket_id }}"
+									                data-contacted="{{ e($flight->ticket->contacted_with_client ?? '') }}"
+									                data-note="{{ e($flight->ticket->client_contact_note ?? '') }}"
+									                title="{{ $getCurrentTranslation['client_contact_modal_title'] ?? ($getCurrentTranslation['contacted_with_client_label'] ?? 'Client contact') }}">
+									                <i class="fa-solid fa-address-book"></i>
+									            </button>
+									            @endif
+									            </div>
 									        </div>
 									    </div>
 									@endforeach
@@ -684,6 +703,12 @@
 	</div>
 </div>
 <!--end::Attendance Modal-->
+
+@if(function_exists('hasPermission') && hasPermission('ticket.edit'))
+@once
+@include('common._partials.ticket-client-contact-modal')
+@endonce
+@endif
 
 @push('script')
 <script>

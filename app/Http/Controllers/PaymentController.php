@@ -31,6 +31,7 @@ use App\Models\Airline;
 use PDF;
 use App\Services\PdfService;
 use App\Services\FlightApiService;
+use App\Services\FlightApiCreditUsageService;
 use App\Mail\FlightChangeMail;
 use App\Mail\FlightStatusMail;
 use Illuminate\Support\Facades\View;
@@ -139,9 +140,11 @@ class PaymentController extends Controller
                             ->orWhere('card_digit', 'like', "%{$search}%")
                             ->orWhere('payment_status', 'like', "%{$search}%");
 
-                        // Search in related ticket invoice_id
+                        // Search in related ticket invoice_id + client contact
                         $q->orWhereHas('ticket', function ($q2) use ($search) {
-                            $q2->where('invoice_id', 'like', "%{$search}%");
+                            $q2->where('invoice_id', 'like', "%{$search}%")
+                                ->orWhere('contacted_with_client', 'like', "%{$search}%")
+                                ->orWhere('client_contact_note', 'like', "%{$search}%");
                         });
 
                         // Search in related ticket reservation_number
@@ -1338,9 +1341,11 @@ class PaymentController extends Controller
                             ->orWhere('card_digit', 'like', "%{$search}%")
                             ->orWhere('payment_status', 'like', "%{$search}%");
 
-                        // Search in related ticket invoice_id
+                        // Search in related ticket invoice_id + client contact
                         $q->orWhereHas('ticket', function ($q2) use ($search) {
-                            $q2->where('invoice_id', 'like', "%{$search}%");
+                            $q2->where('invoice_id', 'like', "%{$search}%")
+                                ->orWhere('contacted_with_client', 'like', "%{$search}%")
+                                ->orWhere('client_contact_note', 'like', "%{$search}%");
                         });
 
                         // Search in related airline name
@@ -1501,6 +1506,7 @@ class PaymentController extends Controller
 
                 $countsLine = passengerCountsLineHtml($row->ticket?->passengers ?? []);
                 $countsBlock = $countsLine !== '' ? '<div class="mb-1">' . $countsLine . '</div>' : '';
+                $clientContactBlock = $row->ticket ? ticketClientContactSummaryHtml($row->ticket, $getCurrentTranslation) : '';
                 return '<div style="max-width: 280px; line-height: 1.6; text-align: left;">
                     <strong>' . $passengerNameLabel . ':</strong> ' . $row->client_name . '<br>
                     ' . $countsBlock . '
@@ -1700,9 +1706,11 @@ class PaymentController extends Controller
                             ->orWhere('card_digit', 'like', "%{$search}%")
                             ->orWhere('payment_status', 'like', "%{$search}%");
 
-                        // Search in related ticket invoice_id
+                        // Search in related ticket invoice_id + client contact
                         $q->orWhereHas('ticket', function ($q2) use ($search) {
-                            $q2->where('invoice_id', 'like', "%{$search}%");
+                            $q2->where('invoice_id', 'like', "%{$search}%")
+                                ->orWhere('contacted_with_client', 'like', "%{$search}%")
+                                ->orWhere('client_contact_note', 'like', "%{$search}%");
                         });
 
                         // Search in related airline name
@@ -1879,6 +1887,7 @@ class PaymentController extends Controller
                 $flightStatusMailCount = (int) ($row->flight_status_mail_count ?? 0);
                 $countsLine = passengerCountsLineHtml($row->ticket?->passengers ?? []);
                 $countsBlock = $countsLine !== '' ? '<div class="mb-1">' . $countsLine . '</div>' : '';
+                $clientContactBlock = $row->ticket ? ticketClientContactSummaryHtml($row->ticket, $getCurrentTranslation) : '';
 
                 return '<div style="max-width: 280px; line-height: 1.6; text-align: left;">
                     <strong>' . $passengerNameLabel . ':</strong> ' . $row->client_name . '<br>
@@ -1891,10 +1900,10 @@ class PaymentController extends Controller
                     ' . $departureLine . '
                     <strong>' . $returnLabel . ':</strong> ' . $return . '<br>
                     <strong>' . $introductionSourceLabel . ':</strong> ' . $introductionSource . '<br>
+                    ' . $clientContactBlock . '
                     <strong>' . $flightStatusMailCountLabel . ':</strong> <span class="badge badge-info">' . $flightStatusMailCount . '</span><br>
                 </div>';
             })
-
 
             // ✅ Seat Confirmation
             ->addColumn('seat_confirmation', function ($row) {
@@ -1956,6 +1965,18 @@ class PaymentController extends Controller
                 $checkFlightStatusTitle = $getCurrentTranslation['check_flight_status'] ?? 'Check Flight Status';
 
                 $buttons = '';
+
+                // 📇 Client contact popup (first button)
+                if ($row->ticket && function_exists('hasPermission') && hasPermission('ticket.edit')) {
+                    $tid = (int) $row->ticket->id;
+                    $c = e($row->ticket->contacted_with_client ?? '');
+                    $n = e($row->ticket->client_contact_note ?? '');
+                    $buttons .= '
+                        <button type="button" class="btn btn-sm btn-primary my-1 btn-client-contact-popup" data-ticket-id="' . $tid . '" data-contacted="' . $c . '" data-note="' . $n . '">
+                            <i class="fa-solid fa-address-book"></i>
+                        </button>
+                    ';
+                }
 
                 // ✈️ Check Flight Status (only when document_type = ticket)
                 if (($row->ticket->document_type ?? '') === 'ticket' && hasPermission('payment.flight_status')) {
@@ -2019,6 +2040,59 @@ class PaymentController extends Controller
         return 'changed_cancelled_flights_result';
     }
 
+    private function flightApiBulkPauseCacheKey(): string
+    {
+        return 'flightapi_track_bulk_pause_v1';
+    }
+
+    /**
+     * @return array{until: \Illuminate\Support\Carbon, message: string}|null
+     */
+    private function getFlightApiBulkPause(): ?array
+    {
+        $v = Cache::get($this->flightApiBulkPauseCacheKey());
+        if (!is_array($v)) {
+            return null;
+        }
+        $until = $v['until'] ?? null;
+        if (is_string($until)) {
+            try {
+                $until = Carbon::parse($until);
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+        if (!$until instanceof \DateTimeInterface) {
+            return null;
+        }
+        if (now()->gte(Carbon::parse($until))) {
+            return null;
+        }
+        $v['until'] = $until;
+
+        return $v;
+    }
+
+    private function pauseFlightApiBulkTracking(\Throwable $e): void
+    {
+        $minutes = (int) config('services.flightapi.bulk_pause_minutes', 5);
+        $minutes = max(1, min(60, $minutes));
+        $until = now()->addMinutes($minutes);
+        $msg = $e->getMessage();
+        if (strlen($msg) > 400) {
+            $msg = substr($msg, 0, 397) . '...';
+        }
+        Cache::put($this->flightApiBulkPauseCacheKey(), [
+            'until' => $until,
+            'message' => $msg,
+        ], $until);
+    }
+
+    private function clearFlightApiBulkPause(): void
+    {
+        Cache::forget($this->flightApiBulkPauseCacheKey());
+    }
+
     /**
      * Changed & Cancelled flights page: show buttons and table of results from session (if any).
      */
@@ -2040,71 +2114,82 @@ class PaymentController extends Controller
             ])->whereIn('id', $paymentIds)->orderBy('departure_date_time')->get();
             foreach ($payments as $row) {
                 $pid = $row->id;
-                $status = $statusByPayment[$pid] ?? ['has_cancelled' => false, 'has_schedule_changed' => false];
+                $status = $statusByPayment[$pid] ?? ['has_cancelled' => false, 'has_schedule_changed' => false, 'check_failed' => false, 'live_unavailable' => false];
                 $results[] = [
                     'payment' => $row,
                     'has_cancelled' => (bool) ($status['has_cancelled'] ?? false),
                     'has_schedule_changed' => (bool) ($status['has_schedule_changed'] ?? false),
+                    'check_failed' => (bool) ($status['check_failed'] ?? false),
+                    'live_unavailable' => (bool) ($status['live_unavailable'] ?? false),
                 ];
             }
         }
         $getCurrentTranslation = getCurrentTranslation();
+        $upcomingFlightCheckDays = (int) config('services.flightapi.upcoming_flight_check_days', 2);
+        $upcomingFlightCheckDays = max(1, $upcomingFlightCheckDays);
+        $flightApiBulkPause = $this->getFlightApiBulkPause();
+        $flightApiBulkPaused = $flightApiBulkPause !== null;
+        $flightApiBulkPauseMessage = $flightApiBulkPause['message'] ?? null;
         return view('common.payment-record.changedCancelledFlights', get_defined_vars());
     }
 
     /**
-     * Run the rescheduled/cancelled check (used by job or sync). Returns [ $found, $statusByPayment ] or null.
+     * Run the rescheduled/cancelled check (used by job or sync). Returns [ $paymentIds, $statusByPayment ] or null.
+     * $paymentIds lists payments with schedule/cancel issues or failed API checks (for display + retry).
      * When $userId is set, checks cache flag rescheduled_cancelled_stop_{userId} each iteration and returns early if user requested stop.
      * @param int|null $userId When set (e.g. from job), stop flag is checked so user can cancel the check.
      * @return array{0: array<int>, 1: array<int, array>}|null
      */
     public function runRescheduledCancelledCheck(?int $userId = null): ?array
     {
+        $checkDays = (int) config('services.flightapi.upcoming_flight_check_days', 2);
+        $checkDays = max(1, $checkDays);
         $todayStart = Carbon::today()->startOfDay();
+        $windowEnd = Carbon::today()->addDays($checkDays)->endOfDay();
         $payments = Payment::with([
             'ticket', 'ticket.allFlights', 'ticket.flights', 'ticket.allFlights.airline', 'ticket.flights.transits',
         ])
             ->whereHas('ticket', function ($q) {
                 $q->where('document_type', 'ticket');
             })
-            ->whereHas('ticket.allFlights', function ($q) use ($todayStart) {
-                $q->whereNull('parent_id')->where('departure_date_time', '>=', $todayStart);
+            ->whereHas('ticket.allFlights', function ($q) use ($todayStart, $windowEnd) {
+                $q->whereNull('parent_id')
+                    ->where('departure_date_time', '>=', $todayStart)
+                    ->where('departure_date_time', '<=', $windowEnd);
             })
             ->orderBy('departure_date_time')
             ->get();
-        $found = [];
+        $changedPaymentIds = [];
+        $failedPaymentIds = [];
+        $unavailablePaymentIds = [];
         $statusByPayment = [];
+        $creditAttributionUserId = $userId ?? (Auth::check() ? (int) Auth::id() : null);
         foreach ($payments as $payment) {
             if ($userId !== null && Cache::get('rescheduled_cancelled_stop_' . $userId)) {
                 Cache::forget('rescheduled_cancelled_stop_' . $userId);
-                return [$found, $statusByPayment];
+                $paymentIds = array_values(array_unique(array_merge($changedPaymentIds, $failedPaymentIds)));
+
+                return [$paymentIds, $statusByPayment];
             }
             if (!$payment->ticket || ($payment->ticket->document_type ?? '') !== 'ticket') {
                 continue;
             }
-            try {
-                list($systemSegments, $liveData, $liveUpdates, $trackError) = $this->fetchAndCacheFlightStatusData($payment, true);
-                $hasCancelled = false;
-                foreach ($liveData as $seg) {
-                    $st = $seg['_segment_status'] ?? null;
-                    if ($st === 'cancelled' || $st === 'unavailable') {
-                        $hasCancelled = true;
-                        break;
-                    }
-                }
-                $hasScheduleChanged = $this->computeDatetimeMismatch($systemSegments, $liveData);
-                if ($hasCancelled || $hasScheduleChanged) {
-                    $found[] = $payment->id;
-                    $statusByPayment[$payment->id] = [
-                        'has_cancelled' => $hasCancelled,
-                        'has_schedule_changed' => $hasScheduleChanged,
-                    ];
-                }
-            } catch (\Throwable $e) {
-                \Log::warning('Rescheduled/cancelled check failed for payment ' . $payment->id . ': ' . $e->getMessage());
+            $eval = $this->evaluateRescheduledCancelledForPayment($payment, $creditAttributionUserId);
+            if (!empty($eval['check_failed'])) {
+                $failedPaymentIds[] = $payment->id;
+                $statusByPayment[$payment->id] = $eval;
+            } elseif (!empty($eval['live_unavailable'])) {
+                // Keep in list so UI can show "Live Status Data Unavailable".
+                $unavailablePaymentIds[] = $payment->id;
+                $statusByPayment[$payment->id] = $eval;
+            } elseif (($eval['has_cancelled'] ?? false) || ($eval['has_schedule_changed'] ?? false)) {
+                $changedPaymentIds[] = $payment->id;
+                $statusByPayment[$payment->id] = $eval;
             }
         }
-        return [$found, $statusByPayment];
+        $paymentIds = array_values(array_unique(array_merge($changedPaymentIds, $failedPaymentIds, $unavailablePaymentIds)));
+
+        return [$paymentIds, $statusByPayment];
     }
 
     /**
@@ -2123,26 +2208,72 @@ class PaymentController extends Controller
         if ($request->wantsJson()) {
             $userId = (int) auth()->id();
             Cache::forget('rescheduled_cancelled_stop_' . $userId);
+            $this->clearFlightApiBulkPause();
             Cache::put('rescheduled_cancelled_running_' . $userId, true, now()->addMinutes(15));
-            \App\Jobs\CheckRescheduledCancelledFlightsJob::dispatch($userId);
+
+            // Run inline for reliability (no queue worker dependency).
+            // This ensures the list gets populated immediately after "Check All".
+            set_time_limit(600);
+            $payload = $this->runRescheduledCancelledCheck($userId);
+            $paymentIds = $payload[0] ?? [];
+            $statusByPayment = $payload[1] ?? [];
+            Cache::put('rescheduled_cancelled_result_' . $userId, [
+                'payment_ids' => is_array($paymentIds) ? $paymentIds : [],
+                'status_by_payment' => is_array($statusByPayment) ? $statusByPayment : [],
+                'checked_at' => now()->toDateTimeString(),
+            ], now()->addHours(24));
+            Cache::forget('rescheduled_cancelled_running_' . $userId);
+
+            $t = getCurrentTranslation();
+            $changedCount = count(array_filter($statusByPayment, function ($s) {
+                return empty($s['check_failed']) && empty($s['live_unavailable']) && (($s['has_cancelled'] ?? false) || ($s['has_schedule_changed'] ?? false));
+            }));
+            $failedCount = count(array_filter($statusByPayment, function ($s) {
+                return !empty($s['check_failed']);
+            }));
+            $unavailableCount = count(array_filter($statusByPayment, function ($s) {
+                return empty($s['check_failed']) && !empty($s['live_unavailable']);
+            }));
+
+            $msg = ($t['check_completed'] ?? 'Check completed.') . ' ' . $changedCount . ' ' . ($t['flights_with_changes_found'] ?? 'flight(s) with changes found.');
+            if ($unavailableCount > 0) {
+                $msg .= ' ' . $unavailableCount . ' ' . ($t['live_status_data_unavailable'] ?? 'live status data unavailable.');
+            }
+            if ($failedCount > 0) {
+                $msg .= ' ' . $failedCount . ' ' . ($t['status_checks_failed'] ?? 'status check(s) failed.');
+            }
             return response()->json([
                 'is_success' => 1,
-                'started' => true,
-                'message' => getCurrentTranslation()['check_started_background'] ?? 'Check started in background. You can use other tabs; this page will refresh when done.',
+                'started' => false,
+                'count' => count($paymentIds),
+                'message' => $msg,
             ]);
         }
 
         set_time_limit(600);
+        $this->clearFlightApiBulkPause();
         $payload = $this->runRescheduledCancelledCheck(null);
-        $found = $payload[0] ?? [];
+        $paymentIds = $payload[0] ?? [];
         $statusByPayment = $payload[1] ?? [];
         session([$this->changedCancelledFlightsSessionKey() => [
-            'payment_ids' => $found,
+            'payment_ids' => $paymentIds,
             'status_by_payment' => $statusByPayment,
             'checked_at' => now()->toDateTimeString(),
         ]]);
+        $t = getCurrentTranslation();
+        $changedCount = count(array_filter($statusByPayment, function ($s) {
+            return empty($s['check_failed']) && (($s['has_cancelled'] ?? false) || ($s['has_schedule_changed'] ?? false));
+        }));
+        $failedCount = count(array_filter($statusByPayment, function ($s) {
+            return !empty($s['check_failed']);
+        }));
+        $msg = ($t['check_completed'] ?? 'Check completed.') . ' ' . $changedCount . ' ' . ($t['flights_with_changes_found'] ?? 'flight(s) with changes found.');
+        if ($failedCount > 0) {
+            $msg .= ' ' . $failedCount . ' ' . ($t['status_checks_failed'] ?? 'status check(s) failed.');
+        }
+
         return redirect()->route('flight.changedCancelled')
-            ->with('success', (getCurrentTranslation()['check_completed'] ?? 'Check completed.') . ' ' . count($found) . ' flight(s) with changes found.');
+            ->with('success', $msg);
     }
 
     /**
@@ -2196,6 +2327,272 @@ class PaymentController extends Controller
         return response()->json(['running' => (bool) $running]);
     }
 
+    /**
+     * Re-run the flight status API check for one payment (Ajax). Updates session or cache result store.
+     */
+    public function retryChangedCancelledFlightCheck(Request $request)
+    {
+        if (!hasPermission('ticket.reminder')) {
+            return response()->json(['is_success' => 0, 'message' => getCurrentTranslation()['permission_denied'] ?? 'Permission denied'], 403);
+        }
+        $paymentId = (int) $request->input('payment_id');
+        if ($paymentId < 1) {
+            return response()->json(['is_success' => 0, 'message' => getCurrentTranslation()['invalid_request'] ?? 'Invalid request.'], 422);
+        }
+        try {
+            $payment = Payment::with([
+                'ticket', 'ticket.allFlights', 'ticket.flights', 'ticket.allFlights.airline', 'ticket.flights.transits',
+            ])->where('id', $paymentId)->first();
+            if (!$payment) {
+                return response()->json(['is_success' => 0, 'message' => getCurrentTranslation()['not_found'] ?? 'Not found.'], 404);
+            }
+            if (!$this->paymentInRescheduledCheckWindow($payment)) {
+                return response()->json(['is_success' => 0, 'message' => getCurrentTranslation()['flight_not_in_check_window'] ?? 'This payment is outside the upcoming flight check window.'], 422);
+            }
+            $this->clearFlightApiBulkPause();
+            $userId = (int) auth()->id();
+            $stored = $this->getRescheduledCancelledResultForUser($userId);
+            $source = $stored['source'] ?? 'session';
+            $payload = $stored['data'] ?? [
+                'payment_ids' => [],
+                'status_by_payment' => [],
+                'checked_at' => now()->toDateTimeString(),
+            ];
+            $eval = $this->evaluateRescheduledCancelledForPayment($payment, $userId);
+            if (!is_array($eval) || !array_key_exists('check_failed', $eval)) {
+                return response()->json(['is_success' => 0, 'message' => getCurrentTranslation()['something_went_wrong'] ?? 'Something went wrong.'], 500);
+            }
+            $payload = $this->mergeRescheduledResultForPayment($payload, $paymentId, $eval);
+            $this->putRescheduledCancelledResultForUser($userId, $source, $payload);
+            $t = getCurrentTranslation();
+
+            return response()->json([
+                'is_success' => 1,
+                'check_failed' => (bool) $eval['check_failed'],
+                'has_cancelled' => (bool) ($eval['has_cancelled'] ?? false),
+                'has_schedule_changed' => (bool) ($eval['has_schedule_changed'] ?? false),
+                'message' => !empty($eval['check_failed'])
+                    ? ($t['checking_failed'] ?? 'Checking failed.')
+                    : ($t['flight_check_retried'] ?? 'Flight check updated.'),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('retryChangedCancelledFlightCheck failed: ' . $e->getMessage(), ['exception' => $e]);
+
+            return response()->json([
+                'is_success' => 0,
+                'message' => getCurrentTranslation()['something_went_wrong'] ?? 'Something went wrong.',
+            ], 500);
+        }
+    }
+
+    private function getRescheduledCancelledResultForUser(int $userId): ?array
+    {
+        $cached = Cache::get('rescheduled_cancelled_result_' . $userId);
+        if (is_array($cached) && array_key_exists('payment_ids', $cached)) {
+            return ['source' => 'cache', 'data' => $cached];
+        }
+        $sess = session($this->changedCancelledFlightsSessionKey());
+        if (is_array($sess) && array_key_exists('payment_ids', $sess)) {
+            return ['source' => 'session', 'data' => $sess];
+        }
+
+        return null;
+    }
+
+    private function putRescheduledCancelledResultForUser(int $userId, string $source, array $data): void
+    {
+        if ($source === 'cache') {
+            Cache::put('rescheduled_cancelled_result_' . $userId, $data, now()->addHours(24));
+
+            return;
+        }
+        session([$this->changedCancelledFlightsSessionKey() => $data]);
+    }
+
+    /**
+     * @param array{payment_ids: array<int>, status_by_payment: array<int, array>, checked_at?: string} $payload
+     * @param array{check_failed: bool, has_cancelled: bool, has_schedule_changed: bool, live_unavailable?: bool} $eval
+     * @return array{payment_ids: array<int>, status_by_payment: array<int, array>, checked_at: string}
+     */
+    private function mergeRescheduledResultForPayment(array $payload, int $paymentId, array $eval): array
+    {
+        $ids = $payload['payment_ids'] ?? [];
+        $statusByPayment = $payload['status_by_payment'] ?? [];
+        $statusByPayment[$paymentId] = $eval;
+        // Keep payment in the list if:
+        // - check failed (so user can retry), OR
+        // - live status unavailable (so UI can show "Live Status Data Unavailable"), OR
+        // - actual cancelled/schedule-changed flags are true.
+        $include = !empty($eval['check_failed'])
+            || !empty($eval['live_unavailable'])
+            || !empty($eval['has_cancelled'])
+            || !empty($eval['has_schedule_changed']);
+
+        if ($include) {
+            if (!in_array($paymentId, $ids, true)) {
+                $ids[] = $paymentId;
+            }
+        } else {
+            $ids = array_values(array_diff($ids, [$paymentId]));
+            unset($statusByPayment[$paymentId]);
+        }
+        $payload['payment_ids'] = $ids;
+        $payload['status_by_payment'] = $statusByPayment;
+        $payload['checked_at'] = $payload['checked_at'] ?? now()->toDateTimeString();
+
+        return $payload;
+    }
+
+    private function paymentInRescheduledCheckWindow(Payment $payment): bool
+    {
+        if (!$payment->ticket || ($payment->ticket->document_type ?? '') !== 'ticket') {
+            return false;
+        }
+        try {
+            $checkDays = max(1, (int) config('services.flightapi.upcoming_flight_check_days', 2));
+            $todayStart = Carbon::today()->startOfDay();
+            $windowEnd = Carbon::today()->addDays($checkDays)->endOfDay();
+            $mainFlights = $payment->ticket->allFlights->whereNull('parent_id');
+            foreach ($mainFlights as $f) {
+                $dep = $f->departure_date_time ?? null;
+                if (!$dep) {
+                    continue;
+                }
+                try {
+                    $d = Carbon::parse($dep);
+                    if ($d->gte($todayStart) && $d->lte($windowEnd)) {
+                        return true;
+                    }
+                } catch (\Throwable $e) {
+                    continue;
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('paymentInRescheduledCheckWindow: ' . $e->getMessage(), ['payment_id' => $payment->id ?? null]);
+        }
+
+        return false;
+    }
+
+    /**
+     * True if at least one segment has usable scheduled times from the tracking API (not only unavailable placeholders).
+     */
+    private function liveDataHasUsableFlightTrack(array $liveData): bool
+    {
+        foreach ($liveData as $seg) {
+            if (!is_array($seg) || $seg === []) {
+                continue;
+            }
+            $dep = $seg['departure'] ?? null;
+            if (is_array($dep) && (!empty($dep['departureDateTime']) || !empty($dep['scheduledTime']))) {
+                return true;
+            }
+            $arr = $seg['arrival'] ?? null;
+            if (is_array($arr) && (!empty($arr['arrivalDateTime']) || !empty($arr['scheduledTime']))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{check_failed: bool, has_cancelled: bool, has_schedule_changed: bool, live_unavailable?: bool}
+     */
+    private function evaluateRescheduledCancelledForPayment(Payment $payment, ?int $creditUsedByUserId = null): array
+    {
+        $fail = ['check_failed' => true, 'has_cancelled' => false, 'has_schedule_changed' => false];
+        try {
+            if (!$payment->exists || $payment->id < 1) {
+                return $fail;
+            }
+            $fetched = $this->fetchAndCacheFlightStatusData($payment, true, $creditUsedByUserId);
+            if (!is_array($fetched) || count($fetched) < 2) {
+                return $fail;
+            }
+            $systemSegments = $fetched[0];
+            $liveData = $fetched[1];
+            if (!is_array($systemSegments) || !is_array($liveData)) {
+                return $fail;
+            }
+            if ($systemSegments === []) {
+                return $fail;
+            }
+            if (!$this->liveDataHasUsableFlightTrack($liveData)) {
+                // Live tracking is unavailable for this flight (provider limitation / unsupported airline/date/etc).
+                // This should be shown in the list as "Live Status Data Unavailable", not as "checking failed".
+                return [
+                    'check_failed' => false,
+                    'has_cancelled' => false,
+                    'has_schedule_changed' => false,
+                    'live_unavailable' => true,
+                ];
+            }
+            $hasCancelled = false;
+            foreach ($liveData as $seg) {
+                if (!is_array($seg)) {
+                    continue;
+                }
+                $st = $seg['_segment_status'] ?? null;
+                // Treat "unavailable" as "no live status", not as "cancelled".
+                if ($st === 'cancelled') {
+                    $hasCancelled = true;
+                    break;
+                }
+            }
+            $hasScheduleChanged = $this->computeDatetimeMismatch($systemSegments, $liveData);
+
+            return [
+                'check_failed' => false,
+                'has_cancelled' => $hasCancelled,
+                'has_schedule_changed' => $hasScheduleChanged,
+                'live_unavailable' => false,
+            ];
+        } catch (\Throwable $e) {
+            \Log::warning('Rescheduled/cancelled check failed for payment ' . ($payment->id ?? 0) . ': ' . $e->getMessage(), ['exception' => $e]);
+
+            return $fail;
+        }
+    }
+
+    /**
+     * Evaluate rescheduled/cancelled flags from already-fetched liveData (no extra API call).
+     *
+     * @return array{check_failed: bool, has_cancelled: bool, has_schedule_changed: bool, live_unavailable?: bool}
+     */
+    private function evaluateRescheduledCancelledFromLiveData(array $systemSegments, array $liveData): array
+    {
+        $fail = ['check_failed' => true, 'has_cancelled' => false, 'has_schedule_changed' => false];
+        if ($systemSegments === [] || !is_array($liveData) || $liveData === []) {
+            return $fail;
+        }
+        if (!$this->liveDataHasUsableFlightTrack($liveData)) {
+            return [
+                'check_failed' => false,
+                'has_cancelled' => false,
+                'has_schedule_changed' => false,
+                'live_unavailable' => true,
+            ];
+        }
+        $hasCancelled = false;
+        foreach ($liveData as $seg) {
+            if (!is_array($seg)) {
+                continue;
+            }
+            if (($seg['_segment_status'] ?? null) === 'cancelled') {
+                $hasCancelled = true;
+                break;
+            }
+        }
+        $hasScheduleChanged = $this->computeDatetimeMismatch($systemSegments, $liveData);
+        return [
+            'check_failed' => false,
+            'has_cancelled' => $hasCancelled,
+            'has_schedule_changed' => $hasScheduleChanged,
+            'live_unavailable' => false,
+        ];
+    }
+
     /** Session key for cached flight status data (per payment id). Call API only on page load/reload; use this for mail content and send. */
     private function flightStatusSessionKey(int $paymentId): string
     {
@@ -2204,7 +2601,7 @@ class PaymentController extends Controller
 
     /**
      * Build system segments with flight_id/transit_id for applying live updates by id.
-     * @param bool $upcomingOnly When true, only include segments with departure_date_time >= today (for rescheduled/cancelled check).
+     * @param bool $upcomingOnly When true, only main segments within UPCOMMING_FLIGHT_CHECK_DAYS from today (rescheduled/cancelled check).
      * @return array<int, array>
      */
     private function buildSystemSegmentsWithIds(Payment $payment, bool $upcomingOnly = false): array
@@ -2212,10 +2609,17 @@ class PaymentController extends Controller
         $ticket = $payment->ticket;
         $mainFlights = $ticket->allFlights->whereNull('parent_id')->values();
         if ($upcomingOnly) {
+            $checkDays = max(1, (int) config('services.flightapi.upcoming_flight_check_days', 2));
             $todayStart = Carbon::today()->startOfDay();
-            $mainFlights = $mainFlights->filter(function ($f) use ($todayStart) {
+            $windowEnd = Carbon::today()->addDays($checkDays)->endOfDay();
+            $mainFlights = $mainFlights->filter(function ($f) use ($todayStart, $windowEnd) {
                 $dep = $f->departure_date_time ?? null;
-                return $dep && Carbon::parse($dep)->startOfDay()->gte($todayStart);
+                if (!$dep) {
+                    return false;
+                }
+                $d = Carbon::parse($dep);
+
+                return $d->gte($todayStart) && $d->lte($windowEnd);
             })->values();
         }
         $systemSegments = [];
@@ -2255,30 +2659,69 @@ class PaymentController extends Controller
     /**
      * Fetch live data from API for all segments, store in session, return [systemSegments, liveData, liveUpdates, trackError].
      * Call this only on page load or reload; mail content load and mail send use session.
-     * @param bool $upcomingOnly When true, only fetch status for segments with departure_date_time >= today (used by rescheduled/cancelled check).
+     * @param bool $upcomingOnly When true, only fetch status for segments in the configured upcoming-day window (rescheduled/cancelled check).
      */
-    private function fetchAndCacheFlightStatusData(Payment $payment, bool $upcomingOnly = false): array
+    private function fetchAndCacheFlightStatusData(Payment $payment, bool $upcomingOnly = false, ?int $creditUsedByUserId = null): array
     {
-        $systemSegments = $this->buildSystemSegmentsWithIds($payment, $upcomingOnly);
         $liveData = [];
         $liveUpdates = [];
         $trackError = null;
         $flightApi = app(FlightApiService::class);
 
-        if (!$flightApi->isConfigured() || empty($systemSegments)) {
+        try {
+            $systemSegments = $this->buildSystemSegmentsWithIds($payment, $upcomingOnly);
+        } catch (\Throwable $e) {
+            \Log::warning('buildSystemSegmentsWithIds failed for payment ' . ($payment->id ?? 0) . ': ' . $e->getMessage());
+            $systemSegments = [];
+        }
+        if (!is_array($systemSegments)) {
+            $systemSegments = [];
+        }
+
+        if (!$flightApi->isConfigured()) {
+            $trackError = getCurrentTranslation()['flight_api_not_configured'] ?? 'Flight API is not configured.';
             $this->putFlightStatusSession($payment->id, $liveData, $liveUpdates, $trackError);
+
             return [$systemSegments, $liveData, $liveUpdates, $trackError];
         }
 
+        if ($systemSegments === []) {
+            $this->putFlightStatusSession($payment->id, $liveData, $liveUpdates, $trackError);
+
+            return [$systemSegments, $liveData, $liveUpdates, $trackError];
+        }
+
+        if ($upcomingOnly && ($pause = $this->getFlightApiBulkPause()) !== null) {
+            $trackError = (string) ($pause['message'] ?? 'Flight API temporarily unavailable. Bulk checks are paused to save API credits.');
+            foreach ($systemSegments as $_seg) {
+                $liveData[] = ['_segment_status' => 'unavailable', '_bulk_pause' => true];
+            }
+            $this->putFlightStatusSession($payment->id, $liveData, $liveUpdates, $trackError);
+
+            return [$systemSegments, $liveData, $liveUpdates, $trackError];
+        }
+
+        $skipRemainingApiCalls = false;
+        $creditSvc = app(FlightApiCreditUsageService::class);
         foreach ($systemSegments as $seg) {
+            if (!is_array($seg)) {
+                $liveData[] = ['_segment_status' => 'unavailable'];
+                continue;
+            }
             $airlineCode = $seg['airline_code'] ?? null;
-            $num = $seg['flight_number_only'] ?: $seg['flight_number'];
+            $num = $seg['flight_number_only'] ?: ($seg['flight_number'] ?? '');
             $num = trim((string) $num);
             $airlineCode = $airlineCode !== null ? trim((string) $airlineCode) : '';
             $date = $seg['departure_date_time'] ?? $payment->departure_date_time;
             $depAp = !empty($seg['leaving_from']) ? trim((string) $seg['leaving_from']) : null;
             $liveData[] = [];
             $lastIdx = array_key_last($liveData);
+
+            if ($skipRemainingApiCalls) {
+                $liveData[$lastIdx] = ['_segment_status' => 'unavailable', '_api_skipped' => true];
+                continue;
+            }
+
             if ($num === '' || strlen($airlineCode) < 2) {
                 if ($trackError === null) {
                     $trackError = getCurrentTranslation()['flight_tracking_requires_airline_and_number'] ?? 'Live tracking requires a 2-letter airline IATA code and flight number for each segment.';
@@ -2286,15 +2729,33 @@ class PaymentController extends Controller
                 $liveData[$lastIdx] = ['_segment_status' => 'unavailable'];
                 continue;
             }
+
+            $flightStatusMeta = [
+                'airline_code' => $airlineCode,
+                'flight_number' => $num,
+                'segment_index' => $lastIdx,
+                'leaving_from' => $depAp,
+                'upcoming_window_check' => $upcomingOnly,
+            ];
             try {
-                $raw = $flightApi->trackFlight($airlineCode, $num, (string) ($date ?? now()), $depAp);
+                $dateStr = (string) ($date ?? now());
+                $raw = $flightApi->trackFlight($airlineCode, $num, $dateStr, $depAp);
+                $creditSvc->recordFlightStatus($creditUsedByUserId, [
+                    'payment_id' => (int) $payment->id,
+                    'airline_code' => $airlineCode,
+                    'flight_number' => $num,
+                    'segment_index' => $lastIdx,
+                    'leaving_from' => $depAp,
+                    'upcoming_window_check' => $upcomingOnly,
+                ]);
                 $normalized = $this->normalizeFlightTrackingResponse($raw);
                 if (!empty($normalized)) {
                     $liveData[$lastIdx] = $normalized[0];
                     $dep = $normalized[0]['departure'] ?? [];
                     $arr = $normalized[0]['arrival'] ?? [];
-                    $newDep = $this->safeParseDateTimeForDb($dep['departureDateTime'] ?? $dep['scheduledTime'] ?? null);
-                    $newArr = $this->safeParseDateTimeForDb($arr['arrivalDateTime'] ?? $arr['scheduledTime'] ?? null);
+                    // Use absolute datetime fields only; scheduledTime strings may not include full date/year/timezone.
+                    $newDep = $this->safeParseDateTimeForDb($dep['departureDateTime'] ?? null);
+                    $newArr = $this->safeParseDateTimeForDb($arr['arrivalDateTime'] ?? null);
                     if ($newDep || $newArr) {
                         $liveUpdates[] = [
                             'flight_id' => $seg['flight_id'],
@@ -2307,6 +2768,15 @@ class PaymentController extends Controller
                     $liveData[$lastIdx] = ['_segment_status' => 'unavailable'];
                 }
             } catch (\Throwable $e) {
+                $creditSvc->recordFlightStatus($creditUsedByUserId, [
+                    'payment_id' => (int) $payment->id,
+                    'airline_code' => $airlineCode,
+                    'flight_number' => $num,
+                    'segment_index' => $lastIdx,
+                    'leaving_from' => $depAp,
+                    'upcoming_window_check' => $upcomingOnly,
+                    'track_failed' => true,
+                ]);
                 if ($trackError === null) {
                     $trackError = $e->getMessage();
                 }
@@ -2319,11 +2789,24 @@ class PaymentController extends Controller
                     'airline_code' => $airlineCode,
                     'flight_number' => $num,
                     'date' => $date instanceof \DateTimeInterface ? $date->format('Y-m-d') : $date,
+                    'payment_id' => $payment->id,
                 ]);
+
+                if ($upcomingOnly
+                    && FlightApiService::shouldPauseAllTrackingRequests($e)
+                    && !FlightApiService::isLikelyTransientTrackingFailure($e)) {
+                    $this->pauseFlightApiBulkTracking($e);
+                    $skipRemainingApiCalls = true;
+                }
             }
         }
 
-        $this->putFlightStatusSession($payment->id, $liveData, $liveUpdates, $trackError);
+        try {
+            $this->putFlightStatusSession($payment->id, $liveData, $liveUpdates, $trackError);
+        } catch (\Throwable $e) {
+            \Log::warning('putFlightStatusSession failed for payment ' . ($payment->id ?? 0) . ': ' . $e->getMessage());
+        }
+
         return [$systemSegments, $liveData, $liveUpdates, $trackError];
     }
 
@@ -2354,21 +2837,25 @@ class PaymentController extends Controller
     private function computeDatetimeMismatch(array $systemSegments, array $liveData): bool
     {
         foreach ($systemSegments as $idx => $seg) {
-            $sysDep = $seg['departure_date_time'] ?? null;
             $liveSeg = $liveData[$idx] ?? null;
-            if (!$sysDep || !$liveSeg) {
+            if (!$liveSeg) {
                 continue;
             }
-            $liveDep = $liveSeg['departure']['departureDateTime'] ?? $liveSeg['departure']['scheduledTime'] ?? null;
-            if (!$liveDep) {
-                continue;
-            }
-            try {
+            $sysDep = $this->safeParseDateTimeForDb($seg['departure_date_time'] ?? null);
+            $sysArr = $this->safeParseDateTimeForDb($seg['arrival_date_time'] ?? null);
+            $liveDep = $this->safeParseDateTimeForDb($liveSeg['departure']['departureDateTime'] ?? null);
+            $liveArr = $this->safeParseDateTimeForDb($liveSeg['arrival']['arrivalDateTime'] ?? null);
+
+            // Compare only when both sides have full comparable datetimes.
+            if ($sysDep && $liveDep) {
                 if (Carbon::parse($sysDep)->format('Y-m-d H:i') !== Carbon::parse($liveDep)->format('Y-m-d H:i')) {
                     return true;
                 }
-            } catch (\Throwable $e) {
-                return true;
+            }
+            if ($sysArr && $liveArr) {
+                if (Carbon::parse($sysArr)->format('Y-m-d H:i') !== Carbon::parse($liveArr)->format('Y-m-d H:i')) {
+                    return true;
+                }
             }
         }
         return false;
@@ -2511,8 +2998,36 @@ class PaymentController extends Controller
             return response()->json(['is_success' => 0, 'message' => 'Flight API is not configured.'], 400);
         }
 
+        // Fetch latest live data (cached in session) then optionally apply API-derived time updates to DB.
+        // Important: the rescheduled/cancelled list compares "System Data" vs "Live Status Data".
+        // So after DB updates we must re-build system segments from the refreshed DB before computing mismatch.
         list($systemSegments, $liveData, $liveUpdates, $trackError) = $this->fetchAndCacheFlightStatusData($payment);
         $updated = $this->applyFlightStatusLiveUpdatesToDb($payment, $liveUpdates);
+        try {
+            $payment->refresh();
+            $payment->load(['ticket', 'ticket.allFlights', 'ticket.allFlights.airline', 'ticket.flights', 'ticket.flights.transits']);
+            $systemSegments = $this->buildSystemSegmentsWithIds($payment, false);
+        } catch (\Throwable $e) {
+            // keep previously built segments if refresh fails
+        }
+        // Keep "Rescheduled & Cancelled Flights" list consistent after refreshing flight status.
+        try {
+            $userId = (int) auth()->id();
+            if ($userId > 0) {
+                $stored = $this->getRescheduledCancelledResultForUser($userId);
+                if (is_array($stored) && !empty($stored['data']) && is_array($stored['data'])) {
+                    $source = (string) ($stored['source'] ?? 'session');
+                    $payload = $stored['data'];
+                    $eval = $this->evaluateRescheduledCancelledFromLiveData($systemSegments, $liveData);
+                    $payload = $this->mergeRescheduledResultForPayment($payload, (int) $payment->id, $eval);
+                    $this->putRescheduledCancelledResultForUser($userId, $source, $payload);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Failed to sync rescheduled/cancelled result after flight status refresh: ' . $e->getMessage(), [
+                'payment_id' => $payment->id ?? null,
+            ]);
+        }
 
         $message = $updated
             ? (getCurrentTranslation()['flight_data_updated'] ?? 'Flight data updated.')
@@ -2754,7 +3269,7 @@ class PaymentController extends Controller
      *
      * @return array{0: array, 1: array|null, 2: string|null}
      */
-    private function buildFlightStatusSegmentsAndLive(Payment $payment, bool $fetchLive = true): array
+    private function buildFlightStatusSegmentsAndLive(Payment $payment, bool $fetchLive = true, ?int $creditUsedByUserId = null): array
     {
         $ticket = $payment->ticket;
         $mainFlights = $ticket->allFlights->whereNull('parent_id')->values();
@@ -2798,9 +3313,33 @@ class PaymentController extends Controller
                 if ($airlineCode && $num) {
                     try {
                         $depAp = !empty($first['leaving_from']) ? trim((string) $first['leaving_from']) : null;
+                        $meta = [
+                            'airline_code' => $airlineCode,
+                            'flight_number' => $num,
+                            'segment_index' => 0,
+                            'leaving_from' => $depAp,
+                            'single_segment_preview' => true,
+                        ];
                         $raw = $flightApi->trackFlight($airlineCode, $num, $date ?? now(), $depAp);
+                        app(FlightApiCreditUsageService::class)->recordFlightStatus($creditUsedByUserId, [
+                            'payment_id' => (int) $payment->id,
+                            'airline_code' => $airlineCode,
+                            'flight_number' => $num,
+                            'segment_index' => 0,
+                            'leaving_from' => $depAp,
+                            'single_segment_preview' => true,
+                        ]);
                         $liveData = $this->normalizeFlightTrackingResponse($raw);
                     } catch (\Exception $e) {
+                        app(FlightApiCreditUsageService::class)->recordFlightStatus($creditUsedByUserId, [
+                            'payment_id' => (int) $payment->id,
+                            'airline_code' => $airlineCode,
+                            'flight_number' => $num,
+                            'segment_index' => 0,
+                            'leaving_from' => $depAp,
+                            'single_segment_preview' => true,
+                            'track_failed' => true,
+                        ]);
                         $trackError = $e->getMessage();
                     }
                 }

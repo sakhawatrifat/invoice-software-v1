@@ -156,4 +156,14 @@ class User extends Authenticatable
         });
     }
 
+    /**
+     * Scope to exclude invalid/plural user_type value "users" from admin-facing lists.
+     */
+    public function scopeExcludeUserTypeUsers($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('user_type', '!=', 'users')->orWhereNull('user_type');
+        });
+    }
+
 }

@@ -84,6 +84,12 @@
                         {{ $getCurrentTranslation['mail'] ?? 'mail' }} ({{ $editData->mail_sent_count ?? 0 }})
                     </a>
                 @endif
+				@if(hasPermission('ticket.whatsapp') && isset($editData) && !empty($editData) && ($editData->document_type ?? '') == 'ticket')
+                    <a href="{{ route('ticket.whatsapp', $editData->id) }}" class="btn btn-sm fw-bold btn-success">
+                        <i class="fa-brands fa-whatsapp"></i>
+                        {{ $getCurrentTranslation['send_whatsapp'] ?? 'Send WhatsApp' }}
+                    </a>
+                @endif
 				
 				@if((isset($createRoute) && !empty($createRoute)))
 					<div class="btn-group">
@@ -170,14 +176,19 @@
 												<label class="form-label">
 													{{ $getCurrentTranslation['origin_airport'] ?? 'origin_airport' }}: <span class="text-danger">*</span>
 												</label>
-												<input 
-													type="text" 
-													class="form-control airport-input" 
-													placeholder="{{ $getCurrentTranslation['origin_placeholder'] ?? 'origin_placeholder' }}" 
-													name="one_way[origin]" 
-													value="{{ old('one_way.origin', $editData->origin ?? '') }}" 
-													autocomplete="off"
-												/>
+												<div class="input-group">
+													<input 
+														type="text" 
+														class="form-control airport-input" 
+														placeholder="{{ $getCurrentTranslation['origin_placeholder'] ?? 'origin_placeholder' }}" 
+														name="one_way[origin]" 
+														value="{{ old('one_way.origin', $editData->origin ?? '') }}" 
+														autocomplete="off"
+													/>
+													<button type="button" class="btn btn-light-primary airport-search-btn" title="Search airports">
+														<i class="fa-solid fa-magnifying-glass"></i>
+													</button>
+												</div>
 												<small class="form-text text-muted">
 													<i class="fa-solid fa-circle-info me-1"></i>
 													{{ $getCurrentTranslation['search_by_city_or_code'] ?? 'search_by_city_or_code' }}
@@ -188,20 +199,33 @@
 											</div>
 										</div>
 	
+										<div class="col-md-1 d-flex align-items-center flex-wrap justify-content-center mb-5">
+											<label class="form-label opacity-0">Swap</label>
+											<button type="button" class="btn btn-secondary airport-swap-btn" title="Swap origin and destination" data-swap-scope="one_way">
+												<i class="fa-solid fa-arrow-right-arrow-left"></i>
+											</button>
+											<small class="form-text opacity-0">Swap</small>
+										</div>
+
 										<!-- Destination Airport -->
 										<div class="col-md-4">
 											<div class="form-item mb-5">
 												<label class="form-label">
 													{{ $getCurrentTranslation['destination_airport'] ?? 'destination_airport' }}: <span class="text-danger">*</span>
 												</label>
-												<input 
-													type="text" 
-													class="form-control airport-input" 
-													placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" 
-													name="one_way[destination]" 
-													value="{{ old('one_way.destination', $editData->destination ?? '') }}" 
-													autocomplete="off"
-												/>
+												<div class="input-group">
+													<input 
+														type="text" 
+														class="form-control airport-input" 
+														placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" 
+														name="one_way[destination]" 
+														value="{{ old('one_way.destination', $editData->destination ?? '') }}" 
+														autocomplete="off"
+													/>
+													<button type="button" class="btn btn-light-primary airport-search-btn" title="Search airports">
+														<i class="fa-solid fa-magnifying-glass"></i>
+													</button>
+												</div>
 												<small class="form-text text-muted">
 													<i class="fa-solid fa-circle-info me-1"></i>
 													{{ $getCurrentTranslation['search_by_city_or_code'] ?? 'search_by_city_or_code' }}
@@ -213,7 +237,7 @@
 										</div>
 	
 										<!-- Departure Date -->
-										<div class="col-md-4">
+										<div class="col-md-3">
 											<div class="form-item mb-5">
 												<label class="form-label">
 													{{ $getCurrentTranslation['departure_date'] ?? 'departure_date' }}: <span class="text-danger">*</span>
@@ -244,14 +268,19 @@
 													{{ $getCurrentTranslation['origin_airport'] ?? 'origin_airport' }}:
 													<span class="text-danger">*</span>
 												</label>
-												<input 
-													type="text" 
-													class="form-control airport-input" 
-													placeholder="{{ $getCurrentTranslation['origin_placeholder'] ?? 'origin_placeholder' }}" 
-													name="round_trip[origin]" 
-													value="{{ old('round_trip.origin', $editData->origin ?? '') }}" 
-													autocomplete="off"
-												/>
+												<div class="input-group">
+													<input 
+														type="text" 
+														class="form-control airport-input" 
+														placeholder="{{ $getCurrentTranslation['origin_placeholder'] ?? 'origin_placeholder' }}" 
+														name="round_trip[origin]" 
+														value="{{ old('round_trip.origin', $editData->origin ?? '') }}" 
+														autocomplete="off"
+													/>
+													<button type="button" class="btn btn-light-primary airport-search-btn" title="Search airports">
+														<i class="fa-solid fa-magnifying-glass"></i>
+													</button>
+												</div>
 												<small class="form-text text-muted">
 													<i class="fa-solid fa-circle-info me-1"></i>
 													{{ $getCurrentTranslation['search_by_city_or_code'] ?? 'search_by_city_or_code' }}
@@ -262,20 +291,33 @@
 											</div>
 										</div>
 	
+										<div class="col-md-1 d-flex align-items-center flex-wrap justify-content-center mb-5">
+											<label class="form-label opacity-0">Swap</label>
+											<button type="button" class="btn btn-secondary airport-swap-btn" title="Swap origin and destination" data-swap-scope="round_trip">
+												<i class="fa-solid fa-arrow-right-arrow-left"></i>
+											</button>
+											<small class="form-text opacity-0">Swap</small>
+										</div>
+
 										<!-- Destination Airport -->
 										<div class="col-md-3">
 											<div class="form-item mb-5">
 												<label class="form-label">
 													{{ $getCurrentTranslation['destination_airport'] ?? 'destination_airport' }}: <span class="text-danger">*</span>
 												</label>
-												<input 
-													type="text" 
-													class="form-control airport-input" 
-													placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" 
-													name="round_trip[destination]" 
-													value="{{ old('round_trip.destination', $editData->destination ?? '') }}" 
-													autocomplete="off"
-												/>
+												<div class="input-group">
+													<input 
+														type="text" 
+														class="form-control airport-input" 
+														placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" 
+														name="round_trip[destination]" 
+														value="{{ old('round_trip.destination', $editData->destination ?? '') }}" 
+														autocomplete="off"
+													/>
+													<button type="button" class="btn btn-light-primary airport-search-btn" title="Search airports">
+														<i class="fa-solid fa-magnifying-glass"></i>
+													</button>
+												</div>
 												<small class="form-text text-muted">
 													<i class="fa-solid fa-circle-info me-1"></i>
 													{{ $getCurrentTranslation['search_by_city_or_code'] ?? 'search_by_city_or_code' }}
@@ -287,7 +329,7 @@
 										</div>
 	
 										<!-- Departure Date -->
-										<div class="col-md-3">
+										<div class="col-md-2">
 											<div class="form-item mb-5">
 												<label class="form-label">
 													{{ $getCurrentTranslation['departure_date'] ?? 'departure_date' }}: <span class="text-danger">*</span>
@@ -352,7 +394,7 @@
 									@endphp
 									<label class="form-label">{{ $getCurrentTranslation['airline_label'] ?? 'airline_label' }}:</label>
 									<select class="form-select select2-with-images parent-ip" data-control="select2" data-name="airline_name" data-placeholder="{{ $getCurrentTranslation['select_an_option'] ?? 'select_an_option' }}" name="airline_name">
-										<option value="">----</option>
+										<option value="">{{ $getCurrentTranslation['any_airline'] ?? 'Any Airline' }}</option>
 										@foreach($options as $option)
 											<option value="{{ $option->name }}" data-image="{{ $option->logo_url ?? defaultImage('s') }}" {{ $option->id == $selected ? 'selected' : '' }}>
 												{{ $option->name }}
@@ -452,9 +494,10 @@
 						.flight-result-card-header-left .flight-result-col-2 { width: 100px; min-width: 100px; flex-shrink: 0; }
 						.flight-result-card-header-left .flight-result-col-3 { width: 120px; min-width: 120px; flex-shrink: 0; }
 						.flight-result-card-header-right { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
-						.flight-result-right-col-1 { }
+						.flight-result-right-col-1 { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; }
 						.flight-result-right-col-2 { display: flex; align-items: center; gap: 0.5rem; }
 						.flight-result-card-price { font-weight: 700; font-size: 1.125rem; color: #1a202c; white-space: nowrap; }
+						.flight-result-card-details-toggle { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8125rem; font-weight: 600; color: #475569; line-height: 1; }
 						.flight-result-card .btn.select-flight { background: #16a34a; border-color: #16a34a; color: #fff; font-weight: 600; white-space: nowrap; }
 						.flight-result-card .btn.select-flight:hover { background: #15803d; border-color: #15803d; color: #fff; }
 						.flight-result-card-caret { color: #64748b; font-size: 0.875rem; flex-shrink: 0; transition: transform 0.2s; }
@@ -1936,7 +1979,6 @@
 
 			init() {
 				this.createResultsContainer();
-				this.fetchCommonAirports();
 				this.attachEventListeners();
 			}
 
@@ -1957,39 +1999,50 @@
 					margin-top: 2px;
 				`;
 				
-				this.input.parentNode.style.position = 'relative';
-				this.input.parentNode.appendChild(this.resultsContainer);
+				const parentContainer = this.input.closest('.input-group') || this.input.parentNode;
+				parentContainer.style.position = 'relative';
+				parentContainer.appendChild(this.resultsContainer);
+				this.updateResultsPosition();
+			}
+
+			updateResultsPosition() {
+				if (!this.resultsContainer || !this.input) return;
+				const parentContainer = this.input.closest('.input-group') || this.input.parentNode;
+				if (!parentContainer) return;
+
+				const inputRect = this.input.getBoundingClientRect();
+				const parentRect = parentContainer.getBoundingClientRect();
+				const top = (this.input.offsetTop + this.input.offsetHeight + 2);
+				const left = Math.max(0, inputRect.left - parentRect.left);
+
+				this.resultsContainer.style.top = `${top}px`;
+				this.resultsContainer.style.left = `${left}px`;
+				this.resultsContainer.style.width = `${this.input.offsetWidth}px`;
 			}
 
 			attachEventListeners() {
-				// Input event with debouncing
+				// Input event with debounce + keep manual search button support
 				this.input.addEventListener('input', (e) => {
 					const value = e.target.value;
-					
-					// Clear previous timeout
+					this.selectedAirport = null;
+					$(this.input).removeData('airportData');
+
+					// Clear previous debounce timer
 					if (this.searchTimeout) {
 						clearTimeout(this.searchTimeout);
 					}
-					
-					// Debounce search
+
+					// Show suggestions while typing
 					this.searchTimeout = setTimeout(() => {
-						if (value.length >= this.options.minLength) {
-							this.search(value);
-						} else if (value.length === 0) {
-							this.showCommonAirports();
+						const query = (value || '').trim();
+						if (query.length >= this.options.minLength) {
+							this.search(query);
+						} else if (query.length === 0) {
+							void this.showCommonAirports();
 						} else {
 							this.hideResults();
 						}
 					}, 300);
-				});
-
-				// Focus event
-				this.input.addEventListener('focus', () => {
-					if (this.input.value.length === 0) {
-						this.showCommonAirports();
-					} else if (this.input.value.length >= this.options.minLength) {
-						this.search(this.input.value);
-					}
 				});
 
 				// Click outside to hide
@@ -2010,28 +2063,47 @@
 						e.preventDefault();
 						this.navigateResults('up');
 					} else if (e.key === 'Enter') {
-						const selected = this.resultsContainer.querySelector('.airport-result-item.active');
-						if (selected) {
-							e.preventDefault();
-							selected.click();
-						}
+						// Enter should only trigger search/show dropdown, never auto-select
+						e.preventDefault();
+						this.triggerSearch();
 					}
 				});
+
+				window.addEventListener('resize', () => this.updateResultsPosition());
+				window.addEventListener('scroll', () => this.updateResultsPosition(), true);
 			}
 
 			async fetchCommonAirports() {
 				try {
-					$('.r-preloader').show();
-					const response = await fetch(this.options.commonAirportsUrl);
-					const data = await response.json();
-					
-					if (data.success) {
-						this.commonAirports = data.data;
+					if (window.__airportCommonAirports && Array.isArray(window.__airportCommonAirports)) {
+						this.commonAirports = window.__airportCommonAirports;
+						return;
 					}
+					if (window.__airportCommonAirportsPromise) {
+						this.commonAirports = await window.__airportCommonAirportsPromise;
+						return;
+					}
+
+					$('.r-preloader').show();
+					window.__airportCommonAirportsPromise = fetch(this.options.commonAirportsUrl)
+						.then(response => response.json())
+						.then(data => (data.success && Array.isArray(data.data)) ? data.data : [])
+						.catch(() => []);
+					this.commonAirports = await window.__airportCommonAirportsPromise;
+					window.__airportCommonAirports = this.commonAirports;
 				} catch (error) {
 					console.error('Error fetching common airports:', error);
 				} finally {
 					$('.r-preloader').hide();
+				}
+			}
+
+			triggerSearch() {
+				const query = (this.input.value || '').trim();
+				if (query.length >= this.options.minLength) {
+					this.search(query);
+				} else {
+					void this.showCommonAirports();
 				}
 			}
 
@@ -2057,7 +2129,10 @@
 				}
 			}
 
-			showCommonAirports() {
+			async showCommonAirports() {
+				if (this.commonAirports.length === 0) {
+					await this.fetchCommonAirports();
+				}
 				if (this.commonAirports.length > 0) {
 					this.displayResults(this.commonAirports, 'Popular Airports');
 				}
@@ -2070,6 +2145,7 @@
 						Searching airports...
 					</div>
 				`;
+				this.updateResultsPosition();
 				this.resultsContainer.style.display = 'block';
 			}
 
@@ -2080,6 +2156,7 @@
 						No airports found matching your search
 					</div>
 				`;
+				this.updateResultsPosition();
 				this.resultsContainer.style.display = 'block';
 			}
 
@@ -2090,6 +2167,7 @@
 						Error loading airports. Please try again.
 					</div>
 				`;
+				this.updateResultsPosition();
 				this.resultsContainer.style.display = 'block';
 			}
 
@@ -2099,6 +2177,7 @@
 					return;
 				}
 
+				const rankedAirports = this.rankAirports(airports, this.input.value || '');
 				let html = '';
 				
 				if (title) {
@@ -2109,7 +2188,7 @@
 					`;
 				}
 
-				airports.forEach((airport, index) => {
+				rankedAirports.forEach((airport, index) => {
 					const countryFlag = this.getCountryFlag(airport.country || '');
 					html += `
 						<div class="airport-result-item ${index === 0 ? 'active' : ''}" 
@@ -2141,6 +2220,7 @@
 				});
 
 				this.resultsContainer.innerHTML = html;
+				this.updateResultsPosition();
 				this.resultsContainer.style.display = 'block';
 
 				// Attach event handlers
@@ -2164,6 +2244,36 @@
 						
 						this.selectAirport({ code, name, city, country });
 					});
+				});
+			}
+
+			rankAirports(airports, query) {
+				const q = (query || '').trim().toUpperCase();
+				if (!q) return airports;
+
+				const scoreAirport = (airport) => {
+					const code = (airport.code || '').toUpperCase();
+					const name = (airport.name || '').toUpperCase();
+					const city = (airport.city || '').toUpperCase();
+
+					if (code === q) return 0;
+					if (code.startsWith(q)) return 1;
+					if (name.startsWith(q)) return 2;
+					if (city.startsWith(q)) return 3;
+					if (name.includes(q)) return 4;
+					if (city.includes(q)) return 5;
+					if (code.includes(q)) return 6;
+					return 7;
+				};
+
+				return airports.slice().sort((a, b) => {
+					const scoreA = scoreAirport(a);
+					const scoreB = scoreAirport(b);
+					if (scoreA !== scoreB) return scoreA - scoreB;
+
+					const codeA = (a.code || '').toUpperCase();
+					const codeB = (b.code || '').toUpperCase();
+					return codeA.localeCompare(codeB);
 				});
 			}
 
@@ -2334,30 +2444,47 @@
 								<label class="form-label">
 									{{ $getCurrentTranslation['origin_airport'] ?? 'origin_airport' }}: <span class="text-danger">*</span>
 								</label>
-								<input 
-									type="text" 
-									class="form-control airport-input" 
-									placeholder="{{ $getCurrentTranslation['origin_placeholder'] ?? 'origin_placeholder' }}" 
-									name="multi_city[${index}][origin]" 
-									autocomplete="off"
-								/>
+								<div class="input-group">
+									<input 
+										type="text" 
+										class="form-control airport-input" 
+										placeholder="{{ $getCurrentTranslation['origin_placeholder'] ?? 'origin_placeholder' }}" 
+										name="multi_city[${index}][origin]" 
+										autocomplete="off"
+									/>
+									<button type="button" class="btn btn-light-primary airport-search-btn" title="Search airports">
+										<i class="fa-solid fa-magnifying-glass"></i>
+									</button>
+								</div>
 							</div>
+						</div>
+						<div class="col-md-1 d-flex align-items-center flex-wrap justify-content-center mb-5">
+							<label class="form-label opacity-0">Swap</label>
+							<button type="button" class="btn btn-secondary airport-swap-btn" title="Swap origin and destination">
+								<i class="fa-solid fa-arrow-right-arrow-left"></i>
+							</button>
+							<small class="form-text opacity-0">Swap</small>
 						</div>
 						<div class="col-md-4">
 							<div class="form-item mb-3">
 								<label class="form-label">
 									{{ $getCurrentTranslation['destination_airport'] ?? 'destination_airport' }}: <span class="text-danger">*</span>
 								</label>
-								<input 
-									type="text" 
-									class="form-control airport-input" 
-									placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" 
-									name="multi_city[${index}][destination]" 
-									autocomplete="off"
-								/>
+								<div class="input-group">
+									<input 
+										type="text" 
+										class="form-control airport-input" 
+										placeholder="{{ $getCurrentTranslation['destination_placeholder'] ?? 'destination_placeholder' }}" 
+										name="multi_city[${index}][destination]" 
+										autocomplete="off"
+									/>
+									<button type="button" class="btn btn-light-primary airport-search-btn" title="Search airports">
+										<i class="fa-solid fa-magnifying-glass"></i>
+									</button>
+								</div>
 							</div>
 						</div>
-						<div class="col-md-4">
+						<div class="col-md-3">
 							<div class="form-item mb-3">
 								<label class="form-label">
 									{{ $getCurrentTranslation['departure_date'] ?? 'departure_date' }}: <span class="text-danger">*</span>
@@ -2496,16 +2623,71 @@
 		// Initialize airport autocomplete for an input
 		function initializeAirportAutocomplete($input) {
 			if ($input.length && !$input.data('autocomplete-initialized')) {
-				new AirportAutocomplete($input[0], {
+				const autocompleteInstance = new AirportAutocomplete($input[0], {
 					apiUrl: '{{ route("airports.search") }}',
 					commonAirportsUrl: '{{ route("airports.common") }}',
 					onSelect: function(airport) {
 						$input.attr('title', `${airport.name}, ${airport.city}`);
 					}
 				});
+				$input.data('airportAutocompleteInstance', autocompleteInstance);
 				$input.data('autocomplete-initialized', true);
 			}
 		}
+
+		$(document).on('click', '.airport-search-btn', function() {
+			const $input = $(this).closest('.input-group').find('.airport-input');
+			const instance = $input.data('airportAutocompleteInstance');
+			if (instance && typeof instance.triggerSearch === 'function') {
+				instance.triggerSearch();
+			}
+		});
+
+		function swapAirportInputs($originInput, $destinationInput) {
+			if (!$originInput.length || !$destinationInput.length) return;
+
+			const originVal = $originInput.val();
+			const destinationVal = $destinationInput.val();
+			const originData = $originInput.data('airportData');
+			const destinationData = $destinationInput.data('airportData');
+			const originTitle = $originInput.attr('title') || '';
+			const destinationTitle = $destinationInput.attr('title') || '';
+
+			$originInput.val(destinationVal);
+			$destinationInput.val(originVal);
+			$originInput.data('airportData', destinationData);
+			$destinationInput.data('airportData', originData);
+			$originInput.attr('title', destinationTitle);
+			$destinationInput.attr('title', originTitle);
+		}
+
+		$(document).on('click', '.airport-swap-btn', function() {
+			const $btn = $(this);
+			const scope = $btn.data('swap-scope');
+			const $flightRow = $btn.closest('.flight-row');
+
+			if ($flightRow.length) {
+				const $originInput = $flightRow.find('input[name*="[origin]"]').first();
+				const $destinationInput = $flightRow.find('input[name*="[destination]"]').first();
+				swapAirportInputs($originInput, $destinationInput);
+				return;
+			}
+
+			const $tabPane = $btn.closest('.tab-pane');
+			if (!$tabPane.length) return;
+
+			if (scope === 'one_way') {
+				swapAirportInputs(
+					$tabPane.find('input[name="one_way[origin]"]').first(),
+					$tabPane.find('input[name="one_way[destination]"]').first()
+				);
+			} else if (scope === 'round_trip') {
+				swapAirportInputs(
+					$tabPane.find('input[name="round_trip[origin]"]').first(),
+					$tabPane.find('input[name="round_trip[destination]"]').first()
+				);
+			}
+		});
 
 		// Initialize airport autocomplete for all existing inputs
 		$('.airport-input').each(function() {
@@ -2785,12 +2967,14 @@
 
 		// Handle form reset - remove validation classes
 		$('.flight-search-form').on('reset', function() {
+			const $form = $(this);
+
 			// Remove is-valid and is-invalid classes from all form inputs
-			$(this).find('.is-valid, .is-invalid').removeClass('is-valid is-invalid');
+			$form.find('.is-valid, .is-invalid').removeClass('is-valid is-invalid');
 			
 			// Remove invalid-feedback and AJAX validation error messages
-			$(this).find('.invalid-feedback').hide();
-			$(this).find('.flight-search-field-error').remove();
+			$form.find('.invalid-feedback').hide();
+			$form.find('.flight-search-field-error').remove();
 			
 			// Reset flight type to one_way
 			$('#flight_type').val('one_way');
@@ -2804,6 +2988,17 @@
 			
 			// Reset multi-city flights
 			setTimeout(function() {
+				// Ensure select2 UI reflects reset values
+				$form.find('select[name="airline_name"]').val('').trigger('change');
+				$form.find('select[name="class"]').val('economy').trigger('change');
+				$form.find('select[name="passenger"]').val('1').trigger('change');
+
+				// Clear cached selected airport metadata/title so next search starts clean
+				$form.find('.airport-input').each(function() {
+					$(this).removeData('airportData');
+					$(this).removeAttr('title');
+				});
+
 				multiCityFlightCount = 2;
 				initializeMultiCity();
 			}, 100);
@@ -2892,6 +3087,308 @@
 				if (comma > 0) return { city: displayStr.substring(0, comma).trim(), airport: displayStr };
 				return { city: displayStr, airport: displayStr };
 			}
+			function normalizeAirportString(val) {
+				if (!val) return '';
+				return String(val)
+					.toUpperCase()
+					.replace(/[\(\)\.,\-_/]/g, ' ')
+					.replace(/\b(AIRPORT|INTERNATIONAL|INTL|TERMINAL|CITY)\b/g, ' ')
+					.replace(/\s+/g, ' ')
+					.trim();
+			}
+			function extractAirportCode(val) {
+				if (!val) return '';
+				const raw = String(val).trim();
+				if (!raw) return '';
+				let m = raw.match(/\(([A-Za-z]{3})\)/);
+				if (m && m[1]) return m[1].toUpperCase();
+				// Exact code-only value (e.g. "DAC", "nrt")
+				m = raw.match(/^([A-Za-z]{3})$/);
+				if (m && m[1]) return m[1].toUpperCase();
+				// Uppercase token in mixed string (avoid matching city words like "Tokyo" => TOK)
+				m = raw.match(/\b([A-Z]{3})\b/);
+				if (m && m[1]) return m[1].toUpperCase();
+				return '';
+			}
+			function buildAirportCandidates(primary, fallback) {
+				const set = {};
+				const add = function(v) {
+					if (!v) return;
+					const code = extractAirportCode(v);
+					if (code) set[code] = true;
+					const norm = normalizeAirportString(v);
+					if (norm) set[norm] = true;
+				};
+				add(primary);
+				add(fallback);
+				return set;
+			}
+			function airportMatches(value, candidates) {
+				if (!value || !candidates) return false;
+				const code = extractAirportCode(value);
+				if (code && candidates[code]) return true;
+				const norm = normalizeAirportString(value);
+				if (!norm) return false;
+				if (candidates[norm]) return true;
+				const keys = Object.keys(candidates);
+				for (let i = 0; i < keys.length; i++) {
+					const k = keys[i];
+					if (k.length < 4) continue; // avoid noisy partials for 3-letter tokens
+					if (norm.indexOf(k) !== -1 || k.indexOf(norm) !== -1) return true;
+				}
+				return false;
+			}
+			function splitRoundTripByUserRoute(segments, searchOrigin, searchDestination, flight) {
+				if (!Array.isArray(segments) || segments.length < 2) return null;
+				const effectiveOrigin = (searchOrigin || (searchParams && searchParams.origin) || (searchParams && searchParams.round_trip && searchParams.round_trip.origin) || '').toString();
+				const effectiveDestination = (searchDestination || (searchParams && searchParams.destination) || (searchParams && searchParams.round_trip && searchParams.round_trip.destination) || '').toString();
+				const firstSeg = segments[0] || {};
+				const lastSeg = segments[segments.length - 1] || {};
+				function enrichCandidatesByCode(candidates, airportCode) {
+					if (!airportCode || !candidates) return;
+					const code = String(airportCode).trim().toUpperCase();
+					if (!code) return;
+					for (let si = 0; si < segments.length; si++) {
+						const seg = segments[si] || {};
+						const segFromCode = (seg.origin_iata || seg.origin || '').toString().trim().toUpperCase();
+						const segToCode = (seg.destination_iata || seg.destination || '').toString().trim().toUpperCase();
+						if (segFromCode === code) {
+							const fromDisplay = normalizeAirportString(seg.origin_display || seg.origin || '');
+							if (fromDisplay) candidates[fromDisplay] = true;
+						}
+						if (segToCode === code) {
+							const toDisplay = normalizeAirportString(seg.destination_display || seg.destination || '');
+							if (toDisplay) candidates[toDisplay] = true;
+						}
+					}
+				}
+				const originCandidates = buildAirportCandidates(
+					effectiveOrigin,
+					(firstSeg.origin_iata || firstSeg.origin || firstSeg.origin_display || flight.origin_iata || flight.origin || '')
+				);
+				const destinationCandidates = buildAirportCandidates(
+					effectiveDestination,
+					(effectiveDestination ? (lastSeg.destination_iata || lastSeg.destination || lastSeg.destination_display || flight.destination_iata || flight.destination || '') : '')
+				);
+				const searchedOriginCode = extractAirportCode(effectiveOrigin);
+				const searchedDestinationCode = extractAirportCode(effectiveDestination);
+				enrichCandidatesByCode(originCandidates, searchedOriginCode);
+				enrichCandidatesByCode(destinationCandidates, searchedDestinationCode);
+				let splitAt = -1;
+				for (let i = 1; i < segments.length; i++) {
+					const seg = segments[i] || {};
+					const segFrom = seg.origin_iata || seg.origin || seg.origin_display || '';
+					// Return journey usually starts from searched destination
+					if (airportMatches(segFrom, destinationCandidates)) {
+						splitAt = i;
+						break;
+					}
+				}
+				if (splitAt === -1) {
+					// Fallback: split where route flips to destination -> origin
+					for (let i = 1; i < segments.length; i++) {
+						const seg = segments[i] || {};
+						const segFrom = seg.origin_iata || seg.origin || seg.origin_display || '';
+						const segTo = seg.destination_iata || seg.destination || seg.destination_display || '';
+						if (airportMatches(segFrom, destinationCandidates) && airportMatches(segTo, originCandidates)) {
+							splitAt = i;
+							break;
+						}
+					}
+				}
+				if (splitAt === -1) {
+					// Final fallback: detect turn-around boundary by same-airport continuity + long layover.
+					// Choose the BEST boundary (prefer destination-side match, then longer layover),
+					// so we don't split too early at an unrelated long stop.
+					let bestIdx = -1;
+					let bestScore = -1;
+					for (let i = 1; i < segments.length; i++) {
+						const prev = segments[i - 1] || {};
+						const cur = segments[i] || {};
+						const prevTo = prev.destination_display || prev.destination_iata || prev.destination || '';
+						const curFrom = cur.origin_display || cur.origin_iata || cur.origin || '';
+						const prevNorm = normalizeAirportString(prevTo);
+						const curNorm = normalizeAirportString(curFrom);
+						if (!prevNorm || !curNorm || prevNorm !== curNorm) continue;
+						const layoverMin = layoverDurationMinutes(prev.arrival_at, cur.departure_at);
+						if (layoverMin == null || layoverMin < 360) continue;
+						const atDestinationSide = airportMatches(prevTo, destinationCandidates) || airportMatches(curFrom, destinationCandidates);
+						const score = (atDestinationSide ? 1000000 : 0) + layoverMin;
+						if (score > bestScore) {
+							bestScore = score;
+							bestIdx = i;
+						}
+					}
+					if (bestIdx !== -1) splitAt = bestIdx;
+				}
+				if (splitAt > 0 && splitAt < segments.length) {
+					const outbound = segments.slice(0, splitAt).filter(Boolean);
+					const inbound = segments.slice(splitAt).filter(Boolean);
+					if (outbound.length && inbound.length) return [outbound, inbound];
+				}
+				return null;
+			}
+			function splitSegmentsByRouteCheckpoints(segments, routePoints) {
+				if (!Array.isArray(segments) || !segments.length || !Array.isArray(routePoints) || routePoints.length < 2) return null;
+				var checkpoints = routePoints
+					.map(function(p) { return buildAirportCandidates(p, ''); })
+					.filter(function(c) { return Object.keys(c).length > 0; });
+				if (checkpoints.length < 2) return null;
+				var groups = [];
+				var segIndex = 0;
+				for (var cp = 0; cp < checkpoints.length - 1; cp++) {
+					var fromCandidates = checkpoints[cp];
+					var toCandidates = checkpoints[cp + 1];
+					var group = [];
+					var reachedTo = false;
+					for (; segIndex < segments.length; segIndex++) {
+						var seg = segments[segIndex] || {};
+						var segFrom = seg.origin_iata || seg.origin || seg.origin_display || '';
+						var segTo = seg.destination_iata || seg.destination || seg.destination_display || '';
+						if (!group.length && !airportMatches(segFrom, fromCandidates)) {
+							continue;
+						}
+						group.push(seg);
+						if (airportMatches(segTo, toCandidates)) {
+							reachedTo = true;
+							segIndex++;
+							break;
+						}
+					}
+					if (!group.length || !reachedTo) return null;
+					groups.push(group);
+				}
+				return groups.length ? groups : null;
+			}
+			function getMultiCityRoutePointsFromSearch() {
+				var points = [];
+				var legs = (searchParams && Array.isArray(searchParams.multi_city)) ? searchParams.multi_city : [];
+				legs.forEach(function(leg, i) {
+					if (!leg) return;
+					if (i === 0 && leg.origin) points.push(leg.origin);
+					if (leg.destination) points.push(leg.destination);
+				});
+				return points;
+			}
+			function getJourneyGroupsForDisplay(flight) {
+				function airportCodeFromAny(val) {
+					if (!val) return '';
+					var s = String(val).trim();
+					var m = s.match(/\(([A-Z]{3})\)/i);
+					if (m && m[1]) return m[1].toUpperCase();
+					m = s.match(/\b([A-Z]{3})\b/);
+					if (m && m[1]) return m[1].toUpperCase();
+					return s.toUpperCase();
+				}
+				function firstCodeFromList(list) {
+					if (!Array.isArray(list)) return '';
+					for (var i = 0; i < list.length; i++) {
+						var c = airportCodeFromAny(list[i]);
+						if (c) return c;
+					}
+					return '';
+				}
+				// Preferred: providers return journey containers with legs (round-trip/multi-city)
+				if (Array.isArray(flight.segments) && flight.segments.length && Array.isArray(flight.segments[0] && flight.segments[0].legs)) {
+					var legsGroups = flight.segments
+						.map(function(j) { return Array.isArray(j.legs) ? j.legs.filter(Boolean) : []; })
+						.filter(function(g) { return g.length > 0; });
+					// Some providers send round-trip as a single legs array (both outbound+return mixed).
+					if (flightType === 'round_trip' && legsGroups.length === 1 && legsGroups[0].length > 1) {
+						var splitSingleLegGroup = splitRoundTripByUserRoute(
+							legsGroups[0],
+							searchParams.origin || flight.origin_iata || flight.origin || '',
+							searchParams.destination || flight.destination_iata || flight.destination || '',
+							flight || {}
+						);
+						if (splitSingleLegGroup && splitSingleLegGroup.length === 2) return splitSingleLegGroup;
+					}
+					if (flightType === 'multi_city' && legsGroups.length === 1 && legsGroups[0].length > 1) {
+						var routePointsFromSearch = getMultiCityRoutePointsFromSearch();
+						var splitMultiSingleLegGroup = splitSegmentsByRouteCheckpoints(legsGroups[0], routePointsFromSearch);
+						if (splitMultiSingleLegGroup && splitMultiSingleLegGroup.length) return splitMultiSingleLegGroup;
+					}
+					return legsGroups;
+				}
+				// Alternative naming
+				if (Array.isArray(flight.journeys) && flight.journeys.length) {
+					return flight.journeys
+						.map(function(j) { return Array.isArray(j.legs) ? j.legs.filter(Boolean) : []; })
+						.filter(function(g) { return g.length > 0; });
+				}
+				// Route-based split for round-trip should run before provider hint grouping.
+				// Some providers return misleading direction/segment keys for transit legs.
+				if (Array.isArray(flight.segments) && flight.segments.length > 1 && flightType === 'round_trip') {
+					var splitGroupsByRouteFirst = splitRoundTripByUserRoute(
+						flight.segments,
+						searchParams.origin || flight.origin_iata || flight.origin || '',
+						searchParams.destination || flight.destination_iata || flight.destination || '',
+						flight || {}
+					);
+					if (splitGroupsByRouteFirst && splitGroupsByRouteFirst.length === 2) return splitGroupsByRouteFirst;
+				}
+				// Route-based split for multi-city should also run before provider hint grouping.
+				if (Array.isArray(flight.segments) && flight.segments.length > 1 && flightType === 'multi_city') {
+					var routePointsFirst = getMultiCityRoutePointsFromSearch();
+					var multiGroupsByRouteFirst = splitSegmentsByRouteCheckpoints(flight.segments, routePointsFirst);
+					if (multiGroupsByRouteFirst && multiGroupsByRouteFirst.length) return multiGroupsByRouteFirst;
+				}
+				// Flat segments with direction/bound/segment key -> split into journeys
+				if (Array.isArray(flight.segments) && flight.segments.length) {
+					var hasJourneyHint = flight.segments.some(function(s) {
+						return s && (s.direction != null || s.bound != null || s.trip != null || s.segment != null || s.journey_index != null);
+					});
+					if (hasJourneyHint) {
+						var groupsByKey = {};
+						var groupOrder = [];
+						var normalizeJourneyKey = function(seg) {
+							if (!seg) return 'outbound';
+							var raw = seg.direction || seg.bound || seg.trip || seg.segment || seg.journey_index || 'outbound';
+							return String(raw).trim().toLowerCase();
+						};
+						flight.segments.forEach(function(seg) {
+							var key = normalizeJourneyKey(seg);
+							if (!groupsByKey[key]) {
+								groupsByKey[key] = [];
+								groupOrder.push(key);
+							}
+							groupsByKey[key].push(seg);
+						});
+						var keyWeight = function(k) {
+							if (k === 'outbound' || k === 'departure' || k === 'onward' || k === 'go') return 0;
+							if (k === 'return' || k === 'inbound' || k === 'back') return 1;
+							var m = k.match(/\d+/);
+							return m ? (100 + parseInt(m[0], 10)) : 50;
+						};
+						groupOrder.sort(function(a, b) {
+							var wa = keyWeight(a), wb = keyWeight(b);
+							if (wa !== wb) return wa - wb;
+							return 0;
+						});
+						return groupOrder
+							.map(function(k) { return groupsByKey[k].filter(Boolean); })
+							.filter(function(g) { return g.length > 0; });
+					}
+				}
+				// Fallback: flat segments = single journey
+				if (Array.isArray(flight.segments) && flight.segments.length) {
+					return [flight.segments.filter(Boolean)];
+				}
+				return [];
+			}
+			function getJourneyTitle(journeyIndex, journeyCount, flightType) {
+				if (flightType === 'round_trip') {
+					if (journeyIndex === 0) return '{{ $getCurrentTranslation["round_trip_outbound"] ?? "Round Trip Outbound" }}';
+					if (journeyIndex === 1) return '{{ $getCurrentTranslation["round_trip_return"] ?? "Round Trip Return" }}';
+				}
+				if (flightType === 'multi_city') {
+					return '{{ $getCurrentTranslation["multi_city"] ?? "Multi City" }} ' + (journeyIndex + 1);
+				}
+				if (journeyCount > 1) {
+					return '{{ $getCurrentTranslation["flight"] ?? "Flight" }} ' + (journeyIndex + 1);
+				}
+				return '';
+			}
 			
 			$('#summary-cheapest').text(formatPrice(minPrice));
 			$('#summary-fastest').text(minDurationMin != null ? formatDuration(minDurationMin) : '—');
@@ -2899,6 +3396,15 @@
 			
 			// Sort by price
 			const sorted = flights.slice().sort((a, b) => (a.price || 999999) - (b.price || 999999));
+			// Pre-structure each flight as journey groups:
+			// [ [flight-1, transit-1, transit-2], [flight-2, transit-1], ... ]
+			// This unified shape is used for one-way, round-trip and multi-city.
+			sorted.forEach(function(flight) {
+				const groups = getJourneyGroupsForDisplay(flight);
+				flight.journey_groups = Array.isArray(groups)
+					? groups.map(function(g) { return Array.isArray(g) ? g.filter(Boolean) : []; }).filter(function(g) { return g.length > 0; })
+					: [];
+			});
 			
 			sorted.forEach(function(flight, index) {
 				const isCheapest = minPrice != null && flight.price === minPrice;
@@ -2913,7 +3419,10 @@
 				const carrierStr = carrierNames.length ? carrierNames.join(' + ') : (flight.airline || 'N/A');
 				const transitDisplay = flight.transit_airports_display || (Array.isArray(flight.transit_airport_codes) && flight.transit_airport_codes.length ? flight.transit_airport_codes.join(', ') : '');
 				const priceStr = formatPrice(flight.price);
-				const segments = flight.segments || [];
+				const journeyGroups = (Array.isArray(flight.journey_groups) && flight.journey_groups.length)
+					? flight.journey_groups
+					: getJourneyGroupsForDisplay(flight);
+				const segments = journeyGroups.length ? journeyGroups.flat() : (flight.segments || []);
 				const segmentId = 'flight-segments-' + index;
 				
 				var originCode = flight.origin_iata || flight.origin || from;
@@ -2942,7 +3451,22 @@
 				var firstCarrierName = carrierNames.length ? carrierNames[0] : (carrierStr ? String(carrierStr).split('+')[0].trim() : '');
 				var departureDateLabel = (flight.departure_at && formatSegmentDate(flight.departure_at)) ? formatSegmentDate(flight.departure_at) : (searchParams.departure_at ? formatSegmentDate(searchParams.departure_at) : '');
 				var routeCodes = (originCode && destCode) ? (originCode + '–' + destCode) : (originCode || destCode || '');
-				var stopsText = stops === 0 ? ('{{ $getCurrentTranslation["direct"] ?? "Direct" }}') : (stops === 1 ? '1 {{ $getCurrentTranslation["layover"] ?? "layover" }}' : stops + ' {{ $getCurrentTranslation["layovers"] ?? "layovers" }}');
+				var layoverCities = [];
+				if (segments.length > 1) {
+					for (var ci = 0; ci < segments.length - 1; ci++) {
+						var cityName = (segments[ci].destination_display || segments[ci].destination_iata || '').toString().trim();
+						if (cityName) layoverCities.push(cityName);
+					}
+				}
+				if (!layoverCities.length && transitDisplay) {
+					layoverCities = transitDisplay.split(',').map(function(x) { return x.trim(); }).filter(function(x) { return x.length > 0; });
+				}
+				var stopsText = stops === 0
+					? ('{{ $getCurrentTranslation["direct"] ?? "Direct" }}')
+					: (stops === 1 ? '1 {{ $getCurrentTranslation["layover"] ?? "layover" }}' : stops + ' {{ $getCurrentTranslation["layovers"] ?? "layovers" }}');
+				if (stops > 0 && layoverCities.length) {
+					stopsText += ' (' + layoverCities.join(', ') + ')';
+				}
 				var airlineDisplay = carrierNames.length > 1 ? (escapeHtml(firstCarrierName) + ' +' + (carrierNames.length - 1)) : escapeHtml(carrierStr);
 				var timeRangeStr = (departureTime || '') + ' – ' + (arrivalTime || '');
 				// For client-side filtering: store stops count and pipe-separated airline names
@@ -2966,13 +3490,18 @@
 				cardHtml += '</div>';
 				cardHtml += '</div>';
 				cardHtml += '<div class="flight-result-card-header-right">';
-				cardHtml += '<div class="flight-result-right-col-1">' + (hasPrice ? '<span class="flight-result-card-price">' + escapeHtml(priceStr) + '</span>' : '') + '</div>';
-				cardHtml += '<div class="flight-result-right-col-2"><button type="button" class="btn btn-sm select-flight" data-flight-index="' + index + '">{{ $getCurrentTranslation["select_flight"] ?? "Select flight" }}</button><i class="fa-solid fa-chevron-down flight-result-card-caret" aria-hidden="true"></i></div>';
+				cardHtml += '<div class="flight-result-right-col-1">' + (hasPrice ? '<span class="flight-result-card-price">' + escapeHtml(priceStr) + '</span><span class="flight-result-card-details-toggle">{{ $getCurrentTranslation["see_details"] ?? "See Details" }} <i class="fa-solid fa-chevron-down flight-result-card-caret" aria-hidden="true"></i></span>' : '') + '</div>';
+				cardHtml += '<div class="flight-result-right-col-2"><button type="button" class="btn btn-sm select-flight" data-flight-index="' + index + '">{{ $getCurrentTranslation["select_flight"] ?? "Select flight" }}</button></div>';
 				cardHtml += '</div>';
 				cardHtml += '</div>';
 				cardHtml += '<div class="collapse flight-result-card-collapse" id="' + segmentId + '">';
 				if (segments.length > 0) {
-					segments.forEach(function(seg, segIdx) {
+					journeyGroups.forEach(function(journeySegments, journeyIdx) {
+						const journeyTitle = getJourneyTitle(journeyIdx, journeyGroups.length, flightType);
+						if (journeyTitle) {
+							cardHtml += '<div class="fw-bold text-primary mb-2 mt-1">' + escapeHtml(journeyTitle) + '</div>';
+						}
+						journeySegments.forEach(function(seg, segIdx) {
 						const depTime = formatSegmentTime(seg.departure_at);
 						const arrTime = formatSegmentTime(seg.arrival_at);
 						const depDate = formatSegmentDate(seg.departure_at);
@@ -2991,8 +3520,8 @@
 						cardHtml += '<div class="flight-timeline-point"><div class="flight-timeline-time">' + escapeHtml(depTime || departureTime) + '</div><div class="flight-timeline-airport">' + escapeHtml(originDisplay) + '</div></div>';
 						cardHtml += '<div class="flight-timeline-point"><div class="flight-timeline-time">' + escapeHtml(arrTime || arrivalTime) + '</div><div class="flight-timeline-airport">' + escapeHtml(destDisplay) + '</div></div>';
 						cardHtml += '</div></div></div>';
-						if (segIdx < segments.length - 1) {
-							const nextSeg = segments[segIdx + 1];
+						if (segIdx < journeySegments.length - 1) {
+							const nextSeg = journeySegments[segIdx + 1];
 							const layoverMin = layoverDurationMinutes(seg.arrival_at, nextSeg.departure_at);
 							const layoverCity = (seg.destination_display || seg.destination_iata || '').toString().trim();
 							if (layoverMin != null || layoverCity) {
@@ -3004,6 +3533,7 @@
 								cardHtml += '</div>';
 							}
 						}
+					});
 					});
 				} else {
 					cardHtml += '<div class="flight-segment-block">';
@@ -3167,85 +3697,204 @@
 				return `${hours}h ${minutes}m`;
 			}
 			
+			// Build a form row from one logical journey (one direction, may contain transits)
+			function buildJourneyRow(legs, fallback) {
+				const safeLegs = Array.isArray(legs) ? legs.filter(Boolean) : [];
+				const first = safeLegs[0] || {};
+				const last = safeLegs[safeLegs.length - 1] || first;
+				const departureAt = first.departure_at || first.departure || fallback.departure_at || '';
+				const arrivalAt = last.arrival_at || last.arrival || fallback.arrival_at || '';
+
+				const row = {
+					airline_id: findAirlineId(first.airline_name || first.airline || flightData.airline) || '',
+					flight_number: first.flight_number || first.number || flightData.flight_number || flightData.airline || '',
+					leaving_from: first.origin_display || first.origin_iata || first.origin || fallback.origin || '',
+					going_to: last.destination_display || last.destination_iata || last.destination || fallback.destination || '',
+					departure_date_time: formatDateTime(departureAt),
+					arrival_date_time: formatDateTime(arrivalAt),
+					total_fly_time: calculateDuration(departureAt, arrivalAt) || flightData.total_fly_time_formatted || '',
+					is_transit: 0,
+					transit: []
+				};
+
+				// Every leg after the first is treated as a transit flight section
+				for (let i = 1; i < safeLegs.length; i++) {
+					const prev = safeLegs[i - 1] || {};
+					const cur = safeLegs[i] || {};
+					row.transit.push({
+						airline_id: findAirlineId(cur.airline_name || cur.airline || row.airline_id) || '',
+						flight_number: cur.flight_number || cur.number || '',
+						leaving_from: cur.origin_display || cur.origin_iata || cur.origin || '',
+						going_to: cur.destination_display || cur.destination_iata || cur.destination || '',
+						departure_date_time: formatDateTime(cur.departure_at || cur.departure),
+						arrival_date_time: formatDateTime(cur.arrival_at || cur.arrival),
+						total_fly_time: calculateDuration(cur.departure_at || cur.departure, cur.arrival_at || cur.arrival),
+						total_transit_time: calculateDuration(prev.arrival_at || prev.arrival, cur.departure_at || cur.departure)
+					});
+				}
+				row.is_transit = row.transit.length > 0 ? 1 : 0;
+				return row;
+			}
+
+			// Extract journey groups from flightData.segments in a robust way
+			function extractJourneyGroups() {
+				function airportCodeFromAny(val) {
+					if (!val) return '';
+					const s = String(val).trim();
+					let m = s.match(/\(([A-Z]{3})\)/i);
+					if (m && m[1]) return m[1].toUpperCase();
+					m = s.match(/\b([A-Z]{3})\b/);
+					if (m && m[1]) return m[1].toUpperCase();
+					return s.toUpperCase();
+				}
+				function firstCodeFromList(list) {
+					if (!Array.isArray(list)) return '';
+					for (let i = 0; i < list.length; i++) {
+						const c = airportCodeFromAny(list[i]);
+						if (c) return c;
+					}
+					return '';
+				}
+				const segs = Array.isArray(flightData.segments) ? flightData.segments : [];
+				if (!segs.length) return [];
+
+				// New API: each segment can have `legs` (one journey direction)
+				if (segs[0] && Array.isArray(segs[0].legs)) {
+					const legsGroups = segs
+						.map(function(s) { return Array.isArray(s.legs) ? s.legs.filter(Boolean) : []; })
+						.filter(function(g) { return g.length; });
+					// Provider may return a single `legs` group containing both outbound and return.
+					if (searchParams.flight_type === 'round_trip' && legsGroups.length === 1 && legsGroups[0].length > 1) {
+						const splitSingleLegGroup = splitRoundTripByUserRoute(
+							legsGroups[0],
+							searchParams.origin || flightData.origin || '',
+							searchParams.destination || flightData.destination || '',
+							flightData || {}
+						);
+						if (splitSingleLegGroup && splitSingleLegGroup.length === 2) return splitSingleLegGroup;
+					}
+					if (searchParams.flight_type === 'multi_city' && legsGroups.length === 1 && legsGroups[0].length > 1) {
+						const routePointsFromSearch = (Array.isArray(searchParams.multi_city) ? searchParams.multi_city : [])
+							.reduce(function(points, leg, idx) {
+								if (!leg) return points;
+								if (idx === 0 && leg.origin) points.push(leg.origin);
+								if (leg.destination) points.push(leg.destination);
+								return points;
+							}, []);
+						const splitMultiSingleLegGroup = splitSegmentsByRouteCheckpoints(legsGroups[0], routePointsFromSearch);
+						if (splitMultiSingleLegGroup && splitMultiSingleLegGroup.length) return splitMultiSingleLegGroup;
+					}
+					return legsGroups;
+				}
+				// Route-based split first for round-trip (more reliable than direction tags)
+				if (searchParams.flight_type === 'round_trip' && segs.length > 1) {
+					const splitGroupsFirst = splitRoundTripByUserRoute(
+						segs,
+						searchParams.origin || flightData.origin || '',
+						searchParams.destination || flightData.destination || '',
+						flightData || {}
+					);
+					if (splitGroupsFirst && splitGroupsFirst.length === 2) return splitGroupsFirst;
+				}
+				// Route-based split first for multi-city
+				if (searchParams.flight_type === 'multi_city' && segs.length > 1) {
+					const routePointsFirst = (Array.isArray(searchParams.multi_city) ? searchParams.multi_city : [])
+						.reduce(function(points, leg, idx) {
+							if (!leg) return points;
+							if (idx === 0 && leg.origin) points.push(leg.origin);
+							if (leg.destination) points.push(leg.destination);
+							return points;
+						}, []);
+					const multiGroupsFirst = splitSegmentsByRouteCheckpoints(segs, routePointsFirst);
+					if (multiGroupsFirst && multiGroupsFirst.length) return multiGroupsFirst;
+				}
+
+				// Flat segment list with direction hint
+				const hasDirection = segs.some(function(s) { return s && (s.direction || s.bound || s.trip || s.segment); });
+				if (hasDirection) {
+					const grouped = {};
+					const order = [];
+					segs.forEach(function(s) {
+						const key = (s.direction || s.bound || s.trip || s.segment || 'outbound').toString().trim().toLowerCase();
+						if (!grouped[key]) {
+							grouped[key] = [];
+							order.push(key);
+						}
+						grouped[key].push(s);
+					});
+					const keyWeight = function(k) {
+						if (k === 'outbound' || k === 'departure' || k === 'onward' || k === 'go') return 0;
+						if (k === 'return' || k === 'inbound' || k === 'back') return 1;
+						const m = k.match(/\d+/);
+						return m ? (100 + parseInt(m[0], 10)) : 50;
+					};
+					order.sort(function(a, b) {
+						const wa = keyWeight(a), wb = keyWeight(b);
+						if (wa !== wb) return wa - wb;
+						return 0;
+					});
+					return order.map(function(k) { return grouped[k]; }).filter(function(g) { return g.length; });
+				}
+
+				// Plain flat segments => single journey
+				return [segs];
+			}
+
 			// Process flight data based on type
 			if (searchParams.flight_type === 'one_way') {
-				// Single flight
-				const departureDate = flightData.departure_at || flightData.search_departure_at || searchParams.departure_at;
-				const arrivalDate = flightData.return_at || flightData.arrival_at || flightData.departure_at;
-				
-				const flight = {
-					airline_id: findAirlineId(flightData.airline) || '',
-					flight_number: flightData.flight_number || flightData.airline || '',
-					leaving_from: flightData.search_origin || flightData.origin || searchParams.origin || '',
-					going_to: flightData.search_destination || flightData.destination || searchParams.destination || '',
-					departure_date_time: formatDateTime(departureDate),
-					arrival_date_time: formatDateTime(arrivalDate),
-					total_fly_time: flightData.total_fly_time_formatted || calculateDuration(departureDate, arrivalDate),
-					is_transit: 0,
-					transit: []
-				};
-				
-				// Check if there are segments (transits) in the route
-				// Travelpayouts API might return route information
-				if (flightData.route && Array.isArray(flightData.route) && flightData.route.length > 2) {
-					flight.is_transit = 1;
-					flight.transit = [];
-					
-					// Process route segments as transits (skip first and last as they are origin and destination)
-					for (let i = 1; i < flightData.route.length - 1; i++) {
-						const routeSegment = flightData.route[i];
-						flight.transit.push({
-							airline_id: findAirlineId(flightData.airline) || '',
-							flight_number: flightData.flight_number || '',
-							leaving_from: routeSegment || '',
-							going_to: flightData.route[i + 1] || flightData.search_destination || '',
-							departure_date_time: formatDateTime(departureDate),
-							arrival_date_time: formatDateTime(arrivalDate),
-							total_fly_time: '',
-							total_transit_time: ''
-						});
-					}
+				const groups = extractJourneyGroups();
+				if (groups.length) {
+					formattedData.ticket_flight_info.push(
+						buildJourneyRow(groups[0], {
+							origin: flightData.search_origin || flightData.origin || searchParams.origin || '',
+							destination: flightData.search_destination || flightData.destination || searchParams.destination || '',
+							departure_at: flightData.departure_at || flightData.search_departure_at || searchParams.departure_at || '',
+							arrival_at: flightData.arrival_at || flightData.return_at || ''
+						})
+					);
+				} else {
+					// Fallback: single row if segments are unavailable
+					formattedData.ticket_flight_info.push(buildJourneyRow([], {
+						origin: flightData.search_origin || flightData.origin || searchParams.origin || '',
+						destination: flightData.search_destination || flightData.destination || searchParams.destination || '',
+						departure_at: flightData.departure_at || flightData.search_departure_at || searchParams.departure_at || '',
+						arrival_at: flightData.arrival_at || flightData.return_at || ''
+					}));
 				}
 				
-				formattedData.ticket_flight_info.push(flight);
-				
 			} else if (searchParams.flight_type === 'round_trip') {
-				// Outbound flight
-				const outboundFlight = {
-					airline_id: findAirlineId(flightData.airline) || '',
-					flight_number: flightData.flight_number || '',
-					leaving_from: flightData.search_origin || flightData.origin || searchParams.origin || '',
-					going_to: flightData.search_destination || flightData.destination || searchParams.destination || '',
-					departure_date_time: formatDateTime(flightData.departure_at || flightData.search_departure_at || searchParams.departure_at),
-					arrival_date_time: formatDateTime(flightData.return_at || flightData.arrival_at),
-					total_fly_time: flightData.total_fly_time_formatted || calculateDuration(
-						flightData.departure_at || flightData.search_departure_at || searchParams.departure_at,
-						flightData.return_at || flightData.arrival_at
-					),
-					is_transit: 0,
-					transit: []
-				};
-				
-				formattedData.ticket_flight_info.push(outboundFlight);
-				
-				// Return flight
-				if (flightData.return_at || searchParams.return_at) {
-					const returnFlight = {
-						airline_id: findAirlineId(flightData.return_airline || flightData.airline) || '',
-						flight_number: flightData.return_flight_number || flightData.flight_number || '',
-						leaving_from: flightData.search_destination || flightData.destination || searchParams.destination || '',
-						going_to: flightData.search_origin || flightData.origin || searchParams.origin || '',
-						departure_date_time: formatDateTime(flightData.return_at || searchParams.return_at),
-						arrival_date_time: formatDateTime(flightData.return_arrival_at),
-						total_fly_time: calculateDuration(
-							flightData.return_at || searchParams.return_at,
-							flightData.return_arrival_at
-						),
-						is_transit: 0,
-						transit: []
-					};
-					
-					formattedData.ticket_flight_info.push(returnFlight);
+				const groups = extractJourneyGroups();
+				if (groups.length >= 2) {
+					formattedData.ticket_flight_info.push(
+						buildJourneyRow(groups[0], {
+							origin: flightData.search_origin || flightData.origin || searchParams.origin || '',
+							destination: flightData.search_destination || flightData.destination || searchParams.destination || '',
+							departure_at: flightData.departure_at || flightData.search_departure_at || searchParams.departure_at || '',
+							arrival_at: flightData.arrival_at || ''
+						})
+					);
+					formattedData.ticket_flight_info.push(
+						buildJourneyRow(groups[1], {
+							origin: flightData.search_destination || flightData.destination || searchParams.destination || '',
+							destination: flightData.search_origin || flightData.origin || searchParams.origin || '',
+							departure_at: flightData.return_at || searchParams.return_at || '',
+							arrival_at: flightData.return_arrival_at || ''
+						})
+					);
+				} else {
+					// Legacy fallback if provider did not return separated journeys
+					formattedData.ticket_flight_info.push(buildJourneyRow([], {
+						origin: flightData.search_origin || flightData.origin || searchParams.origin || '',
+						destination: flightData.search_destination || flightData.destination || searchParams.destination || '',
+						departure_at: flightData.departure_at || flightData.search_departure_at || searchParams.departure_at || '',
+						arrival_at: flightData.arrival_at || ''
+					}));
+					formattedData.ticket_flight_info.push(buildJourneyRow([], {
+						origin: flightData.search_destination || flightData.destination || searchParams.destination || '',
+						destination: flightData.search_origin || flightData.origin || searchParams.origin || '',
+						departure_at: flightData.return_at || searchParams.return_at || '',
+						arrival_at: flightData.return_arrival_at || ''
+					}));
 				}
 				
 			} else if (searchParams.flight_type === 'multi_city') {
@@ -3256,40 +3905,38 @@
 						if (segmentData.data && Array.isArray(segmentData.data) && segmentData.data.length > 0) {
 							// Use first flight from segment results
 							const segmentFlight = segmentData.data[0];
-							const flight = {
-								airline_id: findAirlineId(segmentFlight.airline) || '',
-								flight_number: segmentFlight.flight_number || segmentFlight.airline || '',
-								leaving_from: segmentData.origin || segmentFlight.origin || '',
-								going_to: segmentData.destination || segmentFlight.destination || '',
-								departure_date_time: formatDateTime(segmentData.departure_at || segmentFlight.departure_at),
-								arrival_date_time: formatDateTime(segmentFlight.return_at || segmentFlight.departure_at),
-								total_fly_time: segmentFlight.total_fly_time_formatted || calculateDuration(
-									segmentData.departure_at || segmentFlight.departure_at,
-									segmentFlight.return_at || segmentFlight.departure_at
-								),
-								is_transit: 0,
-								transit: []
-							};
-							
-							formattedData.ticket_flight_info.push(flight);
+							const segGroups = Array.isArray(segmentFlight.segments) && segmentFlight.segments.length
+								? (Array.isArray(segmentFlight.segments[0] && segmentFlight.segments[0].legs)
+									? segmentFlight.segments.map(s => s.legs || []).filter(g => g.length)
+									: [segmentFlight.segments])
+								: [];
+							const journeyLegs = segGroups.length ? segGroups[0] : [];
+							formattedData.ticket_flight_info.push(
+								buildJourneyRow(journeyLegs, {
+									origin: segmentData.origin || segmentFlight.origin || '',
+									destination: segmentData.destination || segmentFlight.destination || '',
+									departure_at: segmentData.departure_at || segmentFlight.departure_at || '',
+									arrival_at: segmentFlight.arrival_at || segmentFlight.return_at || ''
+								})
+							);
 						}
 					});
 				} else if (flightData.segments && Array.isArray(flightData.segments)) {
 					// Flight data has segments array
-					flightData.segments.forEach((segment, index) => {
-						const flight = {
-							airline_id: findAirlineId(segment.airline || flightData.airline) || '',
-							flight_number: segment.flight_number || flightData.flight_number || '',
-							leaving_from: segment.origin || segment.segment_origin || '',
-							going_to: segment.destination || segment.segment_destination || '',
-							departure_date_time: formatDateTime(segment.departure_at || segment.departure_at),
-							arrival_date_time: formatDateTime(segment.arrival_at),
-							total_fly_time: segment.duration || calculateDuration(segment.departure_at, segment.arrival_at),
-							is_transit: 0,
-							transit: []
-						};
-						
-						formattedData.ticket_flight_info.push(flight);
+					const segGroups = Array.isArray(flightData.segments[0] && flightData.segments[0].legs)
+						? flightData.segments.map(s => s.legs || []).filter(g => g.length)
+						: flightData.segments.map(s => [s]);
+					segGroups.forEach((journeyLegs) => {
+						const firstLeg = journeyLegs[0] || {};
+						const lastLeg = journeyLegs[journeyLegs.length - 1] || {};
+						formattedData.ticket_flight_info.push(
+							buildJourneyRow(journeyLegs, {
+								origin: firstLeg.origin || firstLeg.origin_iata || flightData.origin || '',
+								destination: lastLeg.destination || lastLeg.destination_iata || flightData.destination || '',
+								departure_at: firstLeg.departure_at || flightData.departure_at || '',
+								arrival_at: lastLeg.arrival_at || flightData.arrival_at || flightData.return_at || ''
+							})
+						);
 					});
 				} else {
 					// Fallback to single flight
@@ -3412,8 +4059,25 @@
 					$('.r-preloader').hide();
 					
 					if (response.success && response.data) {
+						let normalizedData = response.data;
+						// Safety fallback: if backend returns incomplete round-trip rows,
+						// rebuild from selected flight payload so autofill always maps:
+						// row-1 => outbound (+transits), row-2 => return (+transits).
+						if (
+							searchParams.flight_type === 'round_trip' &&
+							(
+								!normalizedData.ticket_flight_info ||
+								!Array.isArray(normalizedData.ticket_flight_info) ||
+								normalizedData.ticket_flight_info.length < 2
+							)
+						) {
+							const rebuilt = formatFlightDataForForm(flightData, searchParams, window.flightSearchResponse || {});
+							if (rebuilt && Array.isArray(rebuilt.ticket_flight_info) && rebuilt.ticket_flight_info.length >= 2) {
+								normalizedData = $.extend(true, {}, normalizedData, rebuilt);
+							}
+						}
 						// Auto-fill the form (scroll happens after fill completes inside autoFillTicketFormFromSearch)
-						autoFillTicketFormFromSearch(response.data);
+						autoFillTicketFormFromSearch(normalizedData);
 						
 						// Show success message
 						Swal.fire({
@@ -3537,9 +4201,14 @@
 						setTimeout(function() {
 							const flightIndex = index;
 							const flightRow = $flightContainer.find('.append-item').eq(flightIndex);
+							if (!flightRow.length) return;
+							const $transitWrap = flightRow.find('.flight-transit-child-wrap').first();
+							const $transitContainer = $transitWrap.hasClass('append-child-item-wrapper')
+								? $transitWrap
+								: $transitWrap.find('.append-child-item-wrapper').first();
 							
 							if (flightInfo.airline_id) {
-								const airlineSelect = flightRow.find('[name="ticket_flight_info[' + flightIndex + '][airline_id]"]');
+								const airlineSelect = flightRow.find('.parent-ip[data-name="airline_id"]').first();
 								if (airlineSelect.length) {
 									// Ensure option exists (for dynamically added rows that may not have run ensureAirlineOptions on their new selects)
 									if (data.airlines_used && data.airlines_used.length && airlineSelect.find('option[value="' + flightInfo.airline_id + '"]').length === 0) {
@@ -3549,15 +4218,15 @@
 									airlineSelect.val(flightInfo.airline_id).trigger('change');
 								}
 							}
-							if (flightInfo.flight_number) flightRow.find('[name="ticket_flight_info[' + flightIndex + '][flight_number]"]').val(flightInfo.flight_number);
-							if (flightInfo.leaving_from) flightRow.find('[name="ticket_flight_info[' + flightIndex + '][leaving_from]"]').val(flightInfo.leaving_from);
-							if (flightInfo.going_to) flightRow.find('[name="ticket_flight_info[' + flightIndex + '][going_to]"]').val(flightInfo.going_to);
+							flightRow.find('.parent-ip[data-name="flight_number"]').first().val(flightInfo.flight_number || '');
+							flightRow.find('.parent-ip[data-name="leaving_from"]').first().val(flightInfo.leaving_from || '');
+							flightRow.find('.parent-ip[data-name="going_to"]').first().val(flightInfo.going_to || '');
 							setDateTimePickerValue(flightRow.find('.parent-ip[data-name="departure_date_time"]'), flightInfo.departure_date_time);
 							setDateTimePickerValue(flightRow.find('.parent-ip[data-name="arrival_date_time"]'), flightInfo.arrival_date_time);
-							if (flightInfo.total_fly_time) flightRow.find('[name="ticket_flight_info[' + flightIndex + '][total_fly_time]"]').val(flightInfo.total_fly_time);
+							flightRow.find('.parent-ip[data-name="total_fly_time"]').first().val(flightInfo.total_fly_time || '');
 							
 							if (flightInfo.is_transit == 1 && flightInfo.transit && flightInfo.transit.length > 0) {
-								const $transitCheckbox = flightRow.find('[name="ticket_flight_info[' + flightIndex + '][is_transit]"]');
+								const $transitCheckbox = flightRow.find('.flight-transit.parent-ip[data-name="is_transit"]').first();
 								if (!$transitCheckbox.is(':checked')) {
 									$transitCheckbox.prop('checked', true).trigger('change');
 									// Show transit section (handler runs on click; we need to run it so section becomes visible)
@@ -3573,7 +4242,7 @@
 								function addOneTransitRow() {
 									if (transitAdded >= transitTarget) {
 										setTimeout(function() {
-											var $wrap = flightRow.find('.flight-transit-child-wrap');
+											var $wrap = flightRow.find('.flight-transit-child-wrap').first();
 											if (!$wrap.length) return;
 											var $transitContainer = $wrap.hasClass('append-child-item-wrapper') ? $wrap : $wrap.find('.append-child-item-wrapper').first();
 											if (!$transitContainer.length) $transitContainer = $wrap;
@@ -3609,16 +4278,17 @@
 												transitRow.find('[data-name="total_fly_time"]').val(transitInfo.total_fly_time || '');
 												transitRow.find('[data-name="total_transit_time"]').val(transitInfo.total_transit_time || '');
 											});
+											if (typeof resetAppendIndexes === 'function') resetAppendIndexes();
 										}, 700);
 										return;
 									}
-									flightRow.find('.flight-transit-child-wrap .append-child-item-add-btn').data('programmatic', true).click();
+									$transitContainer.find('.append-child-item-add-btn').first().data('programmatic', true).click();
 									transitAdded++;
 									setTimeout(addOneTransitRow, 350);
 								}
 								setTimeout(addOneTransitRow, 550);
 							} else {
-								const $transitCheckbox = flightRow.find('[name="ticket_flight_info[' + flightIndex + '][is_transit]"]');
+								const $transitCheckbox = flightRow.find('.flight-transit.parent-ip[data-name="is_transit"]').first();
 								if ($transitCheckbox.is(':checked')) $transitCheckbox.prop('checked', false).trigger('change');
 							}
 						}, index * 400);

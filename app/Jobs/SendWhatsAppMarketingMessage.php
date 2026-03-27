@@ -77,6 +77,12 @@ class SendWhatsAppMarketingMessage implements ShouldQueue
         if (RateLimiter::tooManyAttempts($rateKey, $perMinute)) {
             $retryAfter = RateLimiter::availableIn($rateKey);
             $this->release(max(5, (int) $retryAfter));
+            Log::channel('single')->info('WhatsApp marketing rate-limited (released)', [
+                'retry_after_seconds' => (int) $retryAfter,
+                'per_minute' => $perMinute,
+                'marketing_send_id' => $this->payload['marketing_send_id'] ?? null,
+                'ticket_passenger_id' => $this->payload['ticket_passenger_id'] ?? null,
+            ]);
             return;
         }
         RateLimiter::hit($rateKey, 60);
@@ -121,9 +127,14 @@ class SendWhatsAppMarketingMessage implements ShouldQueue
             $params = [
                 'from' => 'whatsapp:' . $from,
                 'contentSid' => $sidToUse,
-                'contentVariables' => json_encode([
-                    '1' => $content,
-                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                // If we fall back to the "media" template SID for a text-only send,
+                // some templates require both {{1}} and {{2}}. Provide {{2}} as empty to avoid 400 "Content Variables invalid".
+                'contentVariables' => json_encode(
+                    ($contentSidText === '' && $sidToUse === $contentSidMedia)
+                        ? ['1' => $content, '2' => '']
+                        : ['1' => $content],
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                ),
             ];
         }
 
@@ -132,13 +143,16 @@ class SendWhatsAppMarketingMessage implements ShouldQueue
         try {
             $message = $twilio->messages->create('whatsapp:' . $toE164, $params);
 
-            // Log::channel('single')->info('WhatsApp marketing sent', [
-            //     'to' => $toE164,
-            //     'message_sid' => $message->sid ?? null,
-            //     'status' => $message->status ?? null,
-            //     'marketing_send_id' => $this->payload['marketing_send_id'] ?? null,
-            //     'ticket_passenger_id' => $this->payload['ticket_passenger_id'] ?? null,
-            // ]);
+            Log::channel('single')->info('WhatsApp marketing sent', [
+                'to' => $toE164,
+                'message_sid' => $message->sid ?? null,
+                'status' => $message->status ?? null,
+                'marketing_send_id' => $this->payload['marketing_send_id'] ?? null,
+                'ticket_passenger_id' => $this->payload['ticket_passenger_id'] ?? null,
+                'has_media' => trim($mediaUrl) !== '',
+                'content_sid_used' => $params['contentSid'] ?? null,
+                'content_variables' => $params['contentVariables'] ?? null,
+            ]);
         } catch (TwilioException $e) {
             $twilioErrorCode = method_exists($e, 'getCode') ? (int) $e->getCode() : null;
             if (method_exists($e, 'getErrorCode')) {
@@ -146,13 +160,17 @@ class SendWhatsAppMarketingMessage implements ShouldQueue
             }
 
             $message = $e->getMessage();
+            $twilioHttpStatus = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : null;
+            $twilioDetails = method_exists($e, 'getDetails') ? $e->getDetails() : null;
 
             Log::channel('single')->warning('WhatsApp marketing Twilio error', [
                 'to' => $toE164,
                 'marketing_send_id' => $this->payload['marketing_send_id'] ?? null,
                 'ticket_passenger_id' => $this->payload['ticket_passenger_id'] ?? null,
                 'error_code' => $twilioErrorCode,
+                'http_status' => $twilioHttpStatus,
                 'error' => $message,
+                'details' => $twilioDetails,
                 'use_template' => $useTemplate,
                 'has_media' => trim($mediaUrl) !== '',
                 'content_sid_text_set' => $contentSidText !== '',

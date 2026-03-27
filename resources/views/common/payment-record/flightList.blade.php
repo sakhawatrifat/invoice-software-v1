@@ -201,6 +201,12 @@
 		<!--end::Content container-->
 	</div>
 </div>
+
+@if(function_exists('hasPermission') && hasPermission('ticket.edit'))
+@once
+@include('common._partials.ticket-client-contact-modal')
+@endonce
+@endif
 @endsection
 
 @push('script')

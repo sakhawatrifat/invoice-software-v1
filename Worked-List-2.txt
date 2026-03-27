@@ -1,0 +1,16 @@
+New Works From 18 March 2026: 
+01. In "Import Ticket Data": Layover airport names should show on flight list. like 2 layovers (Chengdu Tianfu International, Kunming)
+
+02. Fix Round Trip ticket import so outbound and return flight data fills into separate flight sections instead of both going under one flight.
+
+03. Add a left-side filter panel (gender checkboxes + age range) below the search box on WhatsApp & Email marketing pages, with the customer list on the right, using jQuery for local filtering.
+
+04. Create a group in the Invoice Software and add a Chatbot to it. The Chatbot should only respond to messages, but must not reply to messages sent by users in the group.
+
+05. Users can send confirmation tickets to passengers via whatsapp as like (Tiket Confirmation Mail Sending)
+
+06. Rescheduled & Cancelled Flights
+
+07. Track flight api credits via storing to database with full report (Also track data with Credit Used by)
+
+08. Added a way to track whether a client was contacted by Call or Message, with an optional note — visible and updatable from both the flight list and upcoming flights section.

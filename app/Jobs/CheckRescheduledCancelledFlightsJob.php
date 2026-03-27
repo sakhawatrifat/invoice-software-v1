@@ -31,20 +31,27 @@ class CheckRescheduledCancelledFlightsJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $controller = app(PaymentController::class);
-        $payload = $controller->runRescheduledCancelledCheck($this->userId);
+        try {
+            $controller = app(PaymentController::class);
+            $payload = $controller->runRescheduledCancelledCheck($this->userId);
 
-        if ($payload === null) {
+            if ($payload === null) {
+                return;
+            }
+
+            [$paymentIds, $statusByPayment] = $payload;
+            Cache::put('rescheduled_cancelled_result_' . $this->userId, [
+                'payment_ids' => is_array($paymentIds) ? $paymentIds : [],
+                'status_by_payment' => is_array($statusByPayment) ? $statusByPayment : [],
+                'checked_at' => now()->toDateTimeString(),
+            ], now()->addHours(24));
+        } catch (\Throwable $e) {
+            \Log::error('CheckRescheduledCancelledFlightsJob failed: ' . $e->getMessage(), [
+                'user_id' => $this->userId,
+                'exception' => $e,
+            ]);
+        } finally {
             Cache::forget('rescheduled_cancelled_running_' . $this->userId);
-            return;
         }
-
-        [$found, $statusByPayment] = $payload;
-        Cache::put('rescheduled_cancelled_result_' . $this->userId, [
-            'payment_ids' => $found,
-            'status_by_payment' => $statusByPayment,
-            'checked_at' => now()->toDateTimeString(),
-        ], now()->addHours(24));
-        Cache::forget('rescheduled_cancelled_running_' . $this->userId);
     }
 }

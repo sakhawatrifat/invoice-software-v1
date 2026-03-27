@@ -40,6 +40,8 @@ return [
         'marker' => env('TRAVELPAYOUTS_MARKER'),
         'website_url' => env('TRAVELPAYOUTS_WEBSITE_URL', env('APP_URL')),
         'use_new_api' => env('TRAVELPAYOUTS_USE_NEW_API', false), // Set to true when new API is approved
+        // Public global airports source used when Travelpayouts airport list is unavailable.
+        'airports_dataset_url' => env('AIRPORTS_DATASET_URL', 'https://raw.githubusercontent.com/mwgg/Airports/master/airports.json'),
     ],
 
     'innotraveltech' => [
@@ -56,6 +58,10 @@ return [
         'api_key' => env('FLIGHTAPI_API_KEY'),
         'region' => env('FLIGHTAPI_REGION', 'US'), // ISO country code for local prices
         'base_url' => env('FLIGHTAPI_BASE_URL', 'https://api.flightapi.io'),
+        // Changed/cancelled flight scan: main segments departing within this many calendar days from today (inclusive).
+        'upcoming_flight_check_days' => max(1, (int) env('UPCOMMING_FLIGHT_CHECK_DAYS', 2)),
+        // After auth/quota-style failures during bulk tracking, skip further API calls for this many minutes (saves credits).
+        'bulk_pause_minutes' => max(1, min(60, (int) env('FLIGHTAPI_BULK_PAUSE_MINUTES', 5))),
     ],
 
     /*

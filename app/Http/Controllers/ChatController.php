@@ -89,7 +89,7 @@ class ChatController extends Controller
     private function getConversationsData(): array
     {
         $userId = Auth::id();
-        $users = User::where('id', '!=', $userId)
+        $users = User::excludeUserTypeUsers()->where('id', '!=', $userId)
             ->whereNull('deleted_at')
             ->select('id', 'uid', 'name', 'image', 'last_seen_at', 'status', 'is_automation_chatbot', 'user_type')
             ->orderByRaw('COALESCE(is_automation_chatbot, 0) DESC, name ASC')
@@ -149,7 +149,7 @@ class ChatController extends Controller
 
         // Add groups the user is a member of (with members and roles for admin display)
         $groupIds = ChatGroupMember::where('user_id', $userId)->pluck('group_id');
-        foreach (ChatGroup::whereIn('id', $groupIds)->with(['creator:id,name,image', 'memberPivots.user:id,name'])->get() as $group) {
+        foreach (ChatGroup::whereIn('id', $groupIds)->with(['creator:id,name,image', 'memberPivots.user:id,name,is_automation_chatbot'])->get() as $group) {
             $lastMessage = ChatMessage::with(['sender:id,name,image', 'reads', 'replyTo.sender:id,name', 'reactions.user:id,name'])
                 ->whereNull('chat_messages.deleted_at')
                 ->where('group_id', $group->id)
@@ -173,6 +173,7 @@ class ChatController extends Controller
                 return [
                     'user_id' => $pivot->user_id,
                     'name' => $pivot->user ? $pivot->user->name : null,
+                    'is_automation_chatbot' => (bool) ($pivot->user->is_automation_chatbot ?? false),
                     'role' => $pivot->role ?? 'member',
                     'nickname' => $pivot->nickname ?: null,
                 ];
@@ -185,6 +186,7 @@ class ChatController extends Controller
                     'id' => $group->id,
                     'name' => $group->name,
                     'image_url' => $group->image ? getUploadedUrl($group->image) : null,
+                    'is_fixed_group' => (bool) ($group->is_fixed_group ?? false),
                     'created_by_user_id' => $group->created_by_user_id,
                     'creator_name' => $group->creator ? $group->creator->name : null,
                     'created_at' => $group->created_at,
@@ -510,7 +512,7 @@ class ChatController extends Controller
         $userId = Auth::id();
         User::where('id', $userId)->update(['last_seen_at' => Carbon::now()]);
 
-        $users = User::where('id', '!=', $userId)
+        $users = User::excludeUserTypeUsers()->where('id', '!=', $userId)
             ->whereNull('deleted_at')
             ->select('id', 'last_seen_at', 'status')
             ->get();
@@ -933,6 +935,7 @@ class ChatController extends Controller
                 'id' => $g->id,
                 'name' => $g->name,
                 'image_url' => $g->image ? getUploadedUrl($g->image) : null,
+                'is_fixed_group' => (bool) ($g->is_fixed_group ?? false),
                 'created_by_user_id' => $g->created_by_user_id,
                 'creator_name' => $g->creator ? $g->creator->name : null,
             ];
@@ -953,9 +956,7 @@ class ChatController extends Controller
         $userId = Auth::id();
         $memberIds = array_unique(array_map('intval', $request->member_ids));
         $memberIds = array_values(array_filter($memberIds, fn($id) => $id !== $userId));
-        $memberIds = User::whereIn('id', $memberIds)->where(function ($q) {
-            $q->where('is_automation_chatbot', '!=', 1)->orWhereNull('is_automation_chatbot');
-        })->pluck('id')->all();
+        $memberIds = User::excludeUserTypeUsers()->whereIn('id', $memberIds)->pluck('id')->all();
         if (empty($memberIds)) {
             return response()->json(['error' => 'Add at least one other member'], 422);
         }
@@ -973,6 +974,7 @@ class ChatController extends Controller
                 'id' => $group->id,
                 'name' => $group->name,
                 'image_url' => null,
+                'is_fixed_group' => (bool) ($group->is_fixed_group ?? false),
                 'created_by_user_id' => $group->created_by_user_id,
                 'creator_name' => Auth::user()->name,
             ],
@@ -996,9 +998,7 @@ class ChatController extends Controller
             return response()->json(['error' => 'Only group admins can add members'], 403);
         }
         $userIds = array_unique(array_map('intval', $request->user_ids));
-        $userIds = User::whereIn('id', $userIds)->where(function ($q) {
-            $q->where('is_automation_chatbot', '!=', 1)->orWhereNull('is_automation_chatbot');
-        })->pluck('id')->all();
+        $userIds = User::excludeUserTypeUsers()->whereIn('id', $userIds)->pluck('id')->all();
         $existing = ChatGroupMember::where('group_id', $group->id)->pluck('user_id')->all();
         $toAdd = array_diff($userIds, $existing);
         foreach ($toAdd as $uid) {
@@ -1048,6 +1048,7 @@ class ChatController extends Controller
                 'id' => $group->id,
                 'name' => $group->name,
                 'image_url' => $group->image ? getUploadedUrl($group->image) : null,
+                'is_fixed_group' => (bool) ($group->is_fixed_group ?? false),
                 'created_by_user_id' => $group->created_by_user_id,
                 'creator_name' => $group->creator ? $group->creator->name : null,
             ],
@@ -1181,6 +1182,9 @@ class ChatController extends Controller
         $request->validate(['group_id' => 'required|exists:chat_groups,id']);
         $userId = Auth::id();
         $group = ChatGroup::findOrFail($request->group_id);
+        if ((bool) ($group->is_fixed_group ?? false)) {
+            return response()->json(['error' => 'This fixed group cannot be deleted'], 403);
+        }
         $myPivot = ChatGroupMember::where('group_id', $group->id)->where('user_id', $userId)->first();
         $isCreator = $group->created_by_user_id === $userId;
         $isAdmin = $myPivot && $myPivot->role === 'admin';

@@ -70,7 +70,7 @@
                 @endif
 				
 				@if(isset($listRoute) && !empty($listRoute))
-					<a href="{{ $listRoute }}" class="btn btn-sm fw-bold btn-primary">
+					<a href="{{ $listRoute }}?document_type=quotation" class="btn btn-sm fw-bold btn-primary">
 						<i class="fa-solid fa-arrow-left"></i>
 						{{ $getCurrentTranslation['back_to_list'] ?? 'back_to_list' }}
 					</a>

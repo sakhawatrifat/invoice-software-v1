@@ -94,90 +94,131 @@
 							<span class="ps-2 user-select-none form-check-label fw-semibold">{{ $getCurrentTranslation['check_all'] ?? 'Check all' }}</span>
 						</label>
 					</div>
-					<div class="card-body p-0">
-						<div class="p-4 border-bottom border-gray-200 bg-light-primary">
-							<input type="text" id="marketing-recipient-search" class="form-control form-control-solid bg-secondary" placeholder="{{ $getCurrentTranslation['search_recipients'] ?? 'Search by name, email, phone, type, gender, date of birth, nationality...' }}" autocomplete="off">
-							<div id="marketing-search-hint" class="form-text mt-1 small text-muted" style="display: none;" data-no-match="{{ $getCurrentTranslation['no_matching_recipients'] ?? 'No matching recipients' }}" data-one-match="{{ $getCurrentTranslation['one_matching_recipient'] ?? '1 matching recipient' }}" data-matches="{{ $getCurrentTranslation['matching_recipients'] ?? 'matching recipients' }}"></div>
-						</div>
-						<div class="marketing-user-list overflow-auto" style="max-height: 400px;">
-							@forelse($users as $user)
-								@php
-									$paxType = $user->pax_type ?? null;
-									$gender = $user->gender ?? null;
-									$dob = $user->date_of_birth ?? null;
-									$nationality = $user->nationality ?? null;
-									$ageStr = null;
-									if (!empty($dob)) {
-										try { $ageStr = \Carbon\Carbon::parse($dob)->age . 'Y'; } catch (\Exception $e) {}
-									}
-									$searchParts = array_filter([
-										$user->name ?? '',
-										$user->email ?? '',
-										$user->phone ?? '',
-										$paxType,
-										$gender,
-										$dob,
-										$nationality,
-										$ageStr ? 'Age ' . $ageStr : null,
-									]);
-									$dataSearch = strtolower(implode(' ', array_map('trim', $searchParts)));
-								@endphp
-								<div class="d-flex align-items-center p-4 border-bottom border-gray-200 hover-bg-light-primary marketing-recipient-row cursor-pointer" data-search="{{ $dataSearch }}" data-original-index="{{ $loop->index }}">
-									<div class="form-check form-check-custom form-check-solid me-4">
-										<input type="checkbox" class="form-check-input marketing-user-check" name="user_ids[]" value="{{ $user->id }}" id="user-{{ $user->id }}">
-										<label class="form-check-label" for="user-{{ $user->id }}"></label>
-									</div>
-									<div class="symbol symbol-45px me-4">
-										@if($user->image)
-											<img src="{{ getUploadedUrl($user->image) }}" alt="{{ $user->name }}">
-										@else
-											<span class="symbol-label bg-primary text-inverse-primary fw-bold">{{ strtoupper(substr($user->name ?? '?', 0, 1)) }}</span>
-										@endif
-									</div>
-									<div class="flex-grow-1 min-w-0">
-										<span class="fw-bold text-gray-800 d-block">{{ $user->name ?? '-' }}</span>
-										<div class="text-muted fs-7">
-											@if(!empty(trim((string)($user->email ?? ''))))
-												<span class="d-block">{{ $user->email }}</span>
-											@endif
-											@if(!empty(trim((string)($user->phone ?? ''))))
-												<span class="d-block">{{ $user->phone }}</span>
-											@endif
-											@if(empty(trim((string)($user->email ?? ''))) && empty(trim((string)($user->phone ?? ''))))
-												<span class="d-block">-</span>
-											@endif
+					<div class="card-body p-4">
+						<div class="row g-5">
+							<div class="col-xl-4 col-lg-5">
+								<div class="border border-gray-200 rounded bg-light-primary p-4 h-100">
+									<h5 class="fw-bold mb-4">{{ $getCurrentTranslation['filter'] ?? 'Filter' }}</h5>
+									<div class="mb-5">
+										<label class="form-label fw-semibold mb-3">{{ $getCurrentTranslation['gender'] ?? 'Gender' }}</label>
+										<div class="d-flex flex-column gap-3">
+											<label class="form-check form-check-custom form-check-solid">
+												<input class="form-check-input marketing-filter-gender" type="checkbox" value="male">
+												<span class="form-check-label ms-2">{{ $getCurrentTranslation['male'] ?? 'Male' }}</span>
+											</label>
+											<label class="form-check form-check-custom form-check-solid">
+												<input class="form-check-input marketing-filter-gender" type="checkbox" value="female">
+												<span class="form-check-label ms-2">{{ $getCurrentTranslation['female'] ?? 'Female' }}</span>
+											</label>
+											<label class="form-check form-check-custom form-check-solid">
+												<input class="form-check-input marketing-filter-gender" type="checkbox" value="other">
+												<span class="form-check-label ms-2">{{ $getCurrentTranslation['other'] ?? 'Other' }}</span>
+											</label>
 										</div>
-										@if(!empty(trim((string)$paxType)) || !empty(trim((string)$gender)) || $ageStr !== null || !empty(trim((string)$nationality)))
-											<div class="text-muted fs-8 mt-0">
-												@if(!empty(trim((string)$paxType)))
-													<span>{{ $paxType }}</span>
-												@endif
-												@if(!empty(trim((string)$gender)))
-													@if(!empty(trim((string)$paxType)))<span class="mx-1">•</span>@endif
-													<span>{{ $gender }}</span>
-												@endif
-												@if($ageStr !== null)
-													@if(!empty(trim((string)$paxType)) || !empty(trim((string)$gender)))<span class="mx-1">•</span>@endif
-													<span>(Age: {{ $ageStr }})</span>
-												@endif
-												@if(!empty(trim((string)$nationality)))
-													@if(!empty(trim((string)$paxType)) || !empty(trim((string)$gender)) || $ageStr !== null)<span class="mx-1">•</span>@endif
-													<span>{{ $nationality }}</span>
-												@endif
+									</div>
+									<div class="mb-5">
+										<label class="form-label fw-semibold mb-3">{{ $getCurrentTranslation['age'] ?? 'Age' }}</label>
+										<input type="text" id="marketing-age-range" value="">
+										<div class="form-text mt-2">
+											<span id="marketing-age-range-label">0 - 100</span>
+										</div>
+									</div>
+									<button type="button" id="marketing-filter-reset" class="btn btn-secondary btn-sm w-100">{{ $getCurrentTranslation['reset_filter'] ?? 'Reset filters' }}</button>
+								</div>
+							</div>
+							<div class="col-xl-8 col-lg-7">
+								<div class="border border-gray-200 rounded overflow-hidden">
+									<div class="p-4 border-bottom border-gray-200 bg-light-primary">
+										<input type="text" id="marketing-recipient-search" class="form-control form-control-solid bg-secondary" placeholder="{{ $getCurrentTranslation['search_recipients'] ?? 'Search by name, email, phone, type, gender, date of birth, nationality...' }}" autocomplete="off">
+										<div id="marketing-search-hint" class="form-text mt-1 small text-muted" style="display: none;" data-no-match="{{ $getCurrentTranslation['no_matching_recipients'] ?? 'No matching recipients' }}" data-one-match="{{ $getCurrentTranslation['one_matching_recipient'] ?? '1 matching recipient' }}" data-matches="{{ $getCurrentTranslation['matching_recipients'] ?? 'matching recipients' }}"></div>
+									</div>
+									<div class="marketing-user-list overflow-auto" style="max-height: 460px;">
+										@forelse($users as $user)
+											@php
+												$paxType = $user->pax_type ?? null;
+												$gender = $user->gender ?? null;
+												$genderLower = strtolower(trim((string) $gender));
+												$dob = $user->date_of_birth ?? null;
+												$nationality = $user->nationality ?? null;
+												$age = null;
+												$ageStr = null;
+												if (!empty($dob)) {
+													try {
+														$age = \Carbon\Carbon::parse($dob)->age;
+														$ageStr = $age . 'Y';
+													} catch (\Exception $e) {}
+												}
+												$searchParts = array_filter([
+													$user->name ?? '',
+													$user->email ?? '',
+													$user->phone ?? '',
+													$paxType,
+													$gender,
+													$dob,
+													$nationality,
+													$ageStr ? 'Age ' . $ageStr : null,
+												]);
+												$dataSearch = strtolower(implode(' ', array_map('trim', $searchParts)));
+											@endphp
+											<div class="d-flex align-items-center p-4 border-bottom border-gray-200 hover-bg-light-primary marketing-recipient-row cursor-pointer" data-search="{{ $dataSearch }}" data-original-index="{{ $loop->index }}" data-gender="{{ $genderLower }}" data-age="{{ $age !== null ? $age : '' }}">
+												<div class="form-check form-check-custom form-check-solid me-4">
+													<input type="checkbox" class="form-check-input marketing-user-check" name="user_ids[]" value="{{ $user->id }}" id="user-{{ $user->id }}">
+													<label class="form-check-label" for="user-{{ $user->id }}"></label>
+												</div>
+												<div class="symbol symbol-45px me-4">
+													@if($user->image)
+														<img src="{{ getUploadedUrl($user->image) }}" alt="{{ $user->name }}">
+													@else
+														<span class="symbol-label bg-primary text-inverse-primary fw-bold">{{ strtoupper(substr($user->name ?? '?', 0, 1)) }}</span>
+													@endif
+												</div>
+												<div class="flex-grow-1 min-w-0">
+													<span class="fw-bold text-gray-800 d-block">{{ $user->name ?? '-' }}</span>
+													<div class="text-muted fs-7">
+														@if(!empty(trim((string)($user->email ?? ''))))
+															<span class="d-block">{{ $user->email }}</span>
+														@endif
+														@if(!empty(trim((string)($user->phone ?? ''))))
+															<span class="d-block">{{ $user->phone }}</span>
+														@endif
+														@if(empty(trim((string)($user->email ?? ''))) && empty(trim((string)($user->phone ?? ''))))
+															<span class="d-block">-</span>
+														@endif
+													</div>
+													@if(!empty(trim((string)$paxType)) || !empty(trim((string)$gender)) || $ageStr !== null || !empty(trim((string)$nationality)))
+														<div class="text-muted fs-8 mt-0">
+															@if(!empty(trim((string)$paxType)))
+																<span>{{ $paxType }}</span>
+															@endif
+															@if(!empty(trim((string)$gender)))
+																@if(!empty(trim((string)$paxType)))<span class="mx-1">•</span>@endif
+																<span>{{ $gender }}</span>
+															@endif
+															@if($ageStr !== null)
+																@if(!empty(trim((string)$paxType)) || !empty(trim((string)$gender)))<span class="mx-1">•</span>@endif
+																<span>(Age: {{ $ageStr }})</span>
+															@endif
+															@if(!empty(trim((string)$nationality)))
+																@if(!empty(trim((string)$paxType)) || !empty(trim((string)$gender)) || $ageStr !== null)<span class="mx-1">•</span>@endif
+																<span>{{ $nationality }}</span>
+															@endif
+														</div>
+													@endif
+													@if(!empty($user->employee_uid))
+														<span class="badge badge-light-primary ms-1">{{ $user->employee_uid }}</span>
+													@endif
+												</div>
 											</div>
-										@endif
-										@if(!empty($user->employee_uid))
-											<span class="badge badge-light-primary ms-1">{{ $user->employee_uid }}</span>
-										@endif
+										@empty
+											<div class="p-5 text-center text-muted">
+												{{ $getCurrentTranslation['no_users_available'] ?? 'No users available' }}
+											</div>
+										@endforelse
+										<div class="p-5 text-center text-muted marketing-no-results" style="display: none;">
+											{{ $getCurrentTranslation['no_matching_recipients'] ?? 'No matching recipients' }}
+										</div>
 									</div>
 								</div>
-							@empty
-								<div class="p-5 text-center text-muted">
-									{{ $getCurrentTranslation['no_users_available'] ?? 'No users available' }}
-								</div>
-							@endforelse
-							<div class="p-5 text-center text-muted marketing-no-results" style="display: none;">
-								{{ $getCurrentTranslation['no_matching_recipients'] ?? 'No matching recipients' }}
 							</div>
 						</div>
 					</div>
@@ -200,174 +241,172 @@
 
 @push('script')
 @include('common._partials.formScripts')
+<link rel="stylesheet" href="{{ asset('assets/plugins/custom/ion-rangeslider/ion.rangeSlider.min.css') }}"/>
+<script src="{{ asset('assets/plugins/custom/ion-rangeslider/ion.rangeSlider.min.js') }}"></script>
+<style>
+	.marketing-recipient-row.marketing-hidden {
+		display: none !important;
+	}
+</style>
 <script>
-	(function() {
-		// Event delegation: work with form when it exists (handles dynamic content / load order)
-		function getFormFromSearchInput(input) {
-			if (!input || input.id !== 'marketing-recipient-search') return null;
-			var form = input.closest ? input.closest('form') : null;
-			if (!form) form = document.getElementById('marketing-form');
-			return form && form.id === 'marketing-form' ? form : null;
+	(function($) {
+		var ageFilter = {
+			min: 0,
+			max: 100,
+			from: 0,
+			to: 100
+		};
+
+		function getForm() {
+			return $('#marketing-form');
 		}
 
-		function updateCheckAllState(form) {
-			if (!form) return;
-			var visibleRows = form.querySelectorAll('.marketing-recipient-row');
-			var visibleCount = 0, visibleChecked = 0;
-			for (var i = 0; i < visibleRows.length; i++) {
-				var row = visibleRows[i];
-				if (row.style.display !== 'none') {
-					visibleCount++;
-					var cb = row.querySelector('.marketing-user-check');
-					if (cb && cb.checked) visibleChecked++;
+		function updateCheckAllState() {
+			var $form = getForm();
+			if (!$form.length) return;
+			var $visibleRows = $form.find('.marketing-recipient-row:visible');
+			var visibleCount = $visibleRows.length;
+			var checkedCount = $visibleRows.find('.marketing-user-check:checked').length;
+			$form.find('#marketing-check-all').prop('checked', visibleCount > 0 && visibleCount === checkedCount);
+		}
+
+		function clearAllSelections() {
+			var $form = getForm();
+			if (!$form.length) return;
+			$form.find('.marketing-user-check').prop('checked', false);
+			$form.find('#marketing-check-all').prop('checked', false);
+		}
+
+		function updateAgeLabel() {
+			$('#marketing-age-range-label').text(ageFilter.from + ' - ' + ageFilter.to);
+		}
+
+		function initAgeRangeSlider() {
+			var $slider = $('#marketing-age-range');
+			if (!$slider.length || !$.fn.ionRangeSlider) return;
+
+			$slider.ionRangeSlider({
+				type: 'double',
+				min: ageFilter.min,
+				max: ageFilter.max,
+				from: ageFilter.from,
+				to: ageFilter.to,
+				grid: true,
+				skin: 'round',
+				onStart: function(data) {
+					ageFilter.from = data.from;
+					ageFilter.to = data.to;
+					updateAgeLabel();
+				},
+				onChange: function(data) {
+					ageFilter.from = data.from;
+					ageFilter.to = data.to;
+					updateAgeLabel();
+					clearAllSelections();
+					applyMarketingFilters();
 				}
-			}
-			var checkAll = form.querySelector('#marketing-check-all');
-			if (checkAll) checkAll.checked = visibleCount > 0 && visibleCount === visibleChecked;
+			});
 		}
 
-		function doFilter(searchInput) {
-			var form = getFormFromSearchInput(searchInput);
-			if (!form) return;
-			var term = (searchInput.value || '').toLowerCase().replace(/\s+/g, ' ').trim();
-			var listEl = form.querySelector('.marketing-user-list');
-			var rows = form.querySelectorAll('.marketing-recipient-row');
+		function applyMarketingFilters() {
+			var $form = getForm();
+			if (!$form.length) return;
+
+			var searchTerm = ($form.find('#marketing-recipient-search').val() || '').toLowerCase().replace(/\s+/g, ' ').trim();
+			var isAgeFilterActive = ageFilter.from !== ageFilter.min || ageFilter.to !== ageFilter.max;
+			var selectedGenders = [];
+			$form.find('.marketing-filter-gender:checked').each(function() {
+				selectedGenders.push(String($(this).val() || '').toLowerCase());
+			});
+			var $rows = $form.find('.marketing-recipient-row');
 			var visibleCount = 0;
-			// Build list of all rows with match flag and score (for ordering)
-			var list = [];
-			for (var i = 0; i < rows.length; i++) {
-				var row = rows[i];
-				var searchAttr = row.getAttribute('data-search') || '';
-				var searchText = (searchAttr && searchAttr.toLowerCase) ? searchAttr.toLowerCase() : '';
-				var match = !term || (searchText && searchText.indexOf(term) !== -1);
-				if (match) {
-					row.style.removeProperty('display');
-				} else {
-					row.style.display = 'none';
-				}
-				if (match) visibleCount++;
-				var originalIndex = parseInt(row.getAttribute('data-original-index'), 10);
-				if (isNaN(originalIndex)) originalIndex = i;
-				var pos = term && searchText ? searchText.indexOf(term) : 0;
-				var score = term ? (100000 - Math.min(pos, 99999)) * 1000 + (1000 - originalIndex) : originalIndex;
-				list.push({ row: row, score: score, match: match, originalIndex: originalIndex });
-			}
-			// Sort: when searching, matching rows first (by relevance), then non-matching (by original index). When empty, original order.
-			if (term) {
-				list.sort(function(a, b) {
-					if (a.match && !b.match) return -1;
-					if (!a.match && b.match) return 1;
-					if (a.match && b.match) return b.score - a.score;
-					return a.originalIndex - b.originalIndex;
-				});
+			$rows.each(function() {
+				var $row = $(this);
+				var searchText = String($row.attr('data-search') || '').toLowerCase();
+				var rowGender = String($row.attr('data-gender') || '').toLowerCase();
+				var rowAge = parseInt($row.attr('data-age'), 10);
+
+				var searchMatch = !searchTerm || searchText.indexOf(searchTerm) !== -1;
+				var genderMatch = !selectedGenders.length || selectedGenders.indexOf(rowGender) !== -1;
+				var ageMatch = !isAgeFilterActive || (!isNaN(rowAge) && rowAge >= ageFilter.from && rowAge <= ageFilter.to);
+				var isVisible = searchMatch && genderMatch && ageMatch;
+
+				$row.toggleClass('marketing-hidden', !isVisible);
+				if (isVisible) visibleCount++;
+			});
+
+			$form.find('.marketing-no-results').toggle(visibleCount === 0 && $rows.length > 0);
+
+			var $hint = $form.find('#marketing-search-hint');
+			if ($rows.length === 0) {
+				$hint.hide();
+			} else if (searchTerm || selectedGenders.length || isAgeFilterActive) {
+				var noMatch = $hint.data('no-match') || 'No matching recipients';
+				var oneMatch = $hint.data('one-match') || '1 matching recipient';
+				var matches = $hint.data('matches') || 'matching recipients';
+				$hint.text(visibleCount === 0 ? noMatch : (visibleCount === 1 ? oneMatch : visibleCount + ' ' + matches)).show();
 			} else {
-				list.sort(function(a, b) { return a.originalIndex - b.originalIndex; });
+				$hint.hide();
 			}
-			// Reorder DOM: matching rows first (visible at top), then non-matching, then no-results
-			var noResults = form.querySelector('.marketing-no-results');
-			if (listEl) {
-				for (var j = 0; j < list.length; j++) {
-					listEl.appendChild(list[j].row);
-				}
-				if (noResults && noResults.parentNode === listEl) {
-					listEl.appendChild(noResults);
-				}
-			}
-			if (noResults) noResults.style.display = (visibleCount === 0 && rows.length > 0) ? 'block' : 'none';
-			updateCheckAllState(form);
-			// Smooth scroll list to top on search so matched results are in view
-			if (listEl && term) {
-				listEl.scrollTo({ top: 0, behavior: 'smooth' });
-			}
-			// Show search suggestion / hint
-			var hint = form.querySelector('#marketing-search-hint');
-			if (hint) {
-				if (rows.length === 0) {
-					hint.style.display = 'none';
-				} else if (term) {
-					hint.style.display = 'block';
-					var noMatch = hint.getAttribute('data-no-match') || 'No matching recipients';
-					var oneMatch = hint.getAttribute('data-one-match') || '1 matching recipient';
-					var matches = hint.getAttribute('data-matches') || 'matching recipients';
-					hint.textContent = visibleCount === 0 ? noMatch : (visibleCount === 1 ? oneMatch : visibleCount + ' ' + matches);
-				} else {
-					hint.style.display = 'none';
-				}
-			}
+
+			updateCheckAllState();
 		}
 
-		// Search: delegate to document so it fires whenever user types (input exists)
-		function onSearchInput(e) {
-			var input = e.target;
-			if (input.id === 'marketing-recipient-search') doFilter(input);
-		}
-		document.addEventListener('input', onSearchInput, true);
-		document.addEventListener('keyup', onSearchInput, true);
+		$(document).on('input keyup', '#marketing-recipient-search', function() {
+			clearAllSelections();
+			applyMarketingFilters();
+		});
+		$(document).on('change', '.marketing-filter-gender', function() {
+			clearAllSelections();
+			applyMarketingFilters();
+		});
+		$(document).on('click', '#marketing-filter-reset', function() {
+			var $form = getForm();
+			$form.find('#marketing-recipient-search').val('');
+			$form.find('.marketing-filter-gender').prop('checked', false);
 
-		// Full row click toggles checkbox (except when clicking the checkbox itself)
-		document.addEventListener('click', function(e) {
-			var row = e.target.closest && e.target.closest('.marketing-recipient-row');
-			if (!row) return;
-			if (e.target.closest('.marketing-user-check') || e.target.classList.contains('marketing-user-check')) return;
+			var ageSlider = $('#marketing-age-range').data('ionRangeSlider');
+			if (ageSlider) {
+				ageSlider.update({ from: ageFilter.min, to: ageFilter.max });
+			}
+			ageFilter.from = ageFilter.min;
+			ageFilter.to = ageFilter.max;
+			updateAgeLabel();
+
+			clearAllSelections();
+			applyMarketingFilters();
+		});
+
+		$(document).on('click', '.marketing-recipient-row', function(e) {
+			if ($(e.target).closest('.marketing-user-check').length) return;
 			e.preventDefault();
-			var cb = row.querySelector('.marketing-user-check');
-			if (cb) {
-				cb.checked = !cb.checked;
-				var form = document.getElementById('marketing-form');
-				if (form) updateCheckAllState(form);
-			}
-		}, true);
+			var $cb = $(this).find('.marketing-user-check').first();
+			$cb.prop('checked', !$cb.prop('checked'));
+			updateCheckAllState();
+		});
 
-		// Check-all and user-check: delegate from document
-		document.addEventListener('change', function(e) {
-			var form = document.getElementById('marketing-form');
-			if (!form) return;
-			if (e.target.id === 'marketing-check-all') {
-				var visible = form.querySelectorAll('.marketing-recipient-row');
-				for (var i = 0; i < visible.length; i++) {
-					if (visible[i].style.display !== 'none') {
-						var cb = visible[i].querySelector('.marketing-user-check');
-						if (cb) cb.checked = e.target.checked;
-					}
-				}
-				return;
-			}
-			if (e.target.classList && e.target.classList.contains('marketing-user-check')) {
-				updateCheckAllState(form);
-			}
-		}, true);
+		$(document).on('change', '#marketing-check-all', function() {
+			var checked = $(this).is(':checked');
+			$('#marketing-form .marketing-recipient-row:visible .marketing-user-check').prop('checked', checked);
+		});
 
-		// Form submit validation
-		document.addEventListener('submit', function(e) {
-			if (e.target.id !== 'marketing-form') return;
-			var checked = e.target.querySelectorAll('.marketing-user-check:checked');
-			if (checked.length === 0) {
+		$(document).on('change', '.marketing-user-check', updateCheckAllState);
+
+		$(document).on('submit', '#marketing-form', function(e) {
+			var checkedCount = $(this).find('.marketing-user-check:checked').length;
+			if (checkedCount === 0) {
 				e.preventDefault();
 				var msg = '{{ $getCurrentTranslation["at_least_one_recipient_required"] ?? "At least one recipient should be selected." }}';
 				if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: msg });
 				else alert(msg);
 				return false;
 			}
-		}, true);
+		});
 
-		// Run filter once on load; show suggestion when user focuses search
-		function onFocus() { doFilter(this); }
-		function initWhenReady() {
-			var input = document.getElementById('marketing-recipient-search');
-			if (input && getFormFromSearchInput(input)) {
-				doFilter(input);
-				if (!input._marketingSearchBound) {
-					input._marketingSearchBound = true;
-					input.addEventListener('focus', onFocus);
-				}
-			}
-		}
-		if (document.readyState === 'loading') {
-			document.addEventListener('DOMContentLoaded', initWhenReady);
-		} else {
-			initWhenReady();
-		}
-		setTimeout(initWhenReady, 500);
-	})();
+		$(function() {
+			initAgeRangeSlider();
+			applyMarketingFilters();
+		});
+	})(jQuery);
 </script>
 @endpush

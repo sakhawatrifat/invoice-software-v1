@@ -166,7 +166,26 @@
                   {{ $getCurrentTranslation['flight'] ?? 'flight' }} {{ $key+1 }}
                </th> --}}
                <th colspan="2" style="width: 230px; text-align: left; font-size: 14px; background-color: #286754; color: #fcfffe; font-weight: bold;padding: 5px 10px;">
-                  Flight {{ $key+1 }} • {{ $flight->flight_number }} • {{ extractPrimaryCity($flight->leaving_from) }} to {{ extractPrimaryCity($flight->going_to) }}
+                  @php
+                     $headerDestination = $flight->going_to;
+                     $segmentLabel = '';
+                     if (!empty($flight->transits) && count($flight->transits) > 0) {
+                        $lastTransit = collect($flight->transits)->last();
+                        $headerDestination = $lastTransit->going_to ?? $flight->going_to;
+                     }
+                     if (($editData->trip_type ?? '') === 'Round Trip') {
+                        if ($loop->first) {
+                           $segmentLabel = 'Departure';
+                        } elseif ($loop->last) {
+                           $segmentLabel = 'Return';
+                        }
+                     }
+                  @endphp
+                  {{-- Flight {{ $key+1 }} • {{ $flight->flight_number }} •  --}}
+                  @if(!empty($segmentLabel))
+                     {{ $segmentLabel }} - 
+                  @endif
+                  {{ extractPrimaryCity($flight->leaving_from) }} to {{ extractPrimaryCity($headerDestination) }}
                </th>
                {{-- <th style="text-align: left; font-size: 14px; color: #32323b; font-weight: bold;padding: 15px 10px;">
                   {{ \Carbon\Carbon::parse($flight->departure_date_time)->format('d M, Y') }}

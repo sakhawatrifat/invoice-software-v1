@@ -1,7 +1,8 @@
 @php
     $layout = Auth::user()->user_type == 'admin' ? 'admin.layouts.default' : 'frontend.layouts.default';
+    $upcomingFlightCheckDays = max(1, (int) ($upcomingFlightCheckDays ?? config('services.flightapi.upcoming_flight_check_days', 2)));
     $upcomingFlightStart = \Carbon\Carbon::today()->format('Y/m/d');
-    $upcomingFlightEnd = \Carbon\Carbon::today()->addDays(30)->format('Y/m/d');
+    $upcomingFlightEnd = \Carbon\Carbon::today()->addDays($upcomingFlightCheckDays)->format('Y/m/d');
     $upcomingFlightDateRange = $upcomingFlightStart . '-' . $upcomingFlightEnd;
 @endphp
 
@@ -35,6 +36,14 @@
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     {{ session('success') }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            @endif
+            @if(!empty($flightApiBulkPaused))
+                <div class="alert alert-warning mt-4" role="status">
+                    <strong>{{ $getCurrentTranslation['flight_api_bulk_paused_hint'] ?? 'Further automatic checks are paused briefly to protect your API credits after a provider error. Run Check all or Retry again after fixing the issue.' }}</strong>
+                    @if(!empty($flightApiBulkPauseMessage))
+                        <div class="small text-muted mt-2 mb-0">{{ $flightApiBulkPauseMessage }}</div>
+                    @endif
                 </div>
             @endif
 
@@ -97,7 +106,7 @@
                                             $flightStatusMailCount = (int)($row->flight_status_mail_count ?? 0);
                                             $flightStatusMailCountLabel = $getCurrentTranslation['flight_status_mail_count'] ?? 'Flight status mail count';
                                         @endphp
-                                        <tr>
+                                        <tr data-payment-id="{{ $row->id }}">
                                             <td>{{ $index + 1 }}</td>
                                             <td>
                                                 <div style="max-width: 280px; line-height: 1.6; text-align: left;">
@@ -114,16 +123,33 @@
                                                     <strong>{{ $flightStatusMailCountLabel }}:</strong> <span class="badge badge-info">{{ $flightStatusMailCount }}</span>
                                                 </div>
                                             </td>
-                                            <td>
-                                                @if($item['has_cancelled'])
-                                                    <span class="badge bg-danger me-1">{{ $getCurrentTranslation['flight_cancelled'] ?? 'Flight cancelled' }}</span>
-                                                @endif
-                                                @if($item['has_schedule_changed'])
-                                                    <span class="badge bg-warning text-dark">{{ $getCurrentTranslation['schedule_changed'] ?? 'Schedule changed' }}</span>
+                                            <td class="changed-cancelled-status-cell">
+                                                @if(!empty($item['check_failed']))
+                                                    <span class="badge bg-secondary">{{ $getCurrentTranslation['checking_failed'] ?? 'Checking failed' }}</span>
+                                                @elseif(!empty($item['live_unavailable']))
+                                                    <span class="badge bg-secondary">{{ $getCurrentTranslation['live_status_data_unavailable'] ?? 'Live Status Data Unavailable' }}</span>
+                                                @else
+                                                    @if(!empty($item['has_cancelled']))
+                                                        <span class="badge bg-danger me-1">{{ $getCurrentTranslation['cancelled'] ?? 'Cancelled' }}</span>
+                                                    @endif
+                                                    @if(!empty($item['has_schedule_changed']))
+                                                        <span class="badge bg-warning text-dark">{{ $getCurrentTranslation['schedule_changed'] ?? 'Schedule changed' }}</span>
+                                                    @endif
+                                                    @if(empty($item['has_cancelled']) && empty($item['has_schedule_changed']))
+                                                        <span class="badge bg-success">{{ $getCurrentTranslation['no_changes'] ?? 'No changes' }}</span>
+                                                    @endif
                                                 @endif
                                             </td>
                                             <td>
+                                                @if(!empty($item['check_failed']))
+                                                    <button type="button" class="btn btn-sm btn-outline-primary my-1 btn-retry-flight-check" data-payment-id="{{ $row->id }}" title="{{ $getCurrentTranslation['retry_flight_check'] ?? 'Retry check' }}">
+                                                        <i class="fa-solid fa-rotate-right"></i> {{ $getCurrentTranslation['retry_flight_check'] ?? 'Retry' }}
+                                                    </button>
+                                                @endif
                                                 @if(($row->ticket->document_type ?? '') === 'ticket' && hasPermission('payment.flight_status'))
+                                                    <button type="button" class="btn btn-sm btn-warning my-1 btn-recheck-flight-check" data-payment-id="{{ $row->id }}" title="{{ $getCurrentTranslation['recheck_flight_status_data'] ?? 'Re-check flight status data' }}">
+                                                        <i class="fa-solid fa-arrows-rotate"></i> {{ $getCurrentTranslation['recheck'] ?? 'Re-check' }}
+                                                    </button>
                                                     <a href="{{ route('payment.flight.status', $row->id) }}" class="btn btn-sm btn-success my-1" title="{{ $getCurrentTranslation['check_flight_status'] ?? 'Check Flight Status' }}">
                                                         <i class="fa-solid fa-plane-departure"></i>
                                                     </a>
@@ -155,6 +181,7 @@ $(function() {
     var checkUrl = '{{ route('flight.changedCancelled.check') }}';
     var stopUrl = '{{ route('flight.changedCancelled.stop') }}';
     var statusUrl = '{{ route('flight.changedCancelled.status') }}';
+    var retryUrl = '{{ route('flight.changedCancelled.retry') }}';
     var csrfToken = $('meta[name="csrf-token"]').attr('content') || '{{ csrf_token() }}';
     var pollInterval = null;
     var beforeUnloadHandler = function(e) {
@@ -218,7 +245,7 @@ $(function() {
             url: checkUrl,
             method: 'POST',
             data: { _token: csrfToken },
-            timeout: 30000,
+            timeout: 600000,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
@@ -244,6 +271,83 @@ $(function() {
                 if (xhr && xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
                 else if (xhr && xhr.status === 419) msg = '{{ $getCurrentTranslation['session_expired_reload'] ?? 'Session expired. Please reload the page and try again.' }}';
                 else if (xhr && xhr.status === 403) msg = '{{ $getCurrentTranslation['permission_denied'] ?? 'Permission denied.' }}';
+                if (typeof toastr !== 'undefined') toastr.error(msg); else alert(msg);
+            }
+        });
+    });
+
+    $(document).on('click', '.btn-retry-flight-check', function() {
+        var $btn = $(this);
+        var paymentId = $btn.data('payment-id');
+        if (!paymentId) return;
+        $btn.prop('disabled', true);
+        var $icon = $btn.find('i');
+        $icon.addClass('fa-spin');
+        $.ajax({
+            url: retryUrl,
+            method: 'POST',
+            data: { _token: csrfToken, payment_id: paymentId },
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            success: function(res) {
+                if (res && res.is_success) {
+                    if (typeof toastr !== 'undefined') {
+                        if (res.check_failed) toastr.warning(res.message || ''); else toastr.success(res.message || '');
+                    }
+                    window.location.reload();
+                } else {
+                    $btn.prop('disabled', false);
+                    $icon.removeClass('fa-spin');
+                    var msg = (res && res.message) ? res.message : '{{ $getCurrentTranslation['something_went_wrong'] ?? 'Something went wrong.' }}';
+                    if (typeof toastr !== 'undefined') toastr.error(msg); else alert(msg);
+                }
+            },
+            error: function(xhr) {
+                $btn.prop('disabled', false);
+                $icon.removeClass('fa-spin');
+                var msg = '{{ $getCurrentTranslation['something_went_wrong'] ?? 'Something went wrong.' }}';
+                if (xhr && xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                else if (xhr && xhr.status === 419) msg = '{{ $getCurrentTranslation['session_expired_reload'] ?? 'Session expired. Please reload the page and try again.' }}';
+                if (typeof toastr !== 'undefined') toastr.error(msg); else alert(msg);
+            }
+        });
+    });
+
+    $(document).on('click', '.btn-recheck-flight-check', function() {
+        var $btn = $(this);
+        var paymentId = $btn.data('payment-id');
+        if (!paymentId) return;
+        $btn.prop('disabled', true);
+        if (typeof $ !== 'undefined' && $.fn) {
+            $('.r-preloader').css('display', 'flex').show();
+        }
+        var $icon = $btn.find('i');
+        $icon.addClass('fa-spin');
+        $.ajax({
+            url: retryUrl,
+            method: 'POST',
+            data: { _token: csrfToken, payment_id: paymentId },
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            success: function(res) {
+                if (typeof $ !== 'undefined' && $.fn) $('.r-preloader').hide();
+                if (res && res.is_success) {
+                    if (typeof toastr !== 'undefined') {
+                        if (res.check_failed) toastr.warning(res.message || ''); else toastr.success(res.message || '');
+                    }
+                    window.location.reload();
+                } else {
+                    $btn.prop('disabled', false);
+                    $icon.removeClass('fa-spin');
+                    var msg = (res && res.message) ? res.message : '{{ $getCurrentTranslation['something_went_wrong'] ?? 'Something went wrong.' }}';
+                    if (typeof toastr !== 'undefined') toastr.error(msg); else alert(msg);
+                }
+            },
+            error: function(xhr) {
+                if (typeof $ !== 'undefined' && $.fn) $('.r-preloader').hide();
+                $btn.prop('disabled', false);
+                $icon.removeClass('fa-spin');
+                var msg = '{{ $getCurrentTranslation['something_went_wrong'] ?? 'Something went wrong.' }}';
+                if (xhr && xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                else if (xhr && xhr.status === 419) msg = '{{ $getCurrentTranslation['session_expired_reload'] ?? 'Session expired. Please reload the page and try again.' }}';
                 if (typeof toastr !== 'undefined') toastr.error(msg); else alert(msg);
             }
         });
